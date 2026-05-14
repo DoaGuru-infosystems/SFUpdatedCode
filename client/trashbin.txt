@@ -1,0 +1,578 @@
+getMonthlyAttendance
+ 
+// IMPORTANT
+ 
+
+      // Create file download
+ 
+ cleanup
+ 
+/ empty if no data
+ 
+ <button>Export</button>
+ 
+ file
+ 
+      // append text fields
+ 
+// text fields
+ 
+{}
+ 
+ // Search match (name, email, mobile)
+ 
+ <div className="Select-table-row mb-0.5 flex items-center gap-2 px-4">
+                <span className="text-xs">Select Page</span>
+
+                <select
+                  name="rowsPerPage"
+                  id="rowsPerPage"
+                  className="text-xs rounded border px-2 py-1"
+                  onChange={(e) => handleRowsPerPage(e, setRowsPerPagetask)}
+                  value={rowsPerPagetask}
+                >
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between px-4 py-2">
+                {/* Search */}
+                <input
+                  type="text"
+                  placeholder="Search by name, email, mobile..."
+                  className="border px-3 py-1 rounded text-sm w-1/3"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+
+                {/* Status Filter */}
+                <select
+                  className="border px-3 py-1 rounded text-sm"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+ 
+ <div className=" Select-table-row mb-0.5">
+                <span className="text-xs">Select Page </span>
+                <select
+                  name="rowsPerPage"
+                  id="rowsPerPage"
+                  className="text-xs rounded border-1 "
+                  onChange={(e) => handleRowsPerPage(e, setRowsPerPagetask)}
+                  value={rowsPerPagetask}
+                >
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2">
+                {/* Search */}
+                <input
+                  type="text"
+                  placeholder="Search by name, email, mobile..."
+                  className="border px-3 py-1 rounded w-1/3 text-sm"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+
+                {/* Status Filter */}
+                <select
+                  className="border px-3 py-1 rounded text-sm"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+ 
+option value="5">5</option>
+ 
+task
+ 
+
+    // Mobile number validation
+ 
+      // Sirf digits allow
+ 
+      // Max length 10
+ 
+{/* <input
+                  name="employment_status"
+                  value={formData.employment_status || ""}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-lg"
+                /> */}
+ 
+name="" id=""
+ 
+{/* <input
+                  name="department"
+                  value={formData.department || ""}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-lg"
+                /> */}
+ 
+name=""
+ 
+id=""
+ 
+  // Row per page state
+ 
+ <div className="lg:col-span-4 bg-white p-6 shadow-2xl rounded-xl border border-gray-100 backdrop-blur-xl">
+            <div className="flex justify-between">
+              <button
+                onClick={downloadExcel}
+                className="mb-4 ml-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mt-4 flex items-center gap-2"
+              >
+                <FaDownload />
+                Download Attendance Report
+              </button>
+              <button
+                onClick={() => calculateSalary()}
+                className="mb-4 ml-2 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 font-bold mt-4 flex items-center gap-2"
+              >
+                <FaRupeeSign />
+                Calculate Salary
+              </button>
+              {result && (
+                <>
+                  <div className="p-6 bg-white shadow rounded w-full max-w-xl mx-auto mt-10">
+                    <h2 className="text-xl font-semibold mb-4 text-center">
+                      {attendData[0]?.full_name}'s Salary Summary
+                    </h2>
+                    <ul className="space-y-4">
+                      <h2 className="font-bold">Holidays Details</h2>
+                      {holidays?.map((item) => (
+                        <li
+                          key={item.id}
+                          className="p-4 rounded-xl shadow-md bg-white border border-gray-100 hover:shadow-lg transition-all"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <p className="text-sm text-gray-500 font-medium">
+                                📅 {item?.holiday_date}
+                              </p>
+                              <h2 className="text-lg font-semibold text-gray-800">
+                                {item?.holiday_title}
+                              </h2>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <ul className="space-y-2 text-gray-700">
+                      <li>
+                        💰 Current Salary: ₹{salaryData[0]?.salary_amount}
+                      </li>
+                      <li>🗓️ Days in Month: {result.totalDaysInMonth}</li>
+                      <li>💰 Daily Salary: ₹{result.dailySalary}</li>
+                      <li>
+                        ✅ Total working Days: (Full Days: {result.fullDays},
+                        Half Days: {result.halfDays}){" "}
+                      </li>
+
+                      <li>☀️ Sundays in Month: {result.totalSundays}</li>
+                      <li>
+                        👨‍💻 Worked on Sundays: (Full: {result.workedSundaysFull},
+                        Half: {result.workedSundaysHalf})
+                      </li>
+                      <li>🏖️ Paid Leaves: {result.paidLeaves}</li>
+                      <li>🧮 Total Working Day Payout: ₹{result.basePay}</li>
+                      <li>➕ Sunday Extra Pay: ₹{result.sundayExtraPay}</li>
+                      <li>➕ Paid Leave Pay: ₹{result.paidLeaveAmount}</li>
+                      <li>
+                        💰 Total Payable Days:
+                        {result.paidLeaves +
+                          result.totalSundays +
+                          result.fullDays +
+                          result.halfDays}
+                      </li>
+                      <li>
+                        💰 Total Leave/Absent Days:
+                        {result.totalDaysInMonth -
+                          (result.paidLeaves +
+                            result.totalSundays +
+                            result.fullDays +
+                            result.halfDays +
+                            result.totalPaidHolidays)}
+                      </li>
+                      <li>
+                        ☀️ Total Paid Holidays: {result?.totalPaidHolidays}
+                      </li>
+                      <li className="font-bold text-green-600">
+                        🧾 Final Salary: ₹{result.totalSalary}
+                      </li>
+                    </ul>
+                    <p className="mt-4 text-sky-600">
+                      <span className="font-bold text-gray-900">Note:</span>{" "}
+                      {result?.note}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+ 
+holidays?.length
+ 
+{
+          month: 10,
+          year: 2025,
+        }
+ 
+
+import { FcApprove, FcDisapprove } from "react-icons/fc";
+ 
+
+import AdminLeaveReverseModal from "./AdminLeaveReverseModal";
+ 
+  <li>👨‍💻 Worked on Sundays </li>
+ 
+<li>⏳ </li>
+ 
+result.totalDaysInMonth
+ 
+ {/* <th className="border px-4 py-2 whitespace-nowrap">
+                  Login Latitude
+                </th>
+                <th className="border px-4 py-2 whitespace-nowrap">
+                  Login Longitude
+                </th> */}
+ 
+ {/* <th className="border px-4 py-2 whitespace-nowrap">
+                  Logout Latitude
+                </th>
+                <th className="border px-4 py-2 whitespace-nowrap">
+                  Logout Longitude
+                </th> */}
+ 
+{/* <td className="border px-4 py-2">
+                        {row.logout_latitude}
+                      </td>
+                      <td className="border px-4 py-2">
+                        {row.logout_longitude}
+                      </td> */}
+ 
+ {/* <td className="border px-4 py-2">{row.login_latitude}</td>
+                      <td className="border px-4 py-2">
+                        {row.login_longitude}
+                      </td> */}
+ 
+   <br />
+ 
+ <td className="border px-4 py-2">{row.user_id}</td>
+ 
+<th className="border px-4 py-2 whitespace-nowrap">User ID</th>
+ 
+/ Optional: use from state if applicable
+ 
+
+    onClose();
+ 
+  console.log("handle");
+ 
+ onUpdate(formData);
+ 
+onUpdate
+ 
+onUpdate={(updatedData) => console.log("Updated:", updatedData)}
+ 
+ {/* Profile Score + Profile Card SIDE BY SIDE */}
+      <motion.div
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-10"
+      >
+        {/* Profile Card */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="bg-white p-6 rounded-2xl shadow-xl"
+        >
+          <p className="text-gray-600 font-semibold mb-3">Profile Image</p>
+
+          <motion.img
+            src={employee?.profileIMG}
+            alt="Profile"
+            className="w-full h-60 object-cover rounded-xl shadow-md"
+            whileHover={{ scale: 1.02 }}
+          />
+          <p className="font-semibold text-gray-700 mb-2 mt-2">
+            Profile Completion: {profileScore}%
+          </p>
+
+          <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${profileScore}%` }}
+              transition={{ duration: 0.8 }}
+              className={`h-3 rounded-full ${
+                profileScore === 100 ? "bg-green-500" : "bg-blue-600"
+              }`}
+            ></motion.div>
+          </div>
+
+          {profileScore === 100 && (
+            <p className="text-green-600 font-semibold mt-2">
+              🎉 Profile Completed!
+            </p>
+          )}
+        </motion.div>
+      </motion.div>
+ 
+ {/* Profile Completion Box */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="bg-white p-5 rounded-2xl shadow-md"
+        ></motion.div>
+ 
+ <motion.div
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
+        className="max-w-xl mx-auto bg-white p-5 rounded-2xl shadow-md mb-10"
+      >
+        <p className="font-semibold text-gray-700 mb-2">
+          Profile Completion: {profileScore}%
+        </p>
+
+        <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${profileScore}%` }}
+            transition={{ duration: 0.8 }}
+            className={`h-3 rounded-full ${
+              profileScore === 100 ? "bg-green-500" : "bg-blue-600"
+            }`}
+          ></motion.div>
+        </div>
+
+        {profileScore === 100 && (
+          <p className="text-green-600 font-semibold mt-2">
+            🎉 Profile Completed!
+          </p>
+        )}
+      </motion.div>
+
+      {/* Profile Card */}
+      <motion.div
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
+        className="bg-white p-6 rounded-2xl shadow-xl max-w-xl mx-auto mb-10"
+      >
+        <p className="text-gray-600 font-semibold mb-3">Profile Image</p>
+
+        <motion.img
+          src={employee?.profileIMG}
+          alt="Profile"
+          className="w-full h-60 object-cover rounded-xl shadow-md"
+          whileHover={{ scale: 1.02 }}
+        />
+      </motion.div>
+ 
+tricity Bil
+ 
+evious employer
+ 
+E-bill IVRS
+ 
+ {/* Profile Image */}
+ 
+{employee?.profileIMG && (
+           
+          )}
+ 
+aduation Marksheets
+ 
+ {employee?.graduation_degree_marksheets && (
+            
+          )}
+ 
+ {employee?.salary_slips && (
+           
+          )}
+ 
+{employee?.previous_company_relieving_letter && (
+           
+          )}
+ 
+ <div className="bg-white p-4 rounded-xl shadow">
+            <p className="text-gray-500 text-sm">Role</p>
+            <p className="text-lg font-semibold">{employee?.full_name}</p>
+          </div>
+ 
+l Name
+ 
+empId
+ 
+{ employee }
+ 
+employee }
+ 
+<div>EmployeeDetails</div>;
+ 
+show-register-page
+ 
+  // Find corresponding project details in allProject
+ 
+ on to update state with matchedProjects
+ 
+  console.log(matchedProjects);
+        // Assuming setProjects is a functi
+ 
+          // Find corresponding project details in allProject
+          console.log(allProject);
+ 
+        // const matchedCategory = [];
+        // Loop through each project in particular_project
+ 
+ //  oject IDs
+ 
+of objects with pr
+ 
+Aata is an array
+ 
+ssuming response.d
+ 
+// console.log(allProject);
+ 
+  console.log(response.data);
+ 
+  // fetc and add select filed and category option
+ 
+// Update task date
+ 
+e the calendar date to match th
+ 
+        console.log("Update response:", response.data);
+
+ 
+
+        // Fetch tasks for the updated date
+ 
+
+    // Make sure the date field is properly named for the API
+ 
+
+    // Log the data being sent for debugging
+    console.log("Updating task with data:", updateData);
+    console.log("Current task_date:", updateData.task_date);
+ 
+    // Set shootCount based on subCategory ID
+ 
+
+    // Automatically set counts based on status for update as well
+ 
+    // Create a copy of form data to avoid state mutation
+ 
+
+          // After categories are loaded, fetch subcategories
+ 
+
+    // Fetch categories for the selected project
+ 
+
+    // Set selected project and category
+ 
+
+    // First, fetch the project list to ensure it's loaded
+ 
+
+    console.log("Editing task:", task);
+
+    // Ensure we have a valid date
+ 
+    // Set edit mode
+ 
+    // console.log(selectedDate)
+ 
+// ected date
+ 
+Fetch tasks for the sel
+ 
+// Keep the selected date
+ 
+
+        // Preserve the selected date when resetting the form
+ 
+
+    console.log("Submit Data with calculated counts:", submitData);
+ 
+
+    // Automatically set counts based on status
+ 
+    console.log("Form Data: ", formData);
+
+    // Create a copy of formData to modify
+ 
+
+    // Special handling for date fields to ensure proper format
+ 
+
+  // let department = localStorage.getItem('userdepartment');
+ 
+
+  // const [selfieBlob, setSelfieBlob] = useState(null);
+ 
+
+  // Dropdown List select in task time use state
+ 
+// Defant date
+ 
+ult to curre
+ 
+
+    // OtherGraphicsCount: "", // Removed - now calculated automatically
+ 
+
+    // PostCreativeCount: "", // Removed - now calculated automatically
+    // VideoCount: "", // Removed - now calculated automatically
+ 
+
+//alert toast import
+ 
+
+  // OtherGraphicsCount: "", // Removed - now calculated automatically
+ 
+
+  // PostCreativeCount: "", // Removed - now calculated automatically
+  // VideoCount: "", // Removed - now calculated automatically
+ 
+_amount
+ 
+// Feedback message
+ 
+// oyted
+ 
+ee is being dele
+ 
+Track which empl
+ 
+ader for initial fetch
+ 
+mobile_number
+ 
+id="mobile_number"
+ 
+htmlFor="mobile_number"
+ 
+bile
+ 
