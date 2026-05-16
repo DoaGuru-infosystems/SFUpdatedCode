@@ -1,0 +1,200 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+
+const AdminAssignTaskDevlopment = () => {
+  const [users, setUsers] = useState([]);
+  const [taskDescription, setTaskDescription] = useState('');
+  const [selectedUser, setSelectedUser] = useState('');
+  const [status, setStatus] = useState('Pending');
+  const [taskDate, setTaskDate] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(false);
+  const [assignedTasks, setAssignedTasks] = useState([]);
+
+  useEffect(() => {
+    // Fetch users
+    axios.get('https://sf.doaguru.com/api/users')
+      .then(response => {
+        setUsers(response.data);
+      })
+      .catch(error => {
+        console.error('Error fetching users:', error);
+        toast.error('Failed to load users');
+      });
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!taskDescription || !selectedUser || !status || !taskDate) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await axios.post('https://sf.doaguru.com/api/assign-project-target-development-team', {
+        user_id: selectedUser,
+        user_full_name: users.find(u => u.id == selectedUser)?.full_name || '',
+        ProjectOrClientName: 'Development Task',
+        Category: 'Development',
+        subCategory: 'Task Assignment',
+        TaskDescription: taskDescription,
+        task_date: taskDate
+      });
+
+      toast.success('Task assigned successfully!');
+
+      // Add to assigned tasks list
+      const newTask = {
+        user_name: users.find(u => u.id == selectedUser)?.full_name || '',
+        taskDescription,
+        status,
+        taskDate
+      };
+      setAssignedTasks(prev => [...prev, newTask]);
+
+      // Reset form
+      setTaskDescription('');
+      setSelectedUser('');
+      setStatus('Pending');
+      setTaskDate(new Date().toISOString().split('T')[0]);
+    } catch (error) {
+      console.error('Error assigning task:', error);
+      toast.error('Failed to assign task');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto mt-8 border rounded-xl shadow-xl p-9 border-cyan-600 m-5 min-h-screen">
+      <h2 className="text-2xl font-bold mb-6 text-center">Assign Development Task</h2>
+
+      {/* Form in horizontal layout */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="md:col-span-2">
+          <label htmlFor="taskDescription" className="block text-sm font-medium text-gray-700">Task Details</label>
+          <textarea
+            id="taskDescription"
+            name="taskDescription"
+            value={taskDescription}
+            onChange={(e) => setTaskDescription(e.target.value)}
+            rows="3"
+            className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="Enter task description..."
+          />
+        </div>
+
+        <div>
+          <label htmlFor="user" className="block text-sm font-medium text-gray-700">Select User</label>
+          <select
+            id="user"
+            name="user"
+            value={selectedUser}
+            onChange={(e) => setSelectedUser(e.target.value)}
+            className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          >
+            <option value="">Select User</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>{user.full_name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
+          <select
+            id="status"
+            name="status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          >
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="taskDate" className="block text-sm font-medium text-gray-700">Task Date</label>
+          <input
+            type="date"
+            id="taskDate"
+            name="taskDate"
+            value={taskDate}
+            onChange={(e) => setTaskDate(e.target.value)}
+            className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div className="flex items-end">
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex items-center px-4 py-2 text-base font-medium rounded-md shadow-sm text-black border-2 border-cyan-600 hover:bg-cyan-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 w-full md:w-auto"
+          >
+            {loading ? 'Assigning...' : '+ Assign Task'}
+          </button>
+        </div>
+      </form>
+
+      {/* Table for assigned tasks */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                User
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Task Details
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Date
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {assignedTasks.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
+                  No tasks assigned yet.
+                </td>
+              </tr>
+            ) : (
+              assignedTasks.map((task, index) => (
+                <tr key={index}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {task.user_name}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                    {task.taskDescription}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {task.taskDate}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                      task.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                      {task.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default AdminAssignTaskDevlopment;
