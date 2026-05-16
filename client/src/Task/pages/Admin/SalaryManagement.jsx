@@ -7,6 +7,11 @@ import {
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
+const getTodayLocal = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const SalaryManagement = ({ employeeId, baseSalary }) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -16,7 +21,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
         total_salary: baseSalary || 0,
         amount_paid: '',
         payment_month: '',
-        issue_date: new Date().toISOString().split('T')[0]
+        issue_date: getTodayLocal()
     });
 
     useEffect(() => {
@@ -94,7 +99,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
             total_salary: record.total_salary,
             amount_paid: record.amount_paid,
             payment_month: yyyy_mm,
-            issue_date: new Date(record.issue_date).toISOString().split('T')[0]
+            issue_date: record.issue_date || getTodayLocal()
         });
         setEditModeId(record.payment_id);
         setShowAddForm(true);
@@ -104,7 +109,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
         try {
             const { data } = await axios.put(`https://sf.doaguru.com/api/salary/update/${paymentId}`, {
                 amount_paid: total,
-                remaining_paid_date: new Date().toISOString().split('T')[0]
+                remaining_paid_date: getTodayLocal()
             });
             if (data.success) {
                 toast.success('Balance cleared');
@@ -144,7 +149,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
                         setShowAddForm(nextState);
                         if (!nextState) {
                             setEditModeId(null);
-                            setFormData({ total_salary: baseSalary || 0, amount_paid: '', payment_month: '', issue_date: new Date().toISOString().split('T')[0] });
+                            setFormData({ total_salary: baseSalary || 0, amount_paid: '', payment_month: '', issue_date: getTodayLocal() });
                         }
                     }}
                     className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-4 py-2 rounded-xl transition-all active:scale-95 text-xs shadow-lg shadow-indigo-100"
@@ -253,11 +258,11 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
                                     <td className="py-4">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
-                                                <span className="text-slate-500 font-black uppercase">Issued:</span> {new Date(record.issue_date).toLocaleDateString()}
+                                                <span className="text-slate-500 font-black uppercase">Issued:</span> {record.issue_date ? record.issue_date.split('-').reverse().join('/') : '--'}
                                             </div>
                                             {record.remaining_paid_date && (
                                                 <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500">
-                                                    <span className="text-emerald-600 font-black uppercase">Cleared:</span> {new Date(record.remaining_paid_date).toLocaleDateString()}
+                                                    <span className="text-emerald-600 font-black uppercase">Cleared:</span> {record.remaining_paid_date.split('-').reverse().join('/')}
                                                 </div>
                                             )}
                                         </div>

@@ -61,10 +61,13 @@ const EmployeeAttendReport = () => {
   };
 
   const getAllBackDateReq = async () => {
+    if (!user?.id) return;
     try {
       const { data } = await axios.get(`https://sf.doaguru.com/api/getAllBackDateRequestBYId/${user?.id}`);
-      setRequestData(Array.isArray(data) ? data : []);
-    } catch (e) { console.error(e); }
+      // Sort by request_id or date to show latest first
+      const sortedData = Array.isArray(data) ? data.sort((a, b) => b.request_id - a.request_id) : [];
+      setRequestData(sortedData);
+    } catch (e) { console.error("Error fetching backdate requests:", e); }
   };
 
   useEffect(() => { fetchData(); }, [month, year]);

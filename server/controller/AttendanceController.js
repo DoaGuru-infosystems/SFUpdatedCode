@@ -14,16 +14,16 @@ const applyForBackDateAttendance = (req, res) => {
     const { employee_id, request_date, abr_reason } = req.body;
     const dateTime = moment().tz("Asia/Kolkata").format("DD-MM-YYYY HH:mm:ss");
 
-    const checkQuery = `SELECT * FROM attendance WHERE user_id = ? AND attend_date = ? AND day_status = 'absent'`;
+    const checkQuery = `SELECT * FROM attendance WHERE user_id = ? AND attend_date = ?`;
     db.query(checkQuery, [employee_id, request_date], (err, result) => {
       if (err) {
         return res.status(400).json({ success: false, message: err.message });
       }
 
-      if (result.length === 0) {
+      if (result.length > 0 && result[0].day_status !== 'absent') {
         return res.status(403).json({
           success: false,
-          message: "Backdate request allowed only if status is 'absent'",
+          message: "Backdate request allowed only if status is 'absent' or if no attendance is marked",
         });
       }
 
@@ -38,6 +38,9 @@ const applyForBackDateAttendance = (req, res) => {
 
       db.query(insertQuery, insertParams, (err, result) => {
         if (err) {
+          if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: "A backdate request for this date already exists." });
+          }
           return res.status(400).json({ success: false, message: err.message });
         }
         res.status(200).json({
@@ -57,7 +60,7 @@ const getAllBackDateRequestBYId = (req, res) => {
     const selectQuery = `SELECT * FROM attendance_backdate_requests WHERE employee_id = ?`;
     db.query(selectQuery, userId, (err, result) => {
       if (err) {
-        res.status(400).json({ success: false, message: err.message });
+        return res.status(400).json({ success: false, message: err.message });
       }
       res.status(200).send(result);
     });
@@ -119,7 +122,7 @@ const getAllBackDateRequest = (req, res) => {
     const selectQuery = `SELECT * FROM attendance_backdate_requests left join task_users on task_users.id = attendance_backdate_requests.employee_id`;
     db.query(selectQuery, (err, result) => {
       if (err) {
-        res.status(400).json({ success: false, message: err.message });
+        return res.status(400).json({ success: false, message: err.message });
       }
       res.status(200).send(result);
     });
@@ -202,42 +205,51 @@ const markBackDateAttendance = (req, res) => {
     // Determine day status
     const dayStatus = workMinute < 300 ? "half" : "full";
 
-    const updateQuery = `
-      UPDATE attendance 
-      SET login_time = ?, 
-          logout_time = ?, 
-          work_minutes = ?, 
-          day_status = ?, 
-          record_created_at = ? 
-      WHERE user_id = ? AND attend_date = ?
-    `;
-
-    const updateParams = [
-      loginTime,
-      logoutTime,
-      workMinute,
-      dayStatus,
-      dateTime,
-      userId,
-      attendDate,
-    ];
-
-    db.query(updateQuery, updateParams, (err, result) => {
+    const checkExistQuery = `SELECT * FROM attendance WHERE user_id = ? AND attend_date = ?`;
+    db.query(checkExistQuery, [userId, attendDate], (err, rows) => {
       if (err) {
         return res.status(400).json({ success: false, message: err.message });
       }
 
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "No matching record found to update",
+      if (rows.length > 0) {
+        const updateQuery = `
+          UPDATE attendance 
+          SET login_time = ?, 
+              logout_time = ?, 
+              work_minutes = ?, 
+              day_status = ?, 
+              record_created_at = ? 
+          WHERE user_id = ? AND attend_date = ?
+        `;
+        const updateParams = [loginTime, logoutTime, workMinute, dayStatus, dateTime, userId, attendDate];
+        
+        db.query(updateQuery, updateParams, (err, result) => {
+          if (err) {
+            return res.status(400).json({ success: false, message: err.message });
+          }
+          res.status(200).json({
+            success: true,
+            message: "Back Date Attendance Updated Successfully",
+          });
+        });
+      } else {
+        const insertQuery = `
+          INSERT INTO attendance 
+          (user_id, attend_date, login_time, logout_time, work_minutes, day_status, record_created_at) 
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        const insertParams = [userId, attendDate, loginTime, logoutTime, workMinute, dayStatus, dateTime];
+        
+        db.query(insertQuery, insertParams, (err, result) => {
+          if (err) {
+            return res.status(400).json({ success: false, message: err.message });
+          }
+          res.status(200).json({
+            success: true,
+            message: "Back Date Attendance Inserted Successfully",
+          });
         });
       }
-
-      res.status(200).json({
-        success: true,
-        message: "Back Date Attendance Updated Successfully",
-      });
     });
   } catch (error) {
     res.status(500).json({ success: false, message: "Internal server error" });

@@ -49,7 +49,7 @@ const updateSalaryPayment = (req, res) => {
     const { amount_paid, remaining_paid_date, total_salary, payment_duration, issue_date } = req.body;
 
     const getSql = `SELECT * FROM salary_payments WHERE payment_id = ?`;
-    
+
     db.query(getSql, [id], (err, rows) => {
         if (err || rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Payment record not found' });
