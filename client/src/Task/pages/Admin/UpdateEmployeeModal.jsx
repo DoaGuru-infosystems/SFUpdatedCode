@@ -456,7 +456,7 @@ const UpdateEmployeeModal = ({
 
           {/* Roles & Commitments inside Modal */}
           <div className="mt-8">
-             <CommitmentManagement employeeId={empId} />
+            <CommitmentManagement employeeId={empId} />
           </div>
 
           {/* Buttons */}

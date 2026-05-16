@@ -450,9 +450,9 @@ export default function AdminNavbar({ Logout, render }) {
                                       </p>
                                       <div className="flex items-center gap-2">
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase ${notif.type === 'login' ? 'bg-emerald-100 text-emerald-700' :
-                                            notif.type === 'logout' ? 'bg-amber-100 text-amber-700' :
-                                              notif.type === 'leave' ? 'bg-rose-100 text-rose-700' :
-                                                'bg-blue-100 text-blue-700'
+                                          notif.type === 'logout' ? 'bg-amber-100 text-amber-700' :
+                                            notif.type === 'leave' ? 'bg-rose-100 text-rose-700' :
+                                              'bg-blue-100 text-blue-700'
                                           }`}>
                                           {notif.type}
                                         </span>
