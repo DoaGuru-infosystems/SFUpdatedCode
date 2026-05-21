@@ -736,6 +736,9 @@ const UpdateEmployeeAPI = (req, res) => {
   let profilePictureUrl = req.body.profilePicture; // Retain old URL if no new file is uploaded
   if (req.file) {
     profilePictureUrl = `${baseURL}/uploads/${req.file.filename}`;
+    if (profilePictureUrl.startsWith("http://sf.doaguru.com")) {
+      profilePictureUrl = profilePictureUrl.replace("http://sf.doaguru.com", "https://sf.doaguru.com");
+    }
   }
 
   const query = `

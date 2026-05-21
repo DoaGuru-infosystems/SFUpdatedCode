@@ -186,7 +186,7 @@ const updateBackDateRequestStatus = (req, res) => {
 
 const markBackDateAttendance = (req, res) => {
   try {
-    const { userId, loginTime, logoutTime, attendDate } = req.body;
+    const { userId, loginTime, logoutTime, attendDate, requestId } = req.body;
     const dateTime = moment().tz("Asia/Kolkata").format("DD-MM-YYYY HH:mm:ss");
 
     // Calculate work minutes
@@ -227,10 +227,27 @@ const markBackDateAttendance = (req, res) => {
           if (err) {
             return res.status(400).json({ success: false, message: err.message });
           }
-          res.status(200).json({
-            success: true,
-            message: "Back Date Attendance Updated Successfully",
-          });
+
+          if (requestId) {
+            db.query(
+              `UPDATE attendance_backdate_requests SET abr_status = 'finalized' WHERE request_id = ?`,
+              [requestId],
+              (reqErr) => {
+                if (reqErr) {
+                  console.error("Error finalizing backdate request:", reqErr);
+                }
+                res.status(200).json({
+                  success: true,
+                  message: "Back Date Attendance Updated Successfully",
+                });
+              }
+            );
+          } else {
+            res.status(200).json({
+              success: true,
+              message: "Back Date Attendance Updated Successfully",
+            });
+          }
         });
       } else {
         const insertQuery = `
@@ -244,10 +261,27 @@ const markBackDateAttendance = (req, res) => {
           if (err) {
             return res.status(400).json({ success: false, message: err.message });
           }
-          res.status(200).json({
-            success: true,
-            message: "Back Date Attendance Inserted Successfully",
-          });
+
+          if (requestId) {
+            db.query(
+              `UPDATE attendance_backdate_requests SET abr_status = 'finalized' WHERE request_id = ?`,
+              [requestId],
+              (reqErr) => {
+                if (reqErr) {
+                  console.error("Error finalizing backdate request:", reqErr);
+                }
+                res.status(200).json({
+                  success: true,
+                  message: "Back Date Attendance Inserted Successfully",
+                });
+              }
+            );
+          } else {
+            res.status(200).json({
+              success: true,
+              message: "Back Date Attendance Inserted Successfully",
+            });
+          }
         });
       }
     });

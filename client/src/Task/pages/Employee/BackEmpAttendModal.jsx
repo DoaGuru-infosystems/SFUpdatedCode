@@ -17,6 +17,7 @@ const BackEmpAttendModal = ({
     loginTime: "",
     logoutTime: "",
     attendDate: "",
+    requestId: "",
   });
 
   console.log(selected);
@@ -36,6 +37,7 @@ const BackEmpAttendModal = ({
       loginTime: "",
       logoutTime: "",
       attendDate: selected?.request_date,
+      requestId: selected?.request_id,
     });
   }, [selected]);
 

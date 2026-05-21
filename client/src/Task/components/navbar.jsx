@@ -96,7 +96,7 @@ export default function Navbar({ Logout, render }) {
 
   // Use optional chaining to avoid accessing properties on null
   const profileImageSrc = profile?.profileIMG
-    ? profile.profileIMG
+    ? profile.profileIMG.replace("http://sf.doaguru.com", "https://sf.doaguru.com")
     : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSt9ISaBFDC88ejiGrYACSt81CFq21QsZ6bow&s";
 
   return (

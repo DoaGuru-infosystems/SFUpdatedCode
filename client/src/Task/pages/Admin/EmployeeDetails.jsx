@@ -90,7 +90,7 @@ const EmployeeDetails = () => {
             </button>
             <div className="relative group">
               <img
-                src={employee?.profileIMG || "https://placehold.co/400x400?text=Profile"}
+                src={employee?.profileIMG?.replace("http://sf.doaguru.com", "https://sf.doaguru.com") || "https://placehold.co/400x400?text=Profile"}
                 alt="Profile"
                 className="w-20 h-20 md:w-24 md:h-24 rounded-2xl object-cover border-4 border-white shadow-lg ring-1 ring-slate-100 group-hover:scale-105 transition-transform duration-300"
               />

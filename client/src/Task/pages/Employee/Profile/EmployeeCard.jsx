@@ -178,7 +178,7 @@ function EmployeeCard() {
                   boxShadow: '0 0 8px rgba(0,0,0,0.2)'
                 }}>
                   <img
-                    src={employeeData.profileIMG}
+                    src={employeeData.profileIMG?.replace("http://sf.doaguru.com", "https://sf.doaguru.com")}
                     alt="Profile IMG"
                     style={{
                       width: '100%',

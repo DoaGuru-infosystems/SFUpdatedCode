@@ -9,6 +9,7 @@ const path = require("path");
 const http = require("http");
 const socketUtil = require("./utils/socket");
 const app = express();
+app.set("trust proxy", true);
 const server = http.createServer(app);
 const io = socketUtil.init(server);
 

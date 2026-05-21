@@ -162,7 +162,7 @@ const EmployeeAttendReport = () => {
           {[
             { label: "Present", val: stats.present, icon: <FaCheckCircle />, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
             { label: "Absent", val: stats.absent, icon: <FaTimesCircle />, color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-100" },
-            { label: "Sundays", val: stats.sundays, icon: <FaSun />, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" },
+            { label: "Sundays", val: stats.sunday, icon: <FaSun />, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" },
             { label: "Holidays", val: stats.holiday, icon: "🎉", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
             { label: "Leaves", val: stats.leave, icon: "🌴", color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100" }
           ].map((s, i) => (
@@ -287,8 +287,8 @@ const EmployeeAttendReport = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {requestData.length > 0 ? (
-                  requestData.map((row, idx) => (
+                {requestData.filter(row => row.abr_status !== "finalized").length > 0 ? (
+                  requestData.filter(row => row.abr_status !== "finalized").map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-2 text-slate-900 font-black text-[12px] tracking-tight">{row.request_date}</td>
                       <td className="px-3 py-2 text-slate-400 italic max-w-[200px] truncate" title={row.abr_reason}>
