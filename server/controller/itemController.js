@@ -2254,24 +2254,36 @@ const adminReverseLeave = (req, res) => {
 const SalaryCalculatorsByUser = (req, res) => {
   try {
     const userId = req.params.userId;
-    const { monthlySalary, paidLeaves = 1, selectedMonth, selectedYear } = req.body;
+    const { monthlySalary, paidLeaves = 1, selectedMonth, selectedYear, startDate, endDate } = req.body;
 
     const timezone = "Asia/Kolkata";
-    console.log(monthlySalary)
 
     if (!monthlySalary || isNaN(monthlySalary)) {
       return res.status(400).json({ success: false, message: "Invalid monthly salary." });
     }
 
-    if (!selectedMonth || !selectedYear || isNaN(selectedMonth) || isNaN(selectedYear)) {
-      return res.status(400).json({ success: false, message: "Please provide a valid month and year." });
+    let startMoment, endMoment;
+    let month, year;
+
+    if (startDate && endDate) {
+      startMoment = moment.tz(startDate, "YYYY-MM-DD", timezone).startOf("day");
+      endMoment = moment.tz(endDate, "YYYY-MM-DD", timezone).endOf("day");
+      if (!startMoment.isValid() || !endMoment.isValid() || endMoment.isBefore(startMoment)) {
+        return res.status(400).json({ success: false, message: "Please provide a valid date range." });
+      }
+      month = startMoment.month() + 1;
+      year = startMoment.year();
+    } else {
+      if (!selectedMonth || !selectedYear || isNaN(selectedMonth) || isNaN(selectedYear)) {
+        return res.status(400).json({ success: false, message: "Please provide a valid month and year or a custom date range." });
+      }
+      month = parseInt(selectedMonth, 10);
+      year = parseInt(selectedYear, 10);
+      startMoment = moment.tz({ year, month: month - 1 }, timezone).startOf("month");
+      endMoment = moment.tz({ year, month: month - 1 }, timezone).endOf("month");
     }
 
-    const month = parseInt(selectedMonth, 10);
-    const year = parseInt(selectedYear, 10);
-
-    const totalDaysInMonth = moment.tz({ year, month: month - 1 }, timezone).daysInMonth();
-
+    const totalDaysInMonth = startMoment.daysInMonth();
     const dailySalary = monthlySalary / totalDaysInMonth;
 
     const attendanceQuery = `
@@ -2285,28 +2297,28 @@ const SalaryCalculatorsByUser = (req, res) => {
         return res.status(500).json({ success: false, message: "Database error (attendance)." });
       }
 
-      // Filter month-wise attendance
+      // Filter attendance within the date range
       const attendData = attendanceResult.filter((record) => {
-        const date = moment.tz(record.attend_date, "DD-MM-YYYY", timezone);
-        return date.month() + 1 === month && date.year() === year;
+        const date = moment.tz(record.attend_date, ["DD-MM-YYYY", "YYYY-MM-DD"], timezone);
+        return date.isSameOrAfter(startMoment, 'day') && date.isSameOrBefore(endMoment, 'day');
       });
 
       // --------------------------------
-      // 2️⃣ Fetch Paid Holidays of Month
+      // 2️⃣ Fetch Paid Holidays of Range
       // --------------------------------
-
-
       const holidayQuery = `
         SELECT holiday_title, holiday_date 
         FROM paid_holidays
-        WHERE YEAR(holiday_date) = ? 
-          AND MONTH(holiday_date) = ? 
+        WHERE holiday_date >= ? 
+          AND holiday_date <= ? 
           AND holiday_status = 'active'
         ORDER BY holiday_date ASC
       `;
 
+      const qStart = startMoment.format("YYYY-MM-DD");
+      const qEnd = endMoment.format("YYYY-MM-DD");
 
-      db.query(holidayQuery, [year, month], (hErr, holidayResult) => {
+      db.query(holidayQuery, [qStart, qEnd], (hErr, holidayResult) => {
         if (hErr) {
           return res.status(500).json({ success: false, message: "Database error (holidays)." });
         }
@@ -2315,14 +2327,18 @@ const SalaryCalculatorsByUser = (req, res) => {
         const paidHolidayDates = holidayResult.map(h =>
           moment(h.holiday_date).tz(timezone).format("DD-MM-YYYY")
         );
+        const paidHolidayDatesISO = holidayResult.map(h =>
+          moment(h.holiday_date).tz(timezone).format("YYYY-MM-DD")
+        );
 
         // -------------------------
         // 3️⃣ Sunday Calculation
         // -------------------------
         let totalSundays = 0;
-        for (let d = 1; d <= totalDaysInMonth; d++) {
-          const date = moment.tz({ year, month: month - 1, day: d }, timezone);
-          if (date.day() === 0) totalSundays++;
+        let curr = moment(startMoment);
+        while (curr.isSameOrBefore(endMoment, 'day')) {
+          if (curr.day() === 0) totalSundays++;
+          curr.add(1, 'day');
         }
 
         // -------------------------
@@ -2334,11 +2350,13 @@ const SalaryCalculatorsByUser = (req, res) => {
           workedSundaysHalf = 0;
 
         attendData.forEach((record) => {
-          const date = moment.tz(record.attend_date, "DD-MM-YYYY", timezone);
+          const date = moment.tz(record.attend_date, ["DD-MM-YYYY", "YYYY-MM-DD"], timezone);
           const isSunday = date.day() === 0;
 
           // ❗ If a day is paid holiday → treat as FULL DAY
-          if (paidHolidayDates.includes(record.attend_date)) {
+          const formattedRecordDate = date.format("DD-MM-YYYY");
+          const formattedRecordDateISO = date.format("YYYY-MM-DD");
+          if (paidHolidayDates.includes(formattedRecordDate) || paidHolidayDatesISO.includes(formattedRecordDateISO)) {
             fullDays++;
             return;
           }
@@ -2356,7 +2374,6 @@ const SalaryCalculatorsByUser = (req, res) => {
               halfDays++;
             }
           }
-
           else if (isSunday && record.day_status === "weekend_served") {
             workedSundaysFull++;
           }
@@ -2365,7 +2382,7 @@ const SalaryCalculatorsByUser = (req, res) => {
         // ----------------------------------------
         // 5️⃣ Paid Holidays Salary (Full day pay)
         // ----------------------------------------
-        const paidHolidayPay = paidHolidayDates.length * dailySalary;
+        const paidHolidayPay = holidayResult.length * dailySalary;
 
         // ----------------------------------------
         // 6️⃣ Salary Components
@@ -2379,9 +2396,6 @@ const SalaryCalculatorsByUser = (req, res) => {
         const sundayFixedPay = totalSundays * dailySalary;
 
         const paidLeaveAmount = paidLeaves * dailySalary;
-        console.log(paidHolidayDates)
-        console.log(sundayFixedPay)
-
 
         let totalSalary =
           basePay +
@@ -2390,12 +2404,11 @@ const SalaryCalculatorsByUser = (req, res) => {
           paidLeaveAmount +
           paidHolidayPay;
 
-        // ----------------------------------------
-        // 7️⃣ Final Response
-        // ----------------------------------------
+        const totalDaysInCalculatedRange = endMoment.diff(startMoment, 'days') + 1;
+        const maxRangeSalary = totalDaysInCalculatedRange * dailySalary;
 
-        if (totalSalary > monthlySalary) {
-          totalSalary = monthlySalary;
+        if (totalSalary > maxRangeSalary) {
+          totalSalary = maxRangeSalary;
         }
 
         return res.status(200).json({
@@ -2411,10 +2424,10 @@ const SalaryCalculatorsByUser = (req, res) => {
           workedSundaysFull,
           workedSundaysHalf,
           totalSundays,
-          totalDaysInMonth,
+          totalDaysInMonth: totalDaysInCalculatedRange,
 
           // Paid Holiday Summary
-          totalPaidHolidays: paidHolidayDates.length,
+          totalPaidHolidays: holidayResult.length,
           paidHolidayDates,
 
           // Salary Breakup

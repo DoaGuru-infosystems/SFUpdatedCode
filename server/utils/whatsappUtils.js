@@ -99,6 +99,74 @@ const sendAdminOtpWhatsApp = async (otp) => {
   }
 };
 
+// Admin OTP Email
+const sendAdminOtpEmail = async (otp) => {
+  return new Promise((resolve, reject) => {
+    const sql = "SELECT email_id FROM admin_users";
+    db.query(sql, async (err, results) => {
+      let emails = [];
+      if (!err && results && results.length > 0) {
+        emails = results.map((row) => row.email_id).filter((email) => email);
+      }
+
+      // Fallback/default email if no admin emails found in DB
+      if (emails.length === 0) {
+        emails.push("hr@doaguru.com");
+      }
+
+      console.log(`📧 Sending OTP ${otp} to Admin emails:`, emails);
+
+      // Create transporter dynamically to pick up any runtime env changes
+      const transporter = nodemailer.createTransport({
+        host: process.env.OTP_EMAIL_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.OTP_EMAIL_PORT) || 465,
+        secure: process.env.OTP_EMAIL_SECURE !== "false",
+        auth: {
+          user: process.env.OTP_EMAIL_USER || "doaguruinfosystems@gmail.com",
+          pass: process.env.OTP_EMAIL_PASS || "mmar fqeg yyic ynxp",
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.OTP_EMAIL_USER || "doaguruinfosystems@gmail.com",
+        to: emails.join(", "),
+        subject: "Workforce Insights - Admin Security OTP Verification",
+        text: `Hello Admin,
+
+Your security OTP to access Workforce Insights is: ${otp}
+
+This OTP is valid for 5 minutes. Please do not share this OTP with anyone.
+
+Best regards,
+DOAGuru Infotech Security Team`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+            <h2 style="color: #4f46e5; text-align: center;">Workforce Insights Authentication</h2>
+            <p>Hello Admin,</p>
+            <p>Your security OTP to access Workforce Insights is:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; background-color: #f3f4f6; padding: 15px 30px; border-radius: 8px; border: 1px solid #d1d5db; color: #1f2937;">${otp}</span>
+            </div>
+            <p>This OTP is valid for <strong>5 minutes</strong>. Please do not share this OTP with anyone.</p>
+            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+            <p style="font-size: 12px; color: #9ca3af; text-align: center;">This is an automated security message. Please do not reply directly to this email.</p>
+          </div>
+        `,
+      };
+
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error("❌ Admin OTP email sending failed:", error);
+          reject(error);
+        } else {
+          console.log("✅ Admin OTP email sent successfully:", info.response);
+          resolve(info);
+        }
+      });
+    });
+  });
+};
+
 // logout reminder whatsapp
 
 const sendLogoutReminderWhatsApp = async (number, name, today) => {
@@ -1469,6 +1537,7 @@ module.exports = {
   loginReminderWhatsApp,
   adminAbsentCheckReminderWhatsApp,
   sendAdminOtpWhatsApp,
+  sendAdminOtpEmail,
   scheduleAdminLeaveCheckReminderWhatsapp,
   sendLeaveStatusReminderWhatsApp,
   scheduleAdminNotLogoutWhatsapp,

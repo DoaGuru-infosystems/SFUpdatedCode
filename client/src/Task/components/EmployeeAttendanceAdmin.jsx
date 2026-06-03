@@ -7,19 +7,17 @@ import {
   FaRupeeSign,
   FaCalendarAlt,
   FaTable,
-  FaUser,
-  FaBuilding,
   FaUniversity,
   FaCheckCircle,
   FaTimesCircle,
   FaSun,
   FaUmbrellaBeach,
-  FaClock,
 } from "react-icons/fa";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import AdminAddAttendanceModal from "./AdminAddAttendanceModal";
 import AdminUpdateAttendanceModal from "./AdminUpdateAttendanceModal";
+import SalaryManagement from "../pages/Admin/SalaryManagement";
 
 /* ─────────────────── helpers ─────────────────── */
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -65,6 +63,13 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
   const [empDetails, setEmpDetails] = useState(null);
   const [view, setView] = useState("calendar");
   const [calcLoading, setCalcLoading] = useState(false);
+  const [calcType, setCalcType] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  useEffect(() => {
+    setResult(null);
+  }, [calcType, customStart, customEnd]);
 
   const fetchData = async () => {
     try {
@@ -127,11 +132,30 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
   const calculateSalary = async () => {
     setCalcLoading(true);
     try {
-      const { data } = await axios.post(`https://sf.doaguru.com/api/SalaryCalculatorsByUser/${uid}`, {
-        monthlySalary: salaryData[0]?.salary_amount, paidLeaves: 1, selectedMonth: month, selectedYear: year,
-      });
+      const payload = {
+        monthlySalary: salaryData[0]?.salary_amount,
+        paidLeaves: 1,
+      };
+      if (calcType === "custom") {
+        if (!customStart || !customEnd) {
+          alert("Please select both start and end dates.");
+          setCalcLoading(false);
+          return;
+        }
+        payload.startDate = customStart;
+        payload.endDate = customEnd;
+      } else {
+        payload.selectedMonth = month;
+        payload.selectedYear = year;
+      }
+
+      // Pointed back to production server to check with live database
+      const { data } = await axios.post(`https://sf.doaguru.com/api/SalaryCalculatorsByUser/${uid}`, payload);
       setResult(data);
-    } catch (e) { console.log(e); } finally { setCalcLoading(false); }
+    } catch (e) {
+      console.log(e);
+      alert(e.response?.data?.message || "Error calculating salary.");
+    } finally { setCalcLoading(false); }
   };
 
   const downloadExcel = () => {
@@ -294,14 +318,61 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                 </div>
               </div>
             )}
+
+            {/* Salary Management Section */}
+            {userRole === "admin" && (
+              <SalaryManagement employeeId={uid} baseSalary={salaryData[0]?.salary_amount} />
+            )}
           </div>
 
           <div className="xl:col-span-4 space-y-3">
             {/* Salary Calculation */}
             {userRole === "admin" && (
-              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Payroll Estimator</h3>
-                <div className="bg-slate-50 rounded-lg p-3 mb-3 border border-slate-200">
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payroll Estimator</h3>
+
+                {/* Mode Selector */}
+                <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+                  <button
+                    onClick={() => setCalcType("month")}
+                    className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${calcType === "month" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setCalcType("custom")}
+                    className={`flex-1 text-center py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${calcType === "custom" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                  >
+                    Custom Range
+                  </button>
+                </div>
+
+                {calcType === "custom" && (
+                  <div className="space-y-2 border border-slate-200/50 p-2.5 rounded-xl bg-slate-50/50">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[8px] text-slate-400 font-black uppercase block mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={customStart}
+                          onChange={(e) => setCustomStart(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-slate-400 font-black uppercase block mb-1">End Date</label>
+                        <input
+                          type="date"
+                          value={customEnd}
+                          onChange={(e) => setCustomEnd(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                   <p className="text-[9px] text-slate-400 font-black uppercase mb-1">Stipulated Salary</p>
                   <p className="text-xl font-black text-slate-800 flex items-center gap-1.5"><FaRupeeSign size={14} /> {salaryData[0]?.salary_amount?.toLocaleString() || "N/A"}</p>
                 </div>
@@ -311,6 +382,8 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                 {result && (() => {
                   const workedHolidaysCount = calendarData.filter(d => d.holiday && d.attend?.login_time).length;
                   const holidayBonus = workedHolidaysCount * parseFloat(result.dailySalary || 0);
+                  const maxExpectedSalary = parseFloat(result.dailySalary || 0) * result.totalDaysInMonth;
+                  const deductions = (maxExpectedSalary - parseFloat(result.totalSalary || 0) + holidayBonus).toFixed(2);
 
                   return (
                     <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
@@ -328,8 +401,8 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                           <p className="text-xs font-black text-slate-700">₹{parseFloat(result.dailySalary || 0).toFixed(2)}</p>
                         </div>
                         <div className="bg-rose-50/50 p-2 rounded-lg border border-rose-100">
-                          <p className="text-[8px] text-rose-400 font-black uppercase">Deductions ({result.absentDays || 0} Days)</p>
-                          <p className="text-xs font-black text-rose-700">- ₹{((salaryData[0]?.salary_amount || 0) - result.totalSalary + holidayBonus).toFixed(2)}</p>
+                          <p className="text-[8px] text-rose-400 font-black uppercase">Deductions</p>
+                          <p className="text-xs font-black text-rose-700">- ₹{deductions}</p>
                         </div>
                       </div>
 
@@ -360,10 +433,10 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                             <span>+ ₹{holidayBonus.toFixed(2)}</span>
                           </div>
                         )}
-                        {((salaryData[0]?.salary_amount || 0) - result.totalSalary) > 0 && (
+                        {(maxExpectedSalary - parseFloat(result.totalSalary || 0)) > 0 && (
                           <div className="flex justify-between text-[10px] font-black text-rose-500 bg-rose-50/50 px-2 py-1 rounded-md">
                             <span>Estimated Deductions</span>
-                            <span>- ₹{((salaryData[0]?.salary_amount || 0) - result.totalSalary).toFixed(2)}</span>
+                            <span>- ₹{(maxExpectedSalary - parseFloat(result.totalSalary || 0)).toFixed(2)}</span>
                           </div>
                         )}
                       </div>
@@ -373,7 +446,7 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                           <span>Final Salary</span>
                           <span className="text-[8px] font-bold text-emerald-600/70 uppercase tracking-tighter italic leading-none">Net Payout after adjustments</span>
                         </div>
-                        <span className="text-lg">₹{result.totalSalary?.toLocaleString()}</span>
+                        <span className="text-lg">₹{parseFloat(result.totalSalary || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   );

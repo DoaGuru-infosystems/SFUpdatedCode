@@ -108,7 +108,7 @@ const WorkforceInsights = () => {
     try {
       await axios.post("https://sf.doaguru.com/api/send-admin-otp");
       setOtpSent(true);
-      alert("OTP has been sent to your registered WhatsApp number.");
+      alert("OTP has been sent to your registered email.");
     } catch (error) {
       console.error("Failed to send OTP:", error);
       alert(error.response?.data?.message || "Failed to send OTP. Please try again.");
@@ -259,7 +259,7 @@ const WorkforceInsights = () => {
             </div>
             <h2 className="text-3xl font-black text-white tracking-tighter uppercase leading-none mb-3">Authentication Required</h2>
             <p className="text-sm font-medium text-white/60">
-              Workforce Insights is restricted. You must verify your identity via WhatsApp OTP to proceed.
+              Workforce Insights is restricted. You must verify your identity via Email OTP to proceed.
             </p>
           </div>
 
@@ -269,12 +269,12 @@ const WorkforceInsights = () => {
               disabled={otpLoading}
               className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl transition-all uppercase text-xs tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2"
             >
-              {otpLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Send OTP to WhatsApp"}
+              {otpLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Send OTP to Email"}
             </button>
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-6 animate-fade-in">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/50 px-1 text-center block">Enter WhatsApp OTP</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/50 px-1 text-center block">Enter Email OTP</label>
                 <input
                   type="text"
                   value={otp}
