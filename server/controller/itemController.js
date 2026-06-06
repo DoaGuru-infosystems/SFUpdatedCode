@@ -1875,9 +1875,13 @@ const adminAddAttendance = (req, res) => {
 
 const adminUpdateAttendanceLogoutTime = (req, res) => {
   const attendId = req.params.attendId;
-  const { user_id, attend_date, logout_time } = req.body;
+  const { user_id, attend_date, login_time, logout_time } = req.body;
 
-  // Step 1: Fetch existing login_time
+  if (!login_time || !logout_time) {
+    return res.status(400).json({ success: false, message: "Both login time and logout time are required." });
+  }
+
+  // Step 1: Check if attendance exists
   const fetchQuery = `
     SELECT * 
     FROM attendance 
@@ -1895,8 +1899,6 @@ const adminUpdateAttendanceLogoutTime = (req, res) => {
       });
     }
 
-    const login_time = rows[0].login_time;
-
     // Step 2: Calculate work_minutes
     const start = moment(`${attend_date} ${login_time}`, [
       "DD-MM-YYYY HH:mm:ss",
@@ -1910,7 +1912,7 @@ const adminUpdateAttendanceLogoutTime = (req, res) => {
     if (!start.isValid() || !end.isValid() || end.isBefore(start)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid logout time or logout is before login.",
+        message: "Invalid login/logout time or logout is before login.",
       });
     }
 
@@ -1932,12 +1934,12 @@ const adminUpdateAttendanceLogoutTime = (req, res) => {
     // Step 4: Update attendance
     const updateQuery = `
       UPDATE attendance 
-      SET logout_time = ?, work_minutes = ?, day_status = ?
+      SET login_time = ?, logout_time = ?, work_minutes = ?, day_status = ?
       WHERE user_id = ? AND attend_date = ? AND attend_id = ?
     `;
     db.query(
       updateQuery,
-      [logout_time, work_minutes, day_status, user_id, attend_date, attendId],
+      [login_time, logout_time, work_minutes, day_status, user_id, attend_date, attendId],
       (err, result) => {
         if (err) {
           return res.status(500).json({ success: false, message: err.message });
@@ -1945,7 +1947,7 @@ const adminUpdateAttendanceLogoutTime = (req, res) => {
 
         return res.status(200).json({
           success: true,
-          message: "Logout time and related details updated successfully.",
+          message: "Attendance login and logout times updated successfully.",
         });
       }
     );

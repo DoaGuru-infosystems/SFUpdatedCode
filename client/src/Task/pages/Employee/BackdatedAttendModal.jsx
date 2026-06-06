@@ -4,6 +4,8 @@ import axios from "axios";
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 
+const API_BASE_URL = "https://sf.doaguru.com/api";
+
 const BackdatedAttendModal = ({
   isOpen,
   onClose,
@@ -20,7 +22,7 @@ const BackdatedAttendModal = ({
   const getHolidaysOfCurrentYear = async () => {
     try {
       const { data } = await axios.get(
-        `https://sf.doaguru.com/api/getAllHolidaysCurrentYear`
+        `${API_BASE_URL}/getAllHolidaysCurrentYear`
       );
       setHolidays(data);
     } catch (error) {
@@ -49,7 +51,7 @@ const BackdatedAttendModal = ({
 
       const results = await Promise.allSettled(
         formattedDates.map((date) =>
-          axios.post("https://sf.doaguru.com/api/applyForBackDateAttendance", {
+          axios.post(`${API_BASE_URL}/applyForBackDateAttendance`, {
             employee_id: userId,
             request_date: date,
             abr_reason: reason,
@@ -57,20 +59,52 @@ const BackdatedAttendModal = ({
         )
       );
 
-      const failed = results.filter((r) => r.status === "rejected");
-      const successful = results.filter((r) => r.status === "fulfilled");
+      const failed = [];
+      const successful = [];
+
+      results.forEach((r, idx) => {
+        const dateStr = formattedDates[idx];
+        if (r.status === "fulfilled") {
+          successful.push({
+            date: dateStr,
+            message: r.value?.data?.message || "Submitted successfully."
+          });
+        } else {
+          const errorMsg = r.reason?.response?.data?.message || r.reason?.message || "Failed to submit.";
+          failed.push({
+            date: dateStr,
+            message: errorMsg
+          });
+        }
+      });
+
+      // Prepare feedback message
+      let feedback = "";
+      if (successful.length > 0) {
+        feedback += `Successfully submitted:\n` + successful.map(s => `• ${s.date}: ${s.message}`).join("\n");
+      }
+      if (failed.length > 0) {
+        if (feedback) feedback += "\n\n";
+        feedback += `Failed to submit:\n` + failed.map(f => `• ${f.date}: ${f.message}`).join("\n");
+      }
+
+      alert(feedback);
 
       if (successful.length > 0) {
-        alert("Backdated Attendance Request Submitted for some or all dates.");
         getAllBackDateReq();
+      }
+
+      // If all succeeded, clear and close
+      if (failed.length === 0) {
         setSelectedDates([]);
         setReason("");
         onClose();
-      }
-
-      if (failed.length > 0) {
-        console.error("Some requests failed:", failed);
-        alert("Some dates failed to submit. Please try again.");
+      } else {
+        // Keep only failed dates in the calendar picker for convenience
+        const failedDateObjects = selectedDates.filter((date) => 
+          failed.some((f) => f.date === date.format("DD-MM-YYYY"))
+        );
+        setSelectedDates(failedDateObjects);
       }
     } catch (err) {
       console.error("Unexpected error:", err);

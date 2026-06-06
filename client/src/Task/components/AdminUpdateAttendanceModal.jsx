@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 
+const API_BASE_URL = "https://sf.doaguru.com/api";
+
 const AdminUpdateAttendanceModal = ({
   isOpen,
   onClose,
@@ -22,14 +24,12 @@ const AdminUpdateAttendanceModal = ({
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // console.log(formData);
-
   useEffect(() => {
     setFormData({
       ...formData,
       user_id: uid,
-      login_time: initialData?.login_time,
-      logout_time: "",
+      login_time: initialData?.login_time || "",
+      logout_time: initialData?.logout_time || "",
       attend_date: initialData?.attend_date,
     });
   }, [initialData]);
@@ -45,9 +45,10 @@ const AdminUpdateAttendanceModal = ({
     setLoading(true);
     try {
       const res = await axios.put(
-        `https://sf.doaguru.com/api/adminUpdateAttendanceLogoutTime/${initialData?.attend_id}`,
+        `${API_BASE_URL}/adminUpdateAttendanceLogoutTime/${initialData?.attend_id}`,
         {
           user_id,
+          login_time,
           logout_time,
           attend_date,
         }
@@ -77,7 +78,7 @@ const AdminUpdateAttendanceModal = ({
           <input
             type="text"
             name="user_id"
-            className="w-full border px-3 py-2 rounded"
+            className="w-full border px-3 py-2 rounded bg-slate-50 cursor-not-allowed"
             value={formData.user_id}
             onChange={handleChange}
             readOnly
@@ -93,7 +94,7 @@ const AdminUpdateAttendanceModal = ({
             name="attend_date"
             placeholder="01-07-2025"
             readOnly
-            className="w-full border px-3 py-2 rounded"
+            className="w-full border px-3 py-2 rounded bg-slate-50 cursor-not-allowed"
             value={formData.attend_date}
             onChange={handleChange}
           />
@@ -104,12 +105,11 @@ const AdminUpdateAttendanceModal = ({
             Login Time (HH:mm:ss)
           </label>
           <input
-            type="text"
+            type="time"
             name="login_time"
             placeholder="09:00:00"
             step="1"
-            readOnly
-            className="w-full border px-3 py-2 rounded"
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={formData.login_time}
             onChange={handleChange}
           />
@@ -124,7 +124,7 @@ const AdminUpdateAttendanceModal = ({
             name="logout_time"
             placeholder="17:30:00"
             step="1"
-            className="w-full border px-3 py-2 rounded"
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={formData.logout_time}
             onChange={handleChange}
           />

@@ -11,41 +11,127 @@ dotenv.config();
 
 const applyForBackDateAttendance = (req, res) => {
   try {
-    const { employee_id, request_date, abr_reason } = req.body;
+    const { employee_id, request_date, abr_reason, request_type, requested_login_time, requested_logout_time } = req.body;
     const dateTime = moment().tz("Asia/Kolkata").format("DD-MM-YYYY HH:mm:ss");
 
-    const checkQuery = `SELECT * FROM attendance WHERE user_id = ? AND attend_date = ?`;
-    db.query(checkQuery, [employee_id, request_date], (err, result) => {
+    const reqType = request_type || "backdate";
+
+    if (!employee_id || !request_date || !abr_reason) {
+      return res.status(400).json({ success: false, message: "All fields (employee ID, request date, and reason) are required." });
+    }
+
+    // Step 1: Validate request date format and ensure it's not a future date
+    const todayStr = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
+    const requestMoment = moment(request_date, "DD-MM-YYYY");
+    const todayMoment = moment(todayStr, "DD-MM-YYYY");
+
+    if (!requestMoment.isValid()) {
+      return res.status(400).json({ success: false, message: `Invalid date format: ${request_date}. Expected format: DD-MM-YYYY.` });
+    }
+
+    if (requestMoment.isAfter(todayMoment)) {
+      return res.status(400).json({ success: false, message: `Cannot request backdated attendance for a future date (${request_date}).` });
+    }
+
+    // Step 2: Validate requested times for 'edit' request type
+    if (reqType === "edit") {
+      if (!requested_login_time || !requested_logout_time) {
+        return res.status(400).json({ success: false, message: "Both requested login and logout times are required for time edit requests." });
+      }
+      const start = moment(requested_login_time, ["HH:mm:ss", "HH:mm"]);
+      const end = moment(requested_logout_time, ["HH:mm:ss", "HH:mm"]);
+      if (!start.isValid() || !end.isValid()) {
+        return res.status(400).json({ success: false, message: "Invalid login or logout time format. Expected format: HH:mm or HH:mm:ss" });
+      }
+    }
+
+    // Step 3: Check if there is already a pending or approved request for this employee and date
+    const checkRequestQuery = `
+      SELECT abr_status FROM attendance_backdate_requests 
+      WHERE employee_id = ? AND request_date = ? AND abr_status IN ('pending', 'approved')
+    `;
+    db.query(checkRequestQuery, [employee_id, request_date], (err, reqResult) => {
       if (err) {
-        return res.status(400).json({ success: false, message: err.message });
+        return res.status(500).json({ success: false, message: err.message });
       }
 
-      if (result.length > 0 && result[0].day_status !== 'absent') {
-        return res.status(403).json({
-          success: false,
-          message: "Backdate request allowed only if status is 'absent' or if no attendance is marked",
-        });
-      }
-
-      // Step 2: Insert request if absent
-      const insertQuery = `INSERT INTO attendance_backdate_requests (employee_id, request_date, abr_reason, requested_at) VALUES (?,?,?,?)`;
-      const insertParams = [
-        employee_id,
-        request_date,
-        abr_reason,
-        dateTime,
-      ];
-
-      db.query(insertQuery, insertParams, (err, result) => {
-        if (err) {
-          if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(400).json({ success: false, message: "A backdate request for this date already exists." });
-          }
-          return res.status(400).json({ success: false, message: err.message });
+      if (reqResult.length > 0) {
+        const status = reqResult[0].abr_status;
+        if (status === 'pending') {
+          return res.status(400).json({
+            success: false,
+            message: `A pending backdate or edit request for ${request_date} already exists.`
+          });
+        } else if (status === 'approved') {
+          return res.status(400).json({
+            success: false,
+            message: `A request for ${request_date} is already approved. Please finalize it in your attendance logs.`
+          });
         }
-        res.status(200).json({
-          success: true,
-          message: "Request submitted successfully",
+      }
+
+      // Step 4: Validate according to request type
+      const checkAttendQuery = `SELECT * FROM attendance WHERE user_id = ? AND attend_date = ?`;
+      db.query(checkAttendQuery, [employee_id, request_date], (err, attendResult) => {
+        if (err) {
+          return res.status(500).json({ success: false, message: err.message });
+        }
+
+        const recordExists = attendResult.length > 0;
+        const dayStatus = recordExists ? attendResult[0].day_status : null;
+        const logoutTime = recordExists ? attendResult[0].logout_time : null;
+        
+        const isAbsent = !recordExists || dayStatus === 'absent';
+        const isLogoutMissing = recordExists && (!logoutTime || logoutTime === 'undefined' || dayStatus === 'logged-in');
+
+        if (reqType === "backdate") {
+          // Standard backdate requests only allowed if status is absent, no attendance is marked, or logout is missing.
+          if (!isAbsent && !isLogoutMissing) {
+            return res.status(400).json({
+              success: false,
+              message: "Backdate request allowed only if status is 'absent', if no attendance is marked, or if logout is missing"
+            });
+          }
+        } else if (reqType === "edit") {
+          // Time edit requests are only allowed if a marked attendance record exists
+          if (!recordExists) {
+            return res.status(400).json({
+              success: false,
+              message: "No attendance record found for this date. Please use a Backdate Request instead."
+            });
+          }
+        }
+
+        // Step 5: Insert the request
+        const insertQuery = `
+          INSERT INTO attendance_backdate_requests 
+          (employee_id, request_date, abr_reason, requested_at, request_type, requested_login_time, requested_logout_time) 
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        const insertParams = [
+          employee_id,
+          request_date,
+          abr_reason,
+          dateTime,
+          reqType,
+          reqType === "edit" ? requested_login_time : null,
+          reqType === "edit" ? requested_logout_time : null
+        ];
+
+        db.query(insertQuery, insertParams, (err, result) => {
+          if (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+              return res.status(400).json({ success: false, message: `A request for ${request_date} already exists.` });
+            }
+            return res.status(500).json({ success: false, message: err.message });
+          }
+
+          res.status(200).json({
+            success: true,
+            message: reqType === "edit" 
+              ? `Time edit request for ${request_date} submitted successfully.`
+              : `Backdated attendance request for ${request_date} submitted successfully.`,
+          });
         });
       });
     });
@@ -190,13 +276,13 @@ const markBackDateAttendance = (req, res) => {
     const dateTime = moment().tz("Asia/Kolkata").format("DD-MM-YYYY HH:mm:ss");
 
     // Calculate work minutes
-    const start = moment(loginTime, "HH:mm");
-    const end = moment(logoutTime, "HH:mm");
+    const start = moment(loginTime, ["HH:mm:ss", "HH:mm"]);
+    const end = moment(logoutTime, ["HH:mm:ss", "HH:mm"]);
 
     if (!start.isValid() || !end.isValid()) {
       return res.status(400).json({
         success: false,
-        message: "Invalid login or logout time format. Expected format: HH:mm",
+        message: "Invalid login or logout time format. Expected format: HH:mm or HH:mm:ss",
       });
     }
 

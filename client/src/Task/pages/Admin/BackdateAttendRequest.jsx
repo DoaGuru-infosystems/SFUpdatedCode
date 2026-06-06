@@ -9,6 +9,8 @@ import {
 import moment from "moment";
 import toast from "react-hot-toast";
 
+const API_BASE_URL = "https://sf.doaguru.com/api";
+
 const BackdateAttendRequest = () => {
   const [requestData, setRequestData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +26,7 @@ const BackdateAttendRequest = () => {
   const getAllBackDateReq = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`https://sf.doaguru.com/api/getAllBackDateRequest`);
+      const { data } = await axios.get(`${API_BASE_URL}/getAllBackDateRequest`);
       setRequestData(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
@@ -37,7 +39,7 @@ const BackdateAttendRequest = () => {
   const deleteBackDateRequest = async (id) => {
     if (!window.confirm("Are you sure you want to permanently delete this request?")) return;
     try {
-      await axios.delete(`https://sf.doaguru.com/api/deleteBackDateRequest/${id}`);
+      await axios.delete(`${API_BASE_URL}/deleteBackDateRequest/${id}`);
       toast.success("Request purged successfully");
       getAllBackDateReq();
     } catch (error) {
@@ -50,7 +52,7 @@ const BackdateAttendRequest = () => {
     if (!window.confirm(`Do you want to ${actionText} this request?`)) return;
 
     try {
-      await axios.put(`https://sf.doaguru.com/api/updateBackDateRequestStatus/${id}`, {
+      await axios.put(`${API_BASE_URL}/updateBackDateRequestStatus/${id}`, {
         status,
         reviewBy: user?.id
       });
@@ -238,18 +240,33 @@ const BackdateAttendRequest = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-2.5">
-                          <div className="flex items-center gap-2 text-indigo-600 font-black">
-                            <FaClock size={12} className="text-indigo-300" />
-                            {row.request_date}
+                         <td className="px-6 py-2.5">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2 text-indigo-600 font-black">
+                              <FaClock size={12} className="text-indigo-300" />
+                              {row.request_date}
+                            </div>
+                            {row.request_type === 'edit' ? (
+                              <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-tighter w-max">Time Edit</span>
+                            ) : (
+                              <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter w-max">Backdate</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-2.5 max-w-[250px]">
-                          <div className="flex items-start gap-2">
-                            <FaInfoCircle className="text-slate-200 mt-0.5 flex-shrink-0" size={12} />
-                            <p className="text-slate-500 font-medium leading-relaxed italic line-clamp-2" title={row.abr_reason}>
-                              {row.abr_reason || "None provided"}
-                            </p>
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-start gap-2">
+                              <FaInfoCircle className="text-slate-200 mt-0.5 flex-shrink-0" size={12} />
+                              <p className="text-slate-500 font-medium leading-relaxed italic line-clamp-2" title={row.abr_reason}>
+                                {row.abr_reason || "None provided"}
+                              </p>
+                            </div>
+                            {row.request_type === 'edit' && row.requested_login_time && (
+                              <div className="text-[9px] font-bold text-amber-700 bg-amber-50/50 border border-amber-100 rounded-md p-1.5 flex flex-col gap-0.5 w-max">
+                                <span>Requested Times:</span>
+                                <span className="font-extrabold text-[10px] text-slate-700">Login: {row.requested_login_time.slice(0, 5)} | Logout: {row.requested_logout_time.slice(0, 5)}</span>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-2.5">

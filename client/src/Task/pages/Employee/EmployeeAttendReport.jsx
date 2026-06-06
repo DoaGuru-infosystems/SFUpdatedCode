@@ -18,6 +18,9 @@ import {
 import * as XLSX from "xlsx";
 import BackdatedAttendModal from "./BackdatedAttendModal";
 import BackEmpAttendModal from "./BackEmpAttendModal";
+import EditAttendRequestModal from "./EditAttendRequestModal";
+
+const API_BASE_URL = "https://sf.doaguru.com/api";
 
 /* ─────────────────── helpers ─────────────────── */
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -44,15 +47,16 @@ const EmployeeAttendReport = () => {
   const [requestData, setRequestData] = useState([]);
 
   const [openModal, setOpenModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
   const [attendModal, setAttendModal] = useState(false);
   const [selected, setSelected] = useState([]);
 
   const fetchData = async () => {
     try {
       const [a, h, l] = await Promise.all([
-        axios.get(`https://sf.doaguru.com/api/getCheckInByUserIdOnly/${user?.id}/${month}/${year}`),
-        axios.get(`https://sf.doaguru.com/api/getHolidaysByMonthYear/${month}/${year}`),
-        axios.get(`https://sf.doaguru.com/api/getMonthlyEmployeeLeavesByUserId/${user?.id}/${month}/${year}`)
+        axios.get(`${API_BASE_URL}/getCheckInByUserIdOnly/${user?.id}/${month}/${year}`),
+        axios.get(`${API_BASE_URL}/getHolidaysByMonthYear/${month}/${year}`),
+        axios.get(`${API_BASE_URL}/getMonthlyEmployeeLeavesByUserId/${user?.id}/${month}/${year}`)
       ]);
       setAttendData(Array.isArray(a.data) ? a.data : []);
       setHolidays(h.data?.data || []);
@@ -63,7 +67,7 @@ const EmployeeAttendReport = () => {
   const getAllBackDateReq = async () => {
     if (!user?.id) return;
     try {
-      const { data } = await axios.get(`https://sf.doaguru.com/api/getAllBackDateRequestBYId/${user?.id}`);
+      const { data } = await axios.get(`${API_BASE_URL}/getAllBackDateRequestBYId/${user?.id}`);
       // Sort by request_id or date to show latest first
       const sortedData = Array.isArray(data) ? data.sort((a, b) => b.request_id - a.request_id) : [];
       setRequestData(sortedData);
@@ -117,7 +121,7 @@ const EmployeeAttendReport = () => {
 
   const deleteBackDateRequest = async (id) => {
     if (window.confirm("Delete request?")) {
-      try { await axios.delete(`https://sf.doaguru.com/api/deleteBackDateRequest/${id}`); alert("Deleted"); getAllBackDateReq(); }
+      try { await axios.delete(`${API_BASE_URL}/deleteBackDateRequest/${id}`); alert("Deleted"); getAllBackDateReq(); }
       catch (e) { alert("Error"); }
     }
   };
@@ -151,8 +155,9 @@ const EmployeeAttendReport = () => {
             <button onClick={() => handleMonthChange(1)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600"><FaArrowRight size={12} /></button>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2 w-full md:w-auto font-sans">
             <button onClick={() => setOpenModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition-all active:scale-95">+ Backdate Request</button>
+            <button onClick={() => setOpenEditModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition-all active:scale-95">+ Request Time Edit</button>
             <button onClick={downloadExcel} className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition-all active:scale-95"><FaDownload size={12} /> Export</button>
           </div>
         </div>
@@ -290,9 +295,23 @@ const EmployeeAttendReport = () => {
                 {requestData.filter(row => row.abr_status !== "finalized").length > 0 ? (
                   requestData.filter(row => row.abr_status !== "finalized").map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-2 text-slate-900 font-black text-[12px] tracking-tight">{row.request_date}</td>
-                      <td className="px-3 py-2 text-slate-400 italic max-w-[200px] truncate" title={row.abr_reason}>
-                        <FaInfoCircle className="inline mr-1 text-slate-200" size={10} /> {row.abr_reason}
+                      <td className="px-4 py-2 text-slate-900 font-black text-[12px] tracking-tight">
+                        <div className="flex flex-col">
+                          <span>{row.request_date}</span>
+                          {row.request_type === 'edit' ? (
+                            <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded uppercase w-max tracking-tighter mt-0.5">Time Edit</span>
+                          ) : (
+                            <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded uppercase w-max tracking-tighter mt-0.5">Backdate</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-slate-400 italic max-w-[200px]" title={row.abr_reason}>
+                        <div className="flex flex-col">
+                          <span className="truncate text-slate-500 font-medium"><FaInfoCircle className="inline mr-1 text-slate-200" size={10} /> {row.abr_reason}</span>
+                          {row.request_type === 'edit' && row.requested_login_time && (
+                            <span className="text-[9px] font-bold text-slate-600 not-italic mt-1">Requested Time: {row.requested_login_time.slice(0, 5)} - {row.requested_logout_time.slice(0, 5)}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-center">
                         <span className={`px-2 py-0.5 rounded-full font-black text-[8px] uppercase tracking-widest shadow-sm ${row.abr_status === "approved" ? "bg-emerald-50 text-emerald-700" :
@@ -335,6 +354,7 @@ const EmployeeAttendReport = () => {
       </div>
 
       <BackdatedAttendModal isOpen={openModal} onClose={() => setOpenModal(false)} userId={user?.id} getAllBackDateReq={getAllBackDateReq} />
+      <EditAttendRequestModal isOpen={openEditModal} onClose={() => setOpenEditModal(false)} userId={user?.id} getAllBackDateReq={getAllBackDateReq} />
       <BackEmpAttendModal isOpen={attendModal} onClose={() => setAttendModal(false)} userId={user?.id} getAllBackDateReq={getAllBackDateReq} selected={selected} />
     </div>
   );

@@ -4,6 +4,8 @@ import axios from "axios";
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 
+const API_BASE_URL = "https://sf.doaguru.com/api";
+
 const BackEmpAttendModal = ({
   isOpen,
   onClose,
@@ -34,8 +36,8 @@ const BackEmpAttendModal = ({
     setFormData({
       ...formData,
       userId: userId,
-      loginTime: "",
-      logoutTime: "",
+      loginTime: selected?.requested_login_time || "",
+      logoutTime: selected?.requested_logout_time || "",
       attendDate: selected?.request_date,
       requestId: selected?.request_id,
     });
@@ -48,7 +50,7 @@ const BackEmpAttendModal = ({
 
     try {
       const res = await axios.put(
-        "https://sf.doaguru.com/api/markBackDateAttendance",
+        `${API_BASE_URL}/markBackDateAttendance`,
         formData
       );
       alert("Attendance Marked Successfully");
