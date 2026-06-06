@@ -116,19 +116,29 @@ const sendAdminOtpEmail = async (otp) => {
 
       console.log(`📧 Sending OTP ${otp} to Admin emails:`, emails);
 
-      // Create transporter dynamically to pick up any runtime env changes
-      const transporter = nodemailer.createTransport({
-        host: process.env.OTP_EMAIL_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.OTP_EMAIL_PORT) || 465,
-        secure: process.env.OTP_EMAIL_SECURE !== "false",
-        auth: {
-          user: process.env.OTP_EMAIL_USER || "doaguruinfosystems@gmail.com",
-          pass: process.env.OTP_EMAIL_PASS || "mmar fqeg yyic ynxp",
-        },
-      });
+//       let transporter = nodemailer.createTransport({
+//   host: 'doaguru.com',
+//   port: 465,
+//   secure: true,
+//   auth: {
+//     // user: 'info@doaguru.com',
+//     // pass: 'abhi@doaguru123',
+//     user: 'inquiry@doaguru.com',
+//     pass: 'inquiry@123',
+//   }
+// });
 
+const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      secure: true, // true for 465, false for other ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
       const mailOptions = {
-        from: process.env.OTP_EMAIL_USER || "doaguruinfosystems@gmail.com",
+        from: process.env.EMAIL_USER,
         to: emails.join(", "),
         subject: "Workforce Insights - Admin Security OTP Verification",
         text: `Hello Admin,
