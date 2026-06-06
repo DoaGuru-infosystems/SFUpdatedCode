@@ -2347,7 +2347,8 @@ const SalaryCalculatorsByUser = (req, res) => {
         let fullDays = 0,
           halfDays = 0,
           workedSundaysFull = 0,
-          workedSundaysHalf = 0;
+          workedSundaysHalf = 0,
+          workedHolidays = 0;
 
         attendData.forEach((record) => {
           const date = moment.tz(record.attend_date, ["DD-MM-YYYY", "YYYY-MM-DD"], timezone);
@@ -2358,10 +2359,11 @@ const SalaryCalculatorsByUser = (req, res) => {
           const formattedRecordDateISO = date.format("YYYY-MM-DD");
           if (paidHolidayDates.includes(formattedRecordDate) || paidHolidayDatesISO.includes(formattedRecordDateISO)) {
             fullDays++;
+            workedHolidays++;
             return;
           }
 
-          if (record.day_status === "full") {
+          if (record.day_status === "full" || record.day_status === "logged-in") {
             fullDays++;
             if (isSunday) workedSundaysFull++;
           }
@@ -2411,6 +2413,15 @@ const SalaryCalculatorsByUser = (req, res) => {
           totalSalary = maxRangeSalary;
         }
 
+        let absentDays = totalDaysInMonth - (
+          (fullDays - workedSundaysFull - workedHolidays) +
+          (halfDays * 0.5) +
+          totalSundays +
+          paidLeaves +
+          paidHolidayDates.length
+        );
+        if (absentDays < 0) absentDays = 0;
+
         return res.status(200).json({
           success: true,
           year,
@@ -2420,6 +2431,7 @@ const SalaryCalculatorsByUser = (req, res) => {
           // Attendance Summary
           fullDays,
           halfDays,
+          absentDays,
           paidLeaves,
           workedSundaysFull,
           workedSundaysHalf,
