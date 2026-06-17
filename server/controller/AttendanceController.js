@@ -80,7 +80,7 @@ const applyForBackDateAttendance = (req, res) => {
         const recordExists = attendResult.length > 0;
         const dayStatus = recordExists ? attendResult[0].day_status : null;
         const logoutTime = recordExists ? attendResult[0].logout_time : null;
-        
+
         const isAbsent = !recordExists || dayStatus === 'absent';
         const isLogoutMissing = recordExists && (!logoutTime || logoutTime === 'undefined' || dayStatus === 'logged-in');
 
@@ -128,7 +128,7 @@ const applyForBackDateAttendance = (req, res) => {
 
           res.status(200).json({
             success: true,
-            message: reqType === "edit" 
+            message: reqType === "edit"
               ? `Time edit request for ${request_date} submitted successfully.`
               : `Backdated attendance request for ${request_date} submitted successfully.`,
           });
@@ -308,7 +308,7 @@ const markBackDateAttendance = (req, res) => {
           WHERE user_id = ? AND attend_date = ?
         `;
         const updateParams = [loginTime, logoutTime, workMinute, dayStatus, dateTime, userId, attendDate];
-        
+
         db.query(updateQuery, updateParams, (err, result) => {
           if (err) {
             return res.status(400).json({ success: false, message: err.message });
@@ -342,7 +342,7 @@ const markBackDateAttendance = (req, res) => {
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         const insertParams = [userId, attendDate, loginTime, logoutTime, workMinute, dayStatus, dateTime];
-        
+
         db.query(insertQuery, insertParams, (err, result) => {
           if (err) {
             return res.status(400).json({ success: false, message: err.message });

@@ -31,4 +31,3 @@ return (
     </div>
   </div>
 );
-}
