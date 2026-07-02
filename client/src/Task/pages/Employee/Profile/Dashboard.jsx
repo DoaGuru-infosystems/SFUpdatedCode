@@ -130,7 +130,7 @@ const EmployeeDashboard = () => {
             {/* Profile Picture */}
             <div className="relative">
               <img
-                src={profile.profileIMG?.replace("http://sf.doaguru.com", "https://sf.doaguru.com") || 'https://static.vecteezy.com/system/resources/previews/020/765/399/non_2x/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg'}
+                src={profile.profileIMG?.replace("https://sf.doaguru.com", "https://sf.doaguru.com") || 'https://static.vecteezy.com/system/resources/previews/020/765/399/non_2x/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg'}
                 alt="Profile"
                 className="w-24 h-24 rounded-full object-cover"
               />

@@ -4,6 +4,7 @@ import { Bars3Icon, BellIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import io from "socket.io-client";
 
 const baseNavigation = [
   { name: "Dashboard", href: "/task/UserHome" },
@@ -37,6 +38,7 @@ export default function Navbar({ Logout, render }) {
   const [profile, setProfile] = useState(null);
   const employeeId = JSON.parse(localStorage.getItem("user"));
   const [navigation, setNavigation] = useState(baseNavigation);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
@@ -50,6 +52,75 @@ export default function Navbar({ Logout, render }) {
       }
     };
     fetchEmployeeData();
+  }, []);
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const userStr = localStorage.getItem("user");
+        if (!userStr) return;
+        const loggedInUser = JSON.parse(userStr);
+        const response = await axios.get(
+          `https://sf.doaguru.com/api/scheduler/notifications/unread?employee_id=${loggedInUser.id}`
+        );
+        setUnreadCount(response.data.length);
+      } catch (err) {
+        console.error("Error fetching unread notifications count:", err);
+      }
+    };
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [render]);
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
+    const socket = io(window.location.host === 'localhost:3000' ? "https://sf.doaguru.com" : "/", {
+      transports: ["polling", "websocket"],
+      withCredentials: true
+    });
+
+    socket.on("new-scheduler-notification", (notif) => {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return;
+      const loggedInUser = JSON.parse(userStr);
+      
+      if (notif.employee_id === loggedInUser.id) {
+        console.log("🔔 New Real-time Scheduler Notification received:", notif);
+        setUnreadCount((prev) => prev + 1);
+
+        // Play sound
+        try {
+          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+          audio.play();
+        } catch (e) {
+          console.error(e);
+        }
+
+        // Show Native Notification
+        if ("Notification" in window && Notification.permission === "granted") {
+          const title = `DG Workspace: Scheduler Alert`;
+          const options = {
+            body: notif.message_body,
+            icon: "https://doaguru.com/static/media/doagurulogo-removebg.b0126812bbe704a27f8f.webp",
+            badge: "https://doaguru.com/static/media/doagurulogo-removebg.b0126812bbe704a27f8f.webp",
+            tag: String(notif.id),
+            requireInteraction: true
+          };
+          new Notification(title, options);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -96,16 +167,16 @@ export default function Navbar({ Logout, render }) {
 
   // Use optional chaining to avoid accessing properties on null
   const profileImageSrc = profile?.profileIMG
-    ? profile.profileIMG.replace("http://sf.doaguru.com", "https://sf.doaguru.com")
+    ? profile.profileIMG.replace("https://sf.doaguru.com", "https://sf.doaguru.com")
     : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSt9ISaBFDC88ejiGrYACSt81CFq21QsZ6bow&s";
 
   return (
     <Disclosure as="nav" className="bg-white-800">
       {({ open }) => (
         <>
-          <div className="mx-auto max-w-full sm:mx-5 px-2 sm:px-3 lg:px-1">
+          <div className="mx-auto max-w-full lg:mx-5 px-2 lg:px-3 lg:px-1">
             <div className="relative flex h-16 items-center justify-between">
-              <div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
+              <div className="absolute inset-y-0 left-0 flex items-center lg:hidden">
                 {!user || (
                   <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
                     <span className="absolute -inset-0.5" />
@@ -118,7 +189,7 @@ export default function Navbar({ Logout, render }) {
                   </Disclosure.Button>
                 )}
               </div>
-              <div className="flex flex-1 items-center ms-12 sm:items-stretch sm:justify-start">
+              <div className="flex flex-1 items-center ms-12 lg:items-stretch lg:justify-start">
                 <div className="flex flex-shrink-0 items-center">
                   <img
                     className="h-12 w-auto"
@@ -126,7 +197,7 @@ export default function Navbar({ Logout, render }) {
                     alt="DOAGuru Infosystem"
                   />
                 </div>
-                <div className="hidden sm:ml-6 sm:block">
+                <div className="hidden lg:ml-6 lg:block">
                   {!user || (
                     <div className="flex space-x-4">
                       {navigation.map((item) => {
@@ -203,20 +274,25 @@ export default function Navbar({ Logout, render }) {
                 </div>
               </div>
               {!user || (
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                  <div className="text-sm sm:text-lg mx-3 flex ">
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 lg:static lg:inset-auto lg:ml-6 lg:pr-0">
+                  <div className="text-sm lg:text-lg mx-3 flex ">
                     <p>
                       <b>Hello {userName}</b>
                     </p>
                   </div>
-                  <button
-                    type="button"
+                  <Link
+                    to="/task/my-notifications"
                     className="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800"
                   >
                     <span className="absolute -inset-1.5" />
                     <span className="sr-only">View notifications</span>
                     <BellIcon className="h-6 w-6" aria-hidden="true" />
-                  </button>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-gray-800">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </Link>
 
                   <Menu as="div" className="relative ml-3">
                     <div>
@@ -274,7 +350,7 @@ export default function Navbar({ Logout, render }) {
             </div>
           </div>
 
-          <Disclosure.Panel className="sm:hidden">
+          <Disclosure.Panel className="lg:hidden">
             <div className="space-y-1 px-2 pb-3 pt-2">
               {navigation.map((item) => {
                 if (item.children) {

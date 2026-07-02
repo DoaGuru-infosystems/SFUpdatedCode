@@ -45,6 +45,8 @@ const navigation = [
     ],
   },
   { name: "Holiday Management", href: "/task/admin/holiday-management" },
+  { name: "Scheduler", href: "/task/scheduler/" },
+  { name: "Letters", href: "/task/letters" },
 ];
 
 function classNames(...classes) {
@@ -257,7 +259,7 @@ export default function AdminNavbar({ Logout, render }) {
   }, [render]);
 
   return (
-    <Disclosure as="nav" className="bg-white border-b border-gray-200 shadow-sm">
+    <Disclosure as="nav" className="bg-white border-b border-gray-200 shadow-sm relative z-[1000]">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-full sm:mx-5 px-2 sm:px-3 lg:px-1">
@@ -274,7 +276,7 @@ export default function AdminNavbar({ Logout, render }) {
                   </DisclosureButton>
                 )}
               </div>
-              <div className="flex flex-1 items-center ms-12 sm:items-stretch sm:justify-start">
+              <div className="flex flex-1 items-center ms-12 sm:items-center sm:justify-start">
                 <div className="flex flex-shrink-0 items-center">
                   <img
                     className="h-12 w-auto"
@@ -284,7 +286,7 @@ export default function AdminNavbar({ Logout, render }) {
                 </div>
                 <div className="hidden sm:ml-6 sm:block">
                   {!user || (
-                    <div className="flex space-x-4">
+                    <div className="flex space-x-4 items-center">
                       {navigation.map((item) => (
                         item.items ? (
                           <Menu as="div" key={item.name} className="relative">
@@ -493,7 +495,7 @@ export default function AdminNavbar({ Logout, render }) {
                       leaveFrom="transform opacity-100 scale-100"
                       leaveTo="transform opacity-0 scale-95"
                     >
-                      <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <MenuItems className="absolute right-0 z-[100] mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                         <MenuItem>
                           {({ active }) => (
                             <Link

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, useNavigate, Link } from "react-router-dom";
+import { Routes, Route, useNavigate, Link, useLocation, Outlet } from "react-router-dom";
 import "react-multi-date-picker/styles/colors/green.css";
 // import App from "./App";
 // Sales App
@@ -49,8 +49,46 @@ import CheckAssignedTaskDevlopment from "./Task/pages/Employee/CheckAssignedTask
 import EmployeeDetails from "./Task/pages/Admin/EmployeeDetails";
 import WorkforceInsights from "./Task/pages/Admin/WorkforceInsights";
 
+// ── Scheduler Plugin ────────────────────────────────────────
+import SchedulerApp from "./Scheduler/SchedulerApp";
+import { ReminderProvider } from "./Scheduler/context/ReminderContext";
+import Notifications from "./Scheduler/components/Notifications";
+
+// ── Letters Plugin ──────────────────────────────────────────
+import "./Letters/letters.css";
+import LettersDashboard from "./Letters/Pages/Dashboard";
+import LettersOfferLetter from "./Letters/Pages/LettersPage/OfferLater";
+import LettersInternOfferLetter from "./Letters/Pages/LettersPage/InternshipOfferLetter";
+import LettersRelievingLetter from "./Letters/Pages/LettersPage/RelievingLetter";
+import LettersTerminationLetter from "./Letters/Pages/LettersPage/TerminationLetter";
+import LettersViewOfferLettersPage from "./Letters/Pages/LettersPage/ViewLetters";
+import LettersDownloadOfferLetter from "./Letters/Pages/LettersPage/DownloadOfferLetter";
+import LettersWarningLetter from "./Letters/Components/Nousheen/Inputform";
+import LettersSalarySlip from "./Letters/Components/sallaeySlip";
+import LettersEmployeeForm from "./Letters/Components/EmployeeForm";
+import LettersInternExperienceLetter from "./Letters/Pages/LettersPage/InternExperienceLetter";
+import LettersInternPPOLetter from "./Letters/Pages/LettersPage/InternPPOLetter";
+import LettersDownloadInternOfferLetter from "./Letters/Pages/LettersPage/DownloadInternOfferLetter";
+import LettersDownloadInternExperienceLetter from "./Letters/Pages/LettersPage/DownloadInternExperienceLetter";
+import LettersDownloadInternPPOLetter from "./Letters/Pages/LettersPage/DownloadInternPPOLetter";
+import LettersDownloadExperienceLetter from "./Letters/Pages/LettersPage/DownloadExperienceLetter";
+import LettersDownloadRelievingLetter from "./Letters/Pages/LettersPage/DownloadRelievingLetter";
+import LettersDownloadTerminationLetter from "./Letters/Pages/LettersPage/DownloadTerminationLetter";
+import LettersDownloadSalarySlip from "./Letters/Pages/LettersPage/DownloadSalarySlip";
+import LettersNavbar from "./Letters/Components/navbar";
+import { ThemeProvider as LettersThemeProvider } from "./Letters/context/ThemeContext";
+
+const LettersLayout = () => {
+  return (
+    <div className="letters-app-theme-container">
+      <Outlet />
+    </div>
+  );
+};
+
 const Commonjs = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [render, setRender] = useState(false);
   const [page, setPage] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -68,7 +106,7 @@ const Commonjs = () => {
   };
 
   useEffect(() => {
-    let path = window.location.pathname;
+    let path = location.pathname;
     if (path.includes("sales")) {
       setPage("sales");
     } else if (path.includes("task")) {
@@ -89,10 +127,10 @@ const Commonjs = () => {
       }
     }
     // console.log(user, "line 65");
-  }, [window.location.pathname]);
+  }, [location.pathname]);
 
   return (
-    <>
+    <LettersThemeProvider>
       <Toaster position="top-center" reverseOrder={false} />
       {page == "task" ? (
         userRole === "admin" ? (
@@ -105,6 +143,7 @@ const Commonjs = () => {
       ) : (
         ""
       )}
+      {location.pathname.startsWith("/task/letters") && <LettersNavbar />}
       <Routes>
         <Route
           path="/"
@@ -262,9 +301,50 @@ const Commonjs = () => {
         />
         <Route path="/task/Page-Not-Found" element={<NotFoundPage />} />
         <Route path="/task/blank" element={<Blank />} />
+
+        {/* Scheduler Plugin Routes */}
+        {userRole === "admin" && (
+          <Route path="/task/scheduler/*" element={<SchedulerApp />} />
+        )}
+
+        {/* Letters Plugin Routes */}
+        {userRole === "admin" && (
+          <Route element={<LettersLayout />}>
+            <Route path="/task/letters" element={<LettersDashboard />} />
+            <Route path="/task/letters/Offer-Letter-Genrate/:id?" element={<LettersOfferLetter />} />
+            <Route path="/task/letters/intern-offer-letter" element={<LettersInternOfferLetter />} />
+            <Route path="/task/letters/Relieving-Letter-Genrate" element={<LettersRelievingLetter />} />
+            <Route path="/task/letters/Termination-Letter-Genrate" element={<LettersTerminationLetter />} />
+            <Route path="/task/letters/OfferLetter" element={<LettersViewOfferLettersPage />} />
+            <Route path="/task/letters/report" element={<LettersViewOfferLettersPage />} />
+            <Route path="/task/letters/download/offer-letter" element={<LettersDownloadOfferLetter />} />
+            <Route path="/task/letters/warning-letter-genrate" element={<LettersWarningLetter />} />
+            <Route path="/task/letters/salary-slip" element={<LettersSalarySlip />} />
+            <Route path="/task/letters/experince-letter-genrate" element={<LettersEmployeeForm />} />
+            <Route path="/task/letters/intern-experience-letter" element={<LettersInternExperienceLetter />} />
+            <Route path="/task/letters/intern-ppo-letter" element={<LettersInternPPOLetter />} />
+            <Route path="/task/letters/download/intern-offer-letter" element={<LettersDownloadInternOfferLetter />} />
+            <Route path="/task/letters/download/intern-experience-letter" element={<LettersDownloadInternExperienceLetter />} />
+            <Route path="/task/letters/download/intern-ppo-letter" element={<LettersDownloadInternPPOLetter />} />
+            <Route path="/task/letters/download/experience-letter" element={<LettersDownloadExperienceLetter />} />
+            <Route path="/task/letters/download/relieving-letter" element={<LettersDownloadRelievingLetter />} />
+            <Route path="/task/letters/download/termination-letter" element={<LettersDownloadTerminationLetter />} />
+            <Route path="/task/letters/download/salary-slip" element={<LettersDownloadSalarySlip />} />
+          </Route>
+        )}
+        <Route
+          path="/task/my-notifications"
+          element={
+            <ReminderProvider>
+              <div style={{ padding: '24px', minHeight: '100vh' }}>
+                <Notifications />
+              </div>
+            </ReminderProvider>
+          }
+        />
       </Routes>
       {page == "task" ? <Footer /> : page == "sales" ? <Sales_Footer /> : ""}
-    </>
+    </LettersThemeProvider>
   );
 };
 

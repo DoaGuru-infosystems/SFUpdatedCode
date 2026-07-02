@@ -221,6 +221,7 @@ const AdminLogin = async (req, res) => {
       res.send({
         message: "एडमिन का लॉगिन सफलतापूर्वक हो गया है।",
         user: result[0],
+        token,
       });
     } else {
       res.status(401).send({ message: "Invalid credentials" });

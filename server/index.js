@@ -1,5 +1,6 @@
 const { join, dirname } = require("path");
 const dotenv = require("dotenv");
+dotenv.config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");
@@ -31,6 +32,10 @@ const salaryRoute = require("./router/salaryRoute.js");
 const commitmentRoute = require("./router/commitmentRoute.js");
 require("./utils/fetchGoogleHolidays");
 // const reminderRoute = require("./router/reminderRoute.js");
+
+// ── Scheduler Plugin ──────────────────────────────────────────
+const schedulerRoute = require("./router/schedulerRoute.js");
+const { startSchedulerCron } = require("./services/scheduler/cronService.js");
 const { exec } = require("child_process");
 // const cron = require('node-cron');
 const { getAllAssociates } = require("./controller/sheduler/email.js");
@@ -53,7 +58,6 @@ const {
 } = require("./utils/whatsappUtils");
 const { fetchAndInsertHolidays } = require("./utils/fetchGoogleHolidays");
 
-dotenv.config();
 app.use(bodyParser.json());
 app.use(cors());
 app.use(express.json());
@@ -68,6 +72,14 @@ app.use("/api", attendanceRotue);
 app.use("/api", salaryRoute);
 app.use(commitmentRoute);
 // app.use("/api", reminderRoute);
+
+// Scheduler Plugin Routes
+global.schedulerUseMockDb = false;
+app.use("/api/scheduler", schedulerRoute);
+
+// Letters Plugin Routes
+const letterRoutes = require("./letters/Routes/routes.js");
+app.use(letterRoutes);
 
 // Serve uploaded files (images) for front-end
 app.use("/uploads", express.static("uploads"));
@@ -211,6 +223,9 @@ scheduleAdminAbsentEmployeeReminder();
 scheduleLogoutReminderWhatsapp();
 scheduleLoginReminderWhatsapp();
 scheduleCheckNoTaskEmployee();
+
+// ── Scheduler Plugin Cron ─────────────────────────────────────
+try { startSchedulerCron(); } catch(e) { console.warn('[Scheduler] Cron failed to start:', e.message); }
 // scheduleAdminAbsentCheckReminderWhatsapp();
 
 // require("./cron/attendanceReminder");
@@ -220,3 +235,4 @@ const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
   console.log("🚀 Server & Socket.io running on port", PORT);
 });
+// Nodemon trigger change

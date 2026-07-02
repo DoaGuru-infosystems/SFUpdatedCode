@@ -1367,6 +1367,107 @@ const sendEmployeeNotLoginLogoutWhatsApp = async (toNumber, fullName, date) => {
   }
 };
 
+// Scheduler Reminder WhatsApp
+const sendSchedulerReminderWhatsApp = async (number, name, title, date, time, customMessage) => {
+  try {
+    const url = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+    let displayDate = date;
+    let displayTime = time;
+
+    try {
+      const parsedDate = moment(date, ['DD/MM/YYYY', 'YYYY-MM-DD']);
+      if (parsedDate.isValid()) {
+        displayDate = parsedDate.format('D MMMM YYYY');
+      }
+    } catch (e) {
+      console.error("Error formatting date for WhatsApp:", e);
+    }
+
+    try {
+      const parsedTime = moment(time, ['HH:mm:ss', 'HH:mm', 'hh:mm A']);
+      if (parsedTime.isValid()) {
+        displayTime = parsedTime.format('hh:mm A');
+      }
+    } catch (e) {
+      console.error("Error formatting time for WhatsApp:", e);
+    }
+
+    const sanitizeParam = (text) => {
+      if (!text) return '';
+      let cleaned = String(text).replace(/[\r\n\t]+/g, ' ');
+      cleaned = cleaned.replace(/\s{4,}/g, ' ');
+      return cleaned.trim();
+    };
+
+    const sanitizeMessageParam = (text) => {
+      if (!text) return '';
+      let cleaned = String(text).replace(/[\r\t]+/g, ' ');
+      cleaned = cleaned.replace(/\n\s*\n/g, '\n');
+      cleaned = cleaned.replace(/[ \t]{4,}/g, ' ');
+      return cleaned.trim();
+    };
+
+    const cleanName = sanitizeParam(name || "User");
+    const cleanTitle = sanitizeParam((title || "Scheduled Task").substring(0, 60));
+    const cleanDate = sanitizeParam(displayDate);
+    const cleanTime = sanitizeParam(displayTime);
+    const cleanMessage = sanitizeParam((customMessage || "Please complete the task as scheduled.").substring(0, 1024));
+
+    const data = {
+      messaging_product: "whatsapp",
+      to: number,
+      type: "template",
+      template: {
+        name: "sf_work_reminder",
+        language: { code: "en_US" },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              {
+                type: "text",
+                text: cleanName,
+              },
+              {
+                type: "text",
+                text: cleanTitle,
+              },
+              {
+                type: "text",
+                text: cleanDate,
+              },
+              {
+                type: "text",
+                text: cleanTime,
+              },
+              {
+                type: "text",
+                text: cleanMessage,
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const headers = {
+      Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+      "Content-Type": "application/json",
+    };
+
+    const response = await axios.post(url, data, { headers });
+    console.log(`✅ WhatsApp scheduler reminder sent to ${name} (${number}) using template 'sf_work_reminder'`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      `❌ Failed to send WhatsApp scheduler reminder to ${name} (${number}) using template 'sf_work_reminder':`,
+      error.response?.data || error.message
+    );
+    return { error: error.response?.data || error.message };
+  }
+};
+
 // const employeeNotLoginLogoutWhatsApp = () => {
 //   return new Promise((resolve, reject) => {
 //     const today = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
@@ -1554,4 +1655,8 @@ module.exports = {
   sendAdminNotLoginLogoutWhatsApp,
   scheduleAdminNotLoginLogoutWhatsapp,
   scheduleEmployeeNotLoginLogoutWhatsapp,
+  sendLogoutReminderWhatsApp,
+  sendLoginReminderWhatsApp,
+  sendSchedulerReminderWhatsApp,
 };
+

@@ -140,7 +140,7 @@ const UpdateEmployeeModal = ({
                 </label>
                 {employee?.profileIMG && (
                   <img
-                    src={employee.profileIMG?.replace("http://sf.doaguru.com", "https://sf.doaguru.com")}
+                    src={employee.profileIMG?.replace("https://sf.doaguru.com", "https://sf.doaguru.com")}
                     alt="Current Profile"
                     className="w-16 h-16 rounded-full object-cover mb-2 border"
                   />
