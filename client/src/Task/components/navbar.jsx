@@ -126,36 +126,39 @@ export default function Navbar({ Logout, render }) {
   useEffect(() => {
     console.log(profile, "profile", profile?.department);
 
-    if (profile?.department) {
-      const assignDataChildren = [
-        { name: "View Task", href: "/task/TaskView" },
-        { name: "Assigned Projects", href: "/task/AssignProjectDetails" },
-      ];
+    const assignDataChildren = [
+      { name: "View Task", href: "/task/TaskView" },
+      { name: "Assigned Projects", href: "/task/AssignProjectDetails" },
+    ];
 
-      if (profile.department === "Development") {
-        assignDataChildren.push({ name: "Assigned Development Task", href: "/task/check-assigned-development-task" });
-      } else if (profile.department === "Digital Marketing") {
-        assignDataChildren.push({ name: "Assigned Daily Target", href: "/task/AssignProjectTarget-Details" });
-      }
-
-      const updatedNavigation = [
-        { name: "Dashboard", href: "/task/UserHome" },
-        {
-          name: "Assign Data",
-          children: assignDataChildren
-        },
-        {
-          name: "Reports",
-          children: [
-            { name: "Task Report", href: "/task/EmployeeTaskReport" },
-            { name: "Attendance Report", href: "/task/employee-attendance-report" },
-            { name: "Leave Report", href: "/task/employee-leave-report" },
-          ]
-        },
-      ];
-
-      setNavigation(updatedNavigation);
+    if (profile?.department === "Development") {
+      assignDataChildren.push({ name: "Assigned Development Task", href: "/task/check-assigned-development-task" });
+    } else if (profile?.department === "Digital Marketing") {
+      assignDataChildren.push({ name: "Assigned Daily Target", href: "/task/AssignProjectTarget-Details" });
     }
+
+    const updatedNavigation = [
+      { name: "Dashboard", href: "/task/UserHome" },
+      {
+        name: "Assign Data",
+        children: assignDataChildren
+      },
+      {
+        name: "Reports",
+        children: [
+          { name: "Task Report", href: "/task/EmployeeTaskReport" },
+          { name: "Attendance Report", href: "/task/employee-attendance-report" },
+          { name: "Leave Report", href: "/task/employee-leave-report" },
+        ]
+      },
+    ];
+
+    if (profile?.designation && profile.designation.trim().toUpperCase() === "HR") {
+      updatedNavigation.push({ name: "Letters", href: "/task/letters" });
+      updatedNavigation.push({ name: "Scheduler", href: "/task/scheduler/" });
+    }
+
+    setNavigation(updatedNavigation);
   }, [profile]);
 
   useEffect(() => {

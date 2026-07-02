@@ -93,6 +93,25 @@ const Commonjs = () => {
   const [page, setPage] = useState(null);
   const [userRole, setUserRole] = useState(null);
 
+  const getLoggedInUser = () => {
+    try {
+      const userStr = localStorage.getItem("user");
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+  const currentUser = getLoggedInUser();
+  const isLettersAuthorized = currentUser && (
+    currentUser.role === "admin" ||
+    (currentUser.designation && currentUser.designation.trim().toUpperCase() === "HR")
+  );
+
+  const isSchedulerAuthorized = currentUser && (
+    currentUser.role === "admin" ||
+    (currentUser.designation && currentUser.designation.trim().toUpperCase() === "HR")
+  );
+
   const handleLogout = () => {
     localStorage.removeItem("user");
     setRender(true);
@@ -143,7 +162,7 @@ const Commonjs = () => {
       ) : (
         ""
       )}
-      {location.pathname.startsWith("/task/letters") && <LettersNavbar />}
+      {location.pathname.startsWith("/task/letters") && isLettersAuthorized && <LettersNavbar />}
       <Routes>
         <Route
           path="/"
@@ -303,12 +322,12 @@ const Commonjs = () => {
         <Route path="/task/blank" element={<Blank />} />
 
         {/* Scheduler Plugin Routes */}
-        {userRole === "admin" && (
+        {isSchedulerAuthorized && (
           <Route path="/task/scheduler/*" element={<SchedulerApp />} />
         )}
 
         {/* Letters Plugin Routes */}
-        {userRole === "admin" && (
+        {isLettersAuthorized && (
           <Route element={<LettersLayout />}>
             <Route path="/task/letters" element={<LettersDashboard />} />
             <Route path="/task/letters/Offer-Letter-Genrate/:id?" element={<LettersOfferLetter />} />
