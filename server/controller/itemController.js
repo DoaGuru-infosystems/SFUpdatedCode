@@ -2389,31 +2389,11 @@ const SalaryCalculatorsByUser = (req, res) => {
         const paidHolidayPay = holidayResult.length * dailySalary;
 
         // ----------------------------------------
-        // 6️⃣ Salary Components
+        // 6️⃣ Salary Components & Comp-off logic
         // ----------------------------------------
         const basePay = (fullDays * dailySalary) + (halfDays * (dailySalary / 2));
-
-        const sundayExtraPay =
-          workedSundaysFull * dailySalary +
-          workedSundaysHalf * (dailySalary / 2);
-
         const sundayFixedPay = totalSundays * dailySalary;
-
         const paidLeaveAmount = paidLeaves * dailySalary;
-
-        let totalSalary =
-          basePay +
-          sundayExtraPay +
-          sundayFixedPay +
-          paidLeaveAmount +
-          paidHolidayPay;
-
-        const totalDaysInCalculatedRange = endMoment.diff(startMoment, 'days') + 1;
-        const maxRangeSalary = totalDaysInCalculatedRange * dailySalary;
-
-        if (totalSalary > maxRangeSalary) {
-          totalSalary = maxRangeSalary;
-        }
 
         let absentDays = totalDaysInMonth - (
           (fullDays - workedSundaysFull - workedHolidays) +
@@ -2424,6 +2404,38 @@ const SalaryCalculatorsByUser = (req, res) => {
         );
         if (absentDays < 0) absentDays = 0;
 
+        let originalAbsentDays = absentDays;
+
+        // Comp-off logic
+        let extraSundaysWorked = workedSundaysFull + (workedSundaysHalf * 0.5);
+        let compOffsAdjustedThisMonth = 0;
+
+        if (extraSundaysWorked > 0 && absentDays > 0) {
+          if (extraSundaysWorked >= absentDays) {
+            compOffsAdjustedThisMonth = absentDays;
+            extraSundaysWorked -= absentDays;
+            absentDays = 0;
+          } else {
+            compOffsAdjustedThisMonth = extraSundaysWorked;
+            absentDays -= extraSundaysWorked;
+            extraSundaysWorked = 0;
+          }
+        }
+
+        let totalSalary =
+          basePay +
+          sundayFixedPay +
+          paidLeaveAmount +
+          paidHolidayPay + 
+          (compOffsAdjustedThisMonth * dailySalary);
+
+        const totalDaysInCalculatedRange = endMoment.diff(startMoment, 'days') + 1;
+        const maxRangeSalary = totalDaysInCalculatedRange * dailySalary;
+
+        if (totalSalary > maxRangeSalary) {
+          totalSalary = maxRangeSalary;
+        }
+
         return res.status(200).json({
           success: true,
           year,
@@ -2433,12 +2445,18 @@ const SalaryCalculatorsByUser = (req, res) => {
           // Attendance Summary
           fullDays,
           halfDays,
+          originalAbsentDays,
           absentDays,
           paidLeaves,
           workedSundaysFull,
           workedSundaysHalf,
           totalSundays,
           totalDaysInMonth: totalDaysInCalculatedRange,
+          
+          // Comp-off Summary
+          earnedCompOffsThisMonth: (workedSundaysFull + (workedSundaysHalf * 0.5)),
+          compOffsAdjustedThisMonth,
+          remainingCompOffBalance: extraSundaysWorked,
 
           // Paid Holiday Summary
           totalPaidHolidays: holidayResult.length,
@@ -2448,8 +2466,9 @@ const SalaryCalculatorsByUser = (req, res) => {
           basePay: basePay.toFixed(2),
           paidHolidayPay: paidHolidayPay.toFixed(2),
           paidLeaveAmount: paidLeaveAmount.toFixed(2),
-          sundayExtraPay: sundayExtraPay.toFixed(2),
+          sundayExtraPay: "0.00", // deprecated
           sundayFixedPay: sundayFixedPay.toFixed(2),
+          compOffPay: (compOffsAdjustedThisMonth * dailySalary).toFixed(2),
           totalSalary: totalSalary.toFixed(2),
 
           note: "If a paid holiday and leave occur on the same day, that day is treated as a paid holiday (not leave/absent).",

@@ -27,7 +27,7 @@ function AssignDailyTarget() {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.get(`https://sf.doaguru.com/api/getEmployeeWiseProjectTarget/${employeeId}`);
+      const res = await axios.get(`http://localhost:8080/api/getEmployeeWiseProjectTarget/${employeeId}`);
       setTargets(res.data.data || []);
       console.log(res.data.data);
     } catch (err) {

@@ -113,7 +113,7 @@ export default function AdminNavbar({ Logout, render }) {
     // ═══ Real-Time Socket Connection ═══
     // In Production (cPanel/Passenger), we MUST prioritize 'polling' and use 
     // the application's own origin to prevent handshake failures.
-    const socket = io(window.location.host === 'localhost:3000' ? "https://sf.doaguru.com" : "/", {
+    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:8080" : "/", {
       transports: ["polling", "websocket"],
       withCredentials: true,
       secure: window.location.protocol === "https:",

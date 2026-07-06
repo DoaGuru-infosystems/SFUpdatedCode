@@ -240,30 +240,57 @@ const updateBackDateRequestStatus = (req, res) => {
           .json({ success: false, message: "Invalid request ID" });
       }
 
-      // Proceed to delete the request if not approved
-      const updateQuery = `UPDATE attendance_backdate_requests SET abr_status = ?, reviewed_at = ?, reviewed_by = ? WHERE request_id = ?`;
-      db.query(
-        updateQuery,
-        [status, dateTime, reviewBy, reqId],
-        (err, result) => {
-          if (err) {
-            return res
-              .status(400)
-              .json({ success: false, message: err.message });
-          }
+      if (status === 'approved') {
+        const getReqQuery = `SELECT * FROM attendance_backdate_requests WHERE request_id = ?`;
+        db.query(getReqQuery, [reqId], (err, reqRows) => {
+          if (err) return res.status(500).json({ success: false, message: err.message });
+          if (reqRows.length === 0) return res.status(404).json({ success: false, message: 'Request not found' });
+          
+          const reqData = reqRows[0];
+          const loginTime = reqData.requested_login_time || '09:30:00';
+          const logoutTime = reqData.requested_logout_time || '18:30:00';
+          const attendDate = reqData.request_date;
+          const userId = reqData.employee_id;
+          
+          const start = moment(loginTime, ['HH:mm:ss', 'HH:mm']);
+          const end = moment(logoutTime, ['HH:mm:ss', 'HH:mm']);
+          const workMinute = end.diff(start, 'minutes');
+          const dayStatus = workMinute < 300 ? 'half' : 'full';
+          
+          const checkExistQuery = `SELECT * FROM attendance WHERE user_id = ? AND attend_date = ?`;
+          db.query(checkExistQuery, [userId, attendDate], (err, rows) => {
+            if (err) return res.status(400).json({ success: false, message: err.message });
+            
+            const handleFinalize = () => {
+              const updateQuery = `UPDATE attendance_backdate_requests SET abr_status = 'finalized', reviewed_at = ?, reviewed_by = ? WHERE request_id = ?`;
+              db.query(updateQuery, [dateTime, reviewBy, reqId], (err) => {
+                if (err) return res.status(400).json({ success: false, message: err.message });
+                res.status(200).json({ success: true, message: 'Request approved and attendance updated successfully' });
+              });
+            };
 
-          if (result.affectedRows === 0) {
-            return res
-              .status(400)
-              .json({ success: false, message: "Invalid request ID" });
-          }
-
-          res.status(200).json({
-            success: true,
-            message: `Request ${status} successfully`,
+            if (rows.length > 0) {
+              const updateQuery = `UPDATE attendance SET login_time = ?, logout_time = ?, work_minutes = ?, day_status = ?, record_created_at = ? WHERE user_id = ? AND attend_date = ?`;
+              db.query(updateQuery, [loginTime, logoutTime, workMinute, dayStatus, dateTime, userId, attendDate], (err) => {
+                if (err) return res.status(400).json({ success: false, message: err.message });
+                handleFinalize();
+              });
+            } else {
+              const insertQuery = `INSERT INTO attendance (user_id, attend_date, login_time, logout_time, work_minutes, day_status, record_created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+              db.query(insertQuery, [userId, attendDate, loginTime, logoutTime, workMinute, dayStatus, dateTime], (err) => {
+                if (err) return res.status(400).json({ success: false, message: err.message });
+                handleFinalize();
+              });
+            }
           });
-        }
-      );
+        });
+      } else {
+        const updateQuery = `UPDATE attendance_backdate_requests SET abr_status = ?, reviewed_at = ?, reviewed_by = ? WHERE request_id = ?`;
+        db.query(updateQuery, [status, dateTime, reviewBy, reqId], (err, result) => {
+          if (err) return res.status(400).json({ success: false, message: err.message });
+          res.status(200).json({ success: true, message: `Request ${status} successfully` });
+        });
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -16,7 +16,7 @@ export default function Notifications() {
   }, [fetchUnreadNotifications]);
 
   useEffect(() => {
-    const socket = io(window.location.host === 'localhost:3000' ? "https://sf.doaguru.com" : "/", {
+    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:8080" : "/", {
       transports: ["polling", "websocket"],
       withCredentials: true
     });

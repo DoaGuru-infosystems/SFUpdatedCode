@@ -17,7 +17,7 @@ const AddData = () => {
     const [loading, setLoading] = useState({ project: false, category: false, subcategory: false });
 
     const fetchCategories = () => {
-        axios.get('https://sf.doaguru.com/api/category-list')
+        axios.get('http://localhost:8080/api/category-list')
             .then(response => {
                 setCategories(response.data);
             })
@@ -31,7 +31,7 @@ const AddData = () => {
         if (projectDepartment.length === 0) return toast.error("Please select at least one department");
         setLoading(prev => ({ ...prev, project: true }));
         try {
-            await axios.post('https://sf.doaguru.com/api/projects', { name: projectName, department: projectDepartment.join(', ') });
+            await axios.post('http://localhost:8080/api/projects', { name: projectName, department: projectDepartment.join(', ') });
             toast.success('Project registered successfully');
             setProjectName('');
             setProjectDepartment([]);
@@ -46,7 +46,7 @@ const AddData = () => {
         if (!categoryName.trim()) return toast.error("Please enter a category name");
         setLoading(prev => ({ ...prev, category: true }));
         try {
-            await axios.post('https://sf.doaguru.com/api/categories', { name: categoryName });
+            await axios.post('http://localhost:8080/api/categories', { name: categoryName });
             toast.success('Category created successfully');
             setCategoryName('');
             fetchCategories();
@@ -62,7 +62,7 @@ const AddData = () => {
         if (!selectedCategoryId) return toast.error("Please select a parent category");
         setLoading(prev => ({ ...prev, subcategory: true }));
         try {
-            await axios.post('https://sf.doaguru.com/api/subcategories', { name: subCategoryName, category_id: selectedCategoryId });
+            await axios.post('http://localhost:8080/api/subcategories', { name: subCategoryName, category_id: selectedCategoryId });
             toast.success('Sub-category linked successfully');
             setSubCategoryName('');
             setSelectedCategoryId('');

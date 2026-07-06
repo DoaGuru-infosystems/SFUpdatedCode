@@ -25,7 +25,7 @@ const EmployeeLeaveReport = () => {
   const getUserAttendanceById = async () => {
     try {
       const { data } = await axios.get(
-        `https://sf.doaguru.com/api/getMonthlyEmployeeLeavesByUserId/${user?.id}/${month}/${year}`
+        `http://localhost:8080/api/getMonthlyEmployeeLeavesByUserId/${user?.id}/${month}/${year}`
       );
       setAttendData(data);
     } catch (error) {

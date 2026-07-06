@@ -22,7 +22,7 @@ const EmployeeDetails = () => {
 
   const fetchEmployeeDetails = async () => {
     try {
-      const { data } = await axios.get(`https://sf.doaguru.com/api/UserDataById/${empId}`);
+      const { data } = await axios.get(`http://localhost:8080/api/UserDataById/${empId}`);
       setEmployee(data[0]);
     } catch (error) {
       console.error(error.message);
@@ -90,7 +90,7 @@ const EmployeeDetails = () => {
             </button>
             <div className="relative group">
               <img
-                src={employee?.profileIMG?.replace("https://sf.doaguru.com", "https://sf.doaguru.com") || "https://placehold.co/400x400?text=Profile"}
+                src={employee?.profileIMG?.replace("http://localhost:8080", "http://localhost:8080") || "https://placehold.co/400x400?text=Profile"}
                 alt="Profile"
                 className="w-20 h-20 md:w-24 md:h-24 rounded-2xl object-cover border-4 border-white shadow-lg ring-1 ring-slate-100 group-hover:scale-105 transition-transform duration-300"
               />
@@ -177,7 +177,7 @@ const EmployeeDetails = () => {
                 {employee?.bank_barcode ? (
                   <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 inline-block">
                     <img
-                      src={`https://sf.doaguru.com/${employee.bank_barcode}`}
+                      src={`http://localhost:8080/${employee.bank_barcode}`}
                       alt="Bank Barcode"
                       className="w-24 h-24 object-contain contrast-125"
                     />
@@ -203,7 +203,7 @@ const EmployeeDetails = () => {
                   <span className="text-[11px] font-bold text-slate-600 truncate mr-2">{doc.label}</span>
                   {doc.link ? (
                     <a
-                      href={`https://sf.doaguru.com/${doc.link}`} target="_blank" rel="noreferrer"
+                      href={`http://localhost:8080/${doc.link}`} target="_blank" rel="noreferrer"
                       className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                     >
                       VIEW

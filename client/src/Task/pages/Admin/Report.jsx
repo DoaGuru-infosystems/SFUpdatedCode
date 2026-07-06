@@ -93,7 +93,7 @@ const TaskReportDownload = () => {
 
   useEffect(() => {
     axios
-      .get("https://sf.doaguru.com/api/users")
+      .get("http://localhost:8080/api/users")
       .then((response) => setUsers(response.data))
       .catch((error) => console.error("Error fetching users:", error));
   }, []);
@@ -101,7 +101,7 @@ const TaskReportDownload = () => {
   useEffect(() => {
     if (selectedUserId) {
       setIsLoading(true);
-      let url = `https://sf.doaguru.com/api/getUserTasks/${selectedUserId}`;
+      let url = `http://localhost:8080/api/getUserTasks/${selectedUserId}`;
       const params = new URLSearchParams();
       if (month) params.append("month", month);
       if (year) params.append("year", year);
@@ -173,7 +173,7 @@ const TaskReportDownload = () => {
 
   const handleDownload = () => {
     if (!selectedUserId) return alert('Select a user first');
-    let downloadUrl = `https://sf.doaguru.com/api/downloadUserTasks/${selectedUserId}`;
+    let downloadUrl = `http://localhost:8080/api/downloadUserTasks/${selectedUserId}`;
     const params = new URLSearchParams();
     if (month) params.append("month", month);
     if (year) params.append("year", year);
@@ -199,7 +199,7 @@ const TaskReportDownload = () => {
 
   const currentFormattedDate = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
   useEffect(() => {
-    axios.get(`https://sf.doaguru.com/api/checkNoTaskEmployee/${currentFormattedDate}`)
+    axios.get(`http://localhost:8080/api/checkNoTaskEmployee/${currentFormattedDate}`)
       .then(res => setDefaulter(res.data))
       .catch(e => console.log(e));
   }, []);

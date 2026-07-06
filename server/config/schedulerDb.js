@@ -1,6 +1,6 @@
 // Scheduler Plugin - DB Pool (mysql2/promise) for SF backend
 // Uses same DB credentials as main SF backend (dilkeris_sf_new)
-const mysql = require('mysql2/promise');
+const mysql = require('mysql');
 const dotenv = require('dotenv');
 dotenv.config();
 

@@ -87,7 +87,7 @@ const UpdateEmployeeModal = ({
       }
 
       const response = await axios.put(
-        `https://sf.doaguru.com/api/updateEmployeeKyc/${empId}`,
+        `http://localhost:8080/api/updateEmployeeKyc/${empId}`,
         fd,
         {
           headers: {
@@ -140,7 +140,7 @@ const UpdateEmployeeModal = ({
                 </label>
                 {employee?.profileIMG && (
                   <img
-                    src={employee.profileIMG?.replace("https://sf.doaguru.com", "https://sf.doaguru.com")}
+                    src={employee.profileIMG?.replace("http://localhost:8080", "http://localhost:8080")}
                     alt="Current Profile"
                     className="w-16 h-16 rounded-full object-cover mb-2 border"
                   />

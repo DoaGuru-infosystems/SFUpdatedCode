@@ -32,8 +32,8 @@ function ProjectsPage() {
     setLoading(true);
     try {
       const [projRes, catRes] = await Promise.all([
-        axios.get('https://sf.doaguru.com/api/projects'),
-        axios.get('https://sf.doaguru.com/api/category-list')
+        axios.get('http://localhost:8080/api/projects'),
+        axios.get('http://localhost:8080/api/category-list')
       ]);
 
       setProjects(projRes.data);
@@ -41,7 +41,7 @@ function ProjectsPage() {
 
       const allSubcategories = [];
       const subPromises = catRes.data.map(cat =>
-        axios.get(`https://sf.doaguru.com/api/sub-category-list?category_id=${cat.id}`)
+        axios.get(`http://localhost:8080/api/sub-category-list?category_id=${cat.id}`)
       );
 
       const subResults = await Promise.all(subPromises);
@@ -89,7 +89,7 @@ function ProjectsPage() {
 
   const handleEditSubmit = async (updatedData) => {
     try {
-      await axios.post(`https://sf.doaguru.com/api/update-${modalType}`, updatedData);
+      await axios.post(`http://localhost:8080/api/update-${modalType}`, updatedData);
       toast.success(`${modalType} updated successfully`);
       fetchData();
       setModalData(null);
@@ -101,7 +101,7 @@ function ProjectsPage() {
   const handleDelete = async (id, type) => {
     if (!window.confirm(`Are you sure you want to remove this ${type}?`)) return;
     try {
-      await axios.post(`https://sf.doaguru.com/api/delete-${type === 'categories' ? 'categorys' : type}`, { id });
+      await axios.post(`http://localhost:8080/api/delete-${type === 'categories' ? 'categorys' : type}`, { id });
       toast.success(`${type} removed successfully`);
       fetchData();
     } catch (error) {

@@ -74,9 +74,9 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
   const fetchData = async () => {
     try {
       const [h, l, a] = await Promise.all([
-        axios.get(`https://sf.doaguru.com/api/getHolidaysByMonthYear/${month}/${year}`),
-        axios.get(`https://sf.doaguru.com/api/getMonthlyEmployeeLeavesByUserId/${uid}/${month}/${year}`),
-        axios.get(`https://sf.doaguru.com/api/getCheckInByUserIdOnly/${uid}/${month}/${year}`)
+        axios.get(`http://localhost:8080/api/getHolidaysByMonthYear/${month}/${year}`),
+        axios.get(`http://localhost:8080/api/getMonthlyEmployeeLeavesByUserId/${uid}/${month}/${year}`),
+        axios.get(`http://localhost:8080/api/getCheckInByUserIdOnly/${uid}/${month}/${year}`)
       ]);
       setHolidays(h.data?.data || []);
       setLeavesData(Array.isArray(l.data) ? l.data : []);
@@ -86,8 +86,8 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
 
   useEffect(() => { fetchData(); }, [month, year]);
   useEffect(() => {
-    axios.get(`https://sf.doaguru.com/api/getEmployeeSalary/${uid}`).then(res => setSalaryData(res.data));
-    axios.get(`https://sf.doaguru.com/api/UserDataById/${uid}`).then(res => setEmpDetails(res.data[0]));
+    axios.get(`http://localhost:8080/api/getEmployeeSalary/${uid}`).then(res => setSalaryData(res.data));
+    axios.get(`http://localhost:8080/api/UserDataById/${uid}`).then(res => setEmpDetails(res.data[0]));
   }, [uid]);
 
   const handleMonthChange = (offset) => {
@@ -149,8 +149,8 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
         payload.selectedYear = year;
       }
 
-      // Pointed back to production server to check with live database
-      const { data } = await axios.post(`https://sf.doaguru.com/api/SalaryCalculatorsByUser/${uid}`, payload);
+      // Pointed back to local server to check with local database
+      const { data } = await axios.post(`http://localhost:8080/api/SalaryCalculatorsByUser/${uid}`, payload);
       setResult(data);
     } catch (e) {
       console.log(e);
@@ -416,9 +416,34 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                           <span>₹{result.basePay}</span>
                         </div>
                         <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                          <span>Sunday Allowances</span>
-                          <span>₹{(parseFloat(result.sundayExtraPay) + parseFloat(result.sundayFixedPay)).toFixed(2)}</span>
+                          <span>Sunday Pay (Fixed)</span>
+                          <span>₹{result.sundayFixedPay}</span>
                         </div>
+                        {result.originalAbsentDays > 0 && (
+                          <div className="flex flex-col gap-1 mt-2 mb-2 p-2 bg-amber-50/50 rounded-lg border border-amber-100">
+                            <span className="text-[9px] font-black uppercase text-amber-700 tracking-widest">Leave & Comp-Off Adjustments</span>
+                            <div className="flex justify-between text-[10px] font-bold text-slate-600">
+                              <span>Total Leaves (Absent Days)</span>
+                              <span>{result.originalAbsentDays} Day(s)</span>
+                            </div>
+                            {result.compOffsAdjustedThisMonth > 0 && (
+                              <div className="flex justify-between text-[10px] font-bold text-emerald-600">
+                                <span>Waived by Comp-Offs (Sundays Worked)</span>
+                                <span>- {result.compOffsAdjustedThisMonth} Day(s)</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between text-[10px] font-black text-amber-800 border-t border-amber-200/50 pt-1 mt-1">
+                              <span>Net Payable Deducted Leaves</span>
+                              <span>{result.absentDays} Day(s)</span>
+                            </div>
+                            {result.remainingCompOffBalance > 0 && (
+                              <div className="flex justify-between text-[10px] font-bold text-indigo-600 mt-1">
+                                <span>Remaining Comp-Off Balance to carry forward</span>
+                                <span>{result.remainingCompOffBalance} Day(s)</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div className="flex justify-between text-[10px] font-bold text-slate-500">
                           <span>Holiday Pay (Fixed)</span>
                           <span>₹{result.paidHolidayPay}</span>
@@ -487,7 +512,7 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                       </p>
                       <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 inline-block shadow-inner group transition-all hover:scale-105">
                         <img
-                          src={`https://sf.doaguru.com/${empDetails.bank_barcode}`}
+                          src={`http://localhost:8080/${empDetails.bank_barcode}`}
                           alt="Payment QR"
                           className="w-32 h-32 object-contain contrast-125 mix-blend-multiply"
                         />

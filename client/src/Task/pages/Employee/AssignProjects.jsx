@@ -47,7 +47,7 @@ function AssignProjectDetails() {
       return;
     }
 
-    axios.get(`https://sf.doaguru.com/api/mytask/${user.id}`)
+    axios.get(`http://localhost:8080/api/mytask/${user.id}`)
       .then(res => {
         // console.log(res.data)
         setTaskData(res.data);

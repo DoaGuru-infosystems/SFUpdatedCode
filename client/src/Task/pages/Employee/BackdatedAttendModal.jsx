@@ -4,7 +4,7 @@ import axios from "axios";
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 
-const API_BASE_URL = "https://sf.doaguru.com/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 const BackdatedAttendModal = ({
   isOpen,
@@ -12,7 +12,10 @@ const BackdatedAttendModal = ({
   userId,
   getAllBackDateReq,
 }) => {
+  const [category, setCategory] = useState("backdate"); // 'backdate' or 'edit'
   const [selectedDates, setSelectedDates] = useState([]);
+  const [loginTime, setLoginTime] = useState("");
+  const [logoutTime, setLogoutTime] = useState("");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [holidays, setHolidays] = useState([]);
@@ -45,7 +48,8 @@ const BackdatedAttendModal = ({
     setLoading(true);
 
     try {
-      const formattedDates = selectedDates.map((date) =>
+      const datesArray = Array.isArray(selectedDates) ? selectedDates : [selectedDates];
+      const formattedDates = datesArray.map((date) =>
         date.format("DD-MM-YYYY")
       );
 
@@ -55,6 +59,9 @@ const BackdatedAttendModal = ({
             employee_id: userId,
             request_date: date,
             abr_reason: reason,
+            request_type: category,
+            requested_login_time: loginTime,
+            requested_logout_time: logoutTime
           })
         )
       );
@@ -101,7 +108,7 @@ const BackdatedAttendModal = ({
         onClose();
       } else {
         // Keep only failed dates in the calendar picker for convenience
-        const failedDateObjects = selectedDates.filter((date) => 
+        const failedDateObjects = selectedDates.filter((date) =>
           failed.some((f) => f.date === date.format("DD-MM-YYYY"))
         );
         setSelectedDates(failedDateObjects);
@@ -132,12 +139,30 @@ const BackdatedAttendModal = ({
           X
         </button>
         <h2 className="text-2xl font-bold mb-4 text-center">
-          Backdated Attendance Request
+          Request Attendance Modification
         </h2>
+
+        {/* Category Select */}
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Request Category</label>
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setSelectedDates([]);
+            }}
+            className="border w-full px-3 py-2 rounded focus:outline-none"
+          >
+            <option value="backdate">Date Request</option>
+            <option value="edit">Time Edit Request</option>
+          </select>
+        </div>
 
         {/* Multi-Date Picker */}
         <div className="mb-4">
-          <label className="block mb-1 font-medium">Select Dates</label>
+          <label className="block mb-1 font-medium">
+            {category === 'edit' ? 'Select Date' : 'Select Dates'}
+          </label>
           {/* <DatePicker
             multiple
             value={selectedDates}
@@ -176,11 +201,11 @@ const BackdatedAttendModal = ({
             }}
           /> */}
           <DatePicker
-            multiple
+            multiple={category === 'backdate'}
             value={selectedDates}
             onChange={setSelectedDates}
             format="DD-MM-YYYY"
-            placeholder="Select multiple dates"
+            placeholder={category === 'edit' ? "Select a single date" : "Select multiple dates"}
             className="custom-calendar w-full"
             inputClass="border w-full px-3 py-2 rounded focus:outline-none"
             closeOnScroll={true}
@@ -214,6 +239,30 @@ const BackdatedAttendModal = ({
           />
         </div>
 
+        {/* Time Inputs */}
+        <div className="flex gap-4 mb-4">
+          <div className="flex-1">
+            <label className="block mb-1 font-medium text-sm">Requested Login Time</label>
+            <input
+              type="time"
+              value={loginTime}
+              onChange={(e) => setLoginTime(e.target.value)}
+              className="border w-full px-3 py-2 rounded focus:outline-none"
+              required={category === 'edit'}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block mb-1 font-medium text-sm">Requested Logout Time</label>
+            <input
+              type="time"
+              value={logoutTime}
+              onChange={(e) => setLogoutTime(e.target.value)}
+              className="border w-full px-3 py-2 rounded focus:outline-none"
+              required={category === 'edit'}
+            />
+          </div>
+        </div>
+
         {/* Leave Reason */}
         <div className="mb-4">
           <label className="block mb-1 font-medium">Reason</label>
@@ -233,7 +282,7 @@ const BackdatedAttendModal = ({
             disabled={loading}
             className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
           >
-            {loading ? "Submitting..." : "Submit Leave"}
+            {loading ? "Submitting..." : "Submit Request"}
           </button>
         </div>
       </div>

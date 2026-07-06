@@ -20,7 +20,7 @@ const CheckAssignedTaskDevlopment = () => {
       return;
     }
     try {
-      const response = await axios.get(`https://sf.doaguru.com/api/get-assigned-development-tasks/${userId}`);
+      const response = await axios.get(`http://localhost:8080/api/get-assigned-development-tasks/${userId}`);
       setTasks(response.data);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -46,7 +46,7 @@ const CheckAssignedTaskDevlopment = () => {
     console.log("Editing Task ID:", editingTask);
     console.log("Edit Data:", editData);
     try {
-      await axios.put(`https://sf.doaguru.com/api/update-assigned-development-task/${editingTask}`, editData);
+      await axios.put(`http://localhost:8080/api/update-assigned-development-task/${editingTask}`, editData);
       toast.success("Task updated successfully");
       fetchTasks(); // Refresh tasks
       cancelEdit();

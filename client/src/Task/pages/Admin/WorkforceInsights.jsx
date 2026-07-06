@@ -78,8 +78,8 @@ const WorkforceInsights = () => {
     const fetchData = async () => {
       try {
         const [usersRes, expensesRes] = await Promise.all([
-          axios.get("https://sf.doaguru.com/api/users"),
-          axios.get("https://sf.doaguru.com/api/get-expenses")
+          axios.get("http://localhost:8080/api/users"),
+          axios.get("http://localhost:8080/api/get-expenses")
         ]);
         console.log("Users fetched:", usersRes.data);
         console.log("Expenses fetched:", expensesRes.data);
@@ -106,7 +106,7 @@ const WorkforceInsights = () => {
   const handleSendOtp = async () => {
     setOtpLoading(true);
     try {
-      await axios.post("https://sf.doaguru.com/api/send-admin-otp");
+      await axios.post("http://localhost:8080/api/send-admin-otp");
       setOtpSent(true);
       alert("OTP has been sent to your registered email.");
     } catch (error) {
@@ -126,15 +126,15 @@ const WorkforceInsights = () => {
 
     setOtpLoading(true);
     try {
-      const res = await axios.post("https://sf.doaguru.com/api/verify-admin-otp", { otp });
+      const res = await axios.post("http://localhost:8080/api/verify-admin-otp", { otp });
       if (res.data.success) {
         setIsVerified(true);
         sessionStorage.setItem('workforce_verified', 'true');
         setLoading(true); // show loader while fetching
         // Fetch data manually here since useEffect won't trigger again
         const [usersRes, expensesRes] = await Promise.all([
-          axios.get("https://sf.doaguru.com/api/users"),
-          axios.get("https://sf.doaguru.com/api/get-expenses")
+          axios.get("http://localhost:8080/api/users"),
+          axios.get("http://localhost:8080/api/get-expenses")
         ]);
         setUsers(usersRes.data);
         setExpenses(expensesRes.data);
@@ -153,10 +153,10 @@ const WorkforceInsights = () => {
     setIsActionLoading(true);
     try {
       if (editingExpense) {
-        await axios.put(`https://sf.doaguru.com/api/update-expense/${editingExpense.id}`, expenseForm);
+        await axios.put(`http://localhost:8080/api/update-expense/${editingExpense.id}`, expenseForm);
         setExpenses(expenses.map(ex => ex.id === editingExpense.id ? { ...ex, ...expenseForm } : ex));
       } else {
-        const res = await axios.post("https://sf.doaguru.com/api/add-expense", expenseForm);
+        const res = await axios.post("http://localhost:8080/api/add-expense", expenseForm);
         setExpenses([{ id: res.data.id, ...expenseForm }, ...expenses]);
       }
       setIsExpenseModalOpen(false);
@@ -173,7 +173,7 @@ const WorkforceInsights = () => {
   const handleDeleteExpense = async (id) => {
     if (!window.confirm("Are you sure you want to delete this expense record?")) return;
     try {
-      await axios.delete(`https://sf.doaguru.com/api/delete-expense/${id}`);
+      await axios.delete(`http://localhost:8080/api/delete-expense/${id}`);
       setExpenses(expenses.filter(ex => ex.id !== id));
     } catch (error) {
       console.error("Delete failed:", error);

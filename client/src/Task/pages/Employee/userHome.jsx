@@ -66,7 +66,7 @@ function UserHome() {
 
   const getLeaveDetails = async () => {
     try {
-      const { data } = await axios.get(`https://sf.doaguru.com/api/getEmployeeTodaysLeavesByUserId/${user?.id}`);
+      const { data } = await axios.get(`http://localhost:8080/api/getEmployeeTodaysLeavesByUserId/${user?.id}`);
       setLeaveCheck(data);
     } catch (error) { console.error(error); }
   };
@@ -92,7 +92,7 @@ function UserHome() {
     const selectedSubCat = subCategorys.find((sub) => sub.name === submitData.subCategory);
     submitData.shootCount = selectedSubCat && selectedSubCat.id == 32 ? 1 : 0;
 
-    axios.post("https://sf.doaguru.com/api/add-data", { user_id: user.id, user_full_name: user.full_name, ...submitData, task_date: submitData.task_date })
+    axios.post("http://localhost:8080/api/add-data", { user_id: user.id, user_full_name: user.full_name, ...submitData, task_date: submitData.task_date })
       .then(() => {
         const selectedDate = submitData.task_date;
         setFormData({ ...defaultTaskData, task_date: selectedDate });
@@ -105,7 +105,7 @@ function UserHome() {
 
   const fetchTasks = (selectedDate) => {
     const formattedDate = selectedDate.toISOString().split("T")[0];
-    axios.get("https://sf.doaguru.com/api/fetch-data", { params: { date: formattedDate } })
+    axios.get("http://localhost:8080/api/fetch-data", { params: { date: formattedDate } })
       .then((response) => {
         let currentUser = response.data.filter((iteam) => iteam.user_id === user.id);
         setTaskData(currentUser);
@@ -121,14 +121,14 @@ function UserHome() {
     setSelectedProjects(task.ProjectOrClientName);
     setSelectedCategory(task.Category);
     if (task.ProjectOrClientName) {
-      axios.get(`https://sf.doaguru.com/api/category-list?projects_id=${encodeURIComponent(task.ProjectOrClientName)}`)
+      axios.get(`http://localhost:8080/api/category-list?projects_id=${encodeURIComponent(task.ProjectOrClientName)}`)
         .then((response) => {
           setAllCategory(response.data);
           particularCategory();
           if (task.Category) {
             const selectedCategoryObj = response.data.find((cat) => cat.name === task.Category);
             if (selectedCategoryObj) {
-              axios.get(`https://sf.doaguru.com/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((subResponse) => setSubCategory(subResponse.data));
+              axios.get(`http://localhost:8080/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((subResponse) => setSubCategory(subResponse.data));
             }
           }
         });
@@ -146,7 +146,7 @@ function UserHome() {
     updateData.shootCount = selectedSubCatUpdate && selectedSubCatUpdate.id == 32 ? 1 : 0;
     if (!updateData.task_date) updateData.task_date = new Date().toISOString().split("T")[0];
 
-    axios.post("https://sf.doaguru.com/api/update-task", updateData)
+    axios.post("http://localhost:8080/api/update-task", updateData)
       .then(() => {
         const taskDate = new Date(updateData.task_date);
         setDate(taskDate);
@@ -165,7 +165,7 @@ function UserHome() {
 
   const handleDeleteTask = (id) => {
     if (window.confirm("Are You Sure Remove Today Task !")) {
-      axios.post("https://sf.doaguru.com/api/delete-task", { id })
+      axios.post("http://localhost:8080/api/delete-task", { id })
         .then(() => {
           toast.success("Task Removed");
           fetchTasks(date);
@@ -173,9 +173,9 @@ function UserHome() {
     }
   };
 
-  const fetchProjectListData = () => { axios.get("https://sf.doaguru.com/api/projects").then((res) => setAllProject(res.data)); };
+  const fetchProjectListData = () => { axios.get("http://localhost:8080/api/projects").then((res) => setAllProject(res.data)); };
   const particularProject = () => {
-    axios.get(`https://sf.doaguru.com/api/getProject/${user.id}`).then((res) => {
+    axios.get(`http://localhost:8080/api/getProject/${user.id}`).then((res) => {
       const particular_project = res.data;
       setUserProject(particular_project);
       const matchedProjects = particular_project.map(p => allProject.find(ap => ap.id == p.project_id)).filter(Boolean);
@@ -194,7 +194,7 @@ function UserHome() {
     if (!projectId) return;
     setSelectedProjects(projectId);
     setFormData((prev) => ({ ...prev, ProjectOrClientName: projectId }));
-    axios.get(`https://sf.doaguru.com/api/category-list?projects_id=${projectId}`).then((res) => {
+    axios.get(`http://localhost:8080/api/category-list?projects_id=${projectId}`).then((res) => {
       setAllCategory(res.data);
       const matchedCate = userProject.map(p => res.data.find(c => c.id == p.category_id)).filter(Boolean);
       setCategory(matchedCate);
@@ -208,7 +208,7 @@ function UserHome() {
     if (!selectedCategoryObj) return;
     setSelectedCategory(categoryId);
     setFormData((prev) => ({ ...prev, Category: categoryId, CategoryName: selectedCategoryObj.name, subCategory: "" }));
-    axios.get(`https://sf.doaguru.com/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((res) => setSubCategory(res.data));
+    axios.get(`http://localhost:8080/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((res) => setSubCategory(res.data));
   };
 
   useEffect(() => { fetchProjectListData(); fetchTasks(date); }, [date]);
@@ -253,7 +253,7 @@ function UserHome() {
       const fd = new FormData();
       fd.append("user_id", user?.id); fd.append("latitude", loc.latitude); fd.append("longitude", loc.longitude); fd.append("selfie", checkInSelfieBlob, "in.webp");
       try {
-        const res = await axios.post("https://sf.doaguru.com/api/checkInAttend", fd);
+        const res = await axios.post("http://localhost:8080/api/checkInAttend", fd);
         if (res.data.success) { getCheckInData(); toast.success("Identity Verified: Check-in OK"); }
       } catch (e) { console.error(e); } finally { setLoading(false); }
     })();
@@ -268,13 +268,13 @@ function UserHome() {
       const fd = new FormData();
       fd.append("user_id", user?.id); fd.append("latitude", loc.latitude); fd.append("longitude", loc.longitude); fd.append("selfie", checkOutSelfieBlob, "out.webp");
       try {
-        const res = await axios.put("https://sf.doaguru.com/api/checkOutAttend", fd);
+        const res = await axios.put("http://localhost:8080/api/checkOutAttend", fd);
         if (res.data.success) { getCheckInData(); toast.success(`Check-out OK: ${res.data.work_minutes} min`); }
       } catch (e) { console.error(e); } finally { setLoading(false); }
     })();
   }, [checkOutSelfieBlob]);
 
-  const getCheckInData = () => axios.get(`https://sf.doaguru.com/api/getCheckInByUser/${user?.id}`).then(res => setCheckInData(res.data));
+  const getCheckInData = () => axios.get(`http://localhost:8080/api/getCheckInByUser/${user?.id}`).then(res => setCheckInData(res.data));
   useEffect(() => { getCheckInData(); }, []);
 
   // ═══ Metrics Calculation ═══

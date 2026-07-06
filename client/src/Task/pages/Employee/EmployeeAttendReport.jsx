@@ -17,10 +17,8 @@ import {
 } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import BackdatedAttendModal from "./BackdatedAttendModal";
-import BackEmpAttendModal from "./BackEmpAttendModal";
-import EditAttendRequestModal from "./EditAttendRequestModal";
 
-const API_BASE_URL = "https://sf.doaguru.com/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 /* ─────────────────── helpers ─────────────────── */
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -47,9 +45,6 @@ const EmployeeAttendReport = () => {
   const [requestData, setRequestData] = useState([]);
 
   const [openModal, setOpenModal] = useState(false);
-  const [openEditModal, setOpenEditModal] = useState(false);
-  const [attendModal, setAttendModal] = useState(false);
-  const [selected, setSelected] = useState([]);
 
   const fetchData = async () => {
     try {
@@ -126,10 +121,7 @@ const EmployeeAttendReport = () => {
     }
   };
 
-  const openAttendModalAction = (data) => {
-    setSelected(data);
-    setAttendModal(true);
-  };
+
 
   return (
     <div className="min-h-screen bg-slate-50 p-2 md:p-5">
@@ -156,8 +148,7 @@ const EmployeeAttendReport = () => {
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto font-sans">
-            <button onClick={() => setOpenModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition-all active:scale-95">+ Backdate Request</button>
-            <button onClick={() => setOpenEditModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition-all active:scale-95">+ Request Time Edit</button>
+            <button onClick={() => setOpenModal(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition-all active:scale-95">+ Edit/Backdate Attendance</button>
             <button onClick={downloadExcel} className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-black px-5 py-2.5 rounded-xl shadow-sm text-xs transition-all active:scale-95"><FaDownload size={12} /> Export</button>
           </div>
         </div>
@@ -220,7 +211,7 @@ const EmployeeAttendReport = () => {
                       <td className="px-3 py-2.5">
                         {d.attend?.login_time ? (
                           <div className="flex items-center gap-2">
-                            <img src={`https://sf.doaguru.com/${d.attend.login_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
+                            <img src={`http://localhost:8080/${d.attend.login_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
                             <div className="flex flex-col">
                               <span className="text-slate-700 font-black text-[11px]">{d.attend.login_time.slice(0, 5)}</span>
                               <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LAT: {d.attend.login_latitude}</span>
@@ -231,7 +222,7 @@ const EmployeeAttendReport = () => {
                       <td className="px-3 py-2.5">
                         {d.attend?.logout_time ? (
                           <div className="flex items-center gap-2">
-                            <img src={`https://sf.doaguru.com/${d.attend.logout_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
+                            <img src={`http://localhost:8080/${d.attend.logout_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
                             <div className="flex flex-col">
                               <span className="text-slate-700 font-black text-[11px]">{d.attend.logout_time.slice(0, 5)}</span>
                               <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LNG: {d.attend.logout_longitude}</span>
@@ -331,14 +322,6 @@ const EmployeeAttendReport = () => {
                           >
                             Purge
                           </button>
-                          {row.abr_status === "approved" && (
-                            <button
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-md font-black text-[9px] uppercase tracking-wider shadow-sm active:scale-90 transition-all"
-                              onClick={() => openAttendModalAction(row)}
-                            >
-                              Finalize Log
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -354,8 +337,6 @@ const EmployeeAttendReport = () => {
       </div>
 
       <BackdatedAttendModal isOpen={openModal} onClose={() => setOpenModal(false)} userId={user?.id} getAllBackDateReq={getAllBackDateReq} />
-      <EditAttendRequestModal isOpen={openEditModal} onClose={() => setOpenEditModal(false)} userId={user?.id} getAllBackDateReq={getAllBackDateReq} />
-      <BackEmpAttendModal isOpen={attendModal} onClose={() => setAttendModal(false)} userId={user?.id} getAllBackDateReq={getAllBackDateReq} selected={selected} />
     </div>
   );
 };
