@@ -54,7 +54,7 @@ const AdminAttendCalendar = () => {
   const getMonthlyAttendance = async () => {
     setIsLoading(true);
     try {
-      const { data } = await axios.get(`http://localhost:8080/api/getMonthlyAttendance/${month}/${year}`);
+      const { data } = await axios.get(`https://sf.doaguru.com/api/getMonthlyAttendance/${month}/${year}`);
       setMonthAttend(groupAttendance(data));
     } catch (error) {
       console.error("Attendance Error:", error.message);
@@ -65,7 +65,7 @@ const AdminAttendCalendar = () => {
 
   const getHolidays = async () => {
     try {
-      const { data } = await axios.get(`http://localhost:8080/api/getAllHolidaysCurrentYear`);
+      const { data } = await axios.get(`https://sf.doaguru.com/api/getAllHolidaysCurrentYear`);
       setHolidays(data.filter(h => h.holiday_status === "active").map(h => {
         const [y, m, d] = h.holiday_date.split("-");
         return {
@@ -95,7 +95,7 @@ const AdminAttendCalendar = () => {
 
   const downloadReport = async () => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/downloadMonthlyAttendanceReport/${month}/${year}`, { responseType: "blob" });
+      const response = await axios.get(`https://sf.doaguru.com/api/downloadMonthlyAttendanceReport/${month}/${year}`, { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;

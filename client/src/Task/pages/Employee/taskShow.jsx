@@ -43,7 +43,7 @@ function TaskView() {
   const handleDeleteTask = (id) => {
     const isConfirm = window.confirm('Are you sure remove this task ');
     if (isConfirm) {
-      axios.post('http://localhost:8080/api/delete-task', { id })
+      axios.post('https://sf.doaguru.com/api/delete-task', { id })
         .then(response => {
           toast.success('Task deleted successfully', { position: 'top-right' });
 
@@ -64,7 +64,7 @@ function TaskView() {
       return;
     }
 
-    axios.get(`http://localhost:8080/api/mytask/${user.id}`)
+    axios.get(`https://sf.doaguru.com/api/mytask/${user.id}`)
       .then(res => {
         const sortedData = res.data.sort((a, b) => b.id - a.id);
 

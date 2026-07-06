@@ -67,7 +67,7 @@ function EmployeeCard() {
     // Fetch employee data on component mount
     const fetchEmployeeData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8080/api/getEmployee/${employeeId.id}`);
+        const response = await axios.get(`https://sf.doaguru.com/api/getEmployee/${employeeId.id}`);
         setEmployeeData(response.data);
         // console.log(response.data);
 
@@ -178,7 +178,7 @@ function EmployeeCard() {
                   boxShadow: '0 0 8px rgba(0,0,0,0.2)'
                 }}>
                   <img
-                    src={employeeData.profileIMG?.replace("http://localhost:8080", "http://localhost:8080")}
+                    src={employeeData.profileIMG?.replace("https://sf.doaguru.com", "https://sf.doaguru.com")}
                     alt="Profile IMG"
                     style={{
                       width: '100%',

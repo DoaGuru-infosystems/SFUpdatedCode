@@ -17,7 +17,7 @@ const CreativeCountComp = ({ userId }) => {
     e.preventDefault();
     // Add validation if needed
     try {
-      await axios.post("http://localhost:8080/api/add-creative-count", {
+      await axios.post("https://sf.doaguru.com/api/add-creative-count", {
         user_id: userId,
         ...counts,
       });

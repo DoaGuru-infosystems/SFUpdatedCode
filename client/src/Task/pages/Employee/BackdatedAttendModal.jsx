@@ -4,7 +4,7 @@ import axios from "axios";
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "https://sf.doaguru.com/api";
 
 const BackdatedAttendModal = ({
   isOpen,

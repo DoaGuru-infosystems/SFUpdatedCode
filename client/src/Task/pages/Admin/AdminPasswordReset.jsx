@@ -21,7 +21,7 @@ const AdminPasswordReset = () => {
     if (!email) return setMessage("Please enter a valid email.");
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:8080/api/sendOtp", {
+      const res = await axios.post("https://sf.doaguru.com/api/sendOtp", {
         email,
       });
       setStep(2);
@@ -37,7 +37,7 @@ const AdminPasswordReset = () => {
     if (!otp) return setMessage("Enter the OTP received.");
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:8080/api/verifyOtp", {
+      const res = await axios.post("https://sf.doaguru.com/api/verifyOtp", {
         email,
         otp,
       });
@@ -57,7 +57,7 @@ const AdminPasswordReset = () => {
     setLoading(true);
     try {
       const res = await axios.put(
-        "http://localhost:8080/api/adminResetPassword",
+        "https://sf.doaguru.com/api/adminResetPassword",
         {
           email,
           password,

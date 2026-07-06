@@ -15,7 +15,7 @@ function LoginPage({ Login }) {
     e.preventDefault();
     // console.log('in handle submit ');
     console.log(user);
-    axios.post("http://localhost:8080/login", user)
+    axios.post("https://sf.doaguru.com/login", user)
       .then((responce) => {
         let save = responce.data.user.result[0];
         save = JSON.stringify(save);

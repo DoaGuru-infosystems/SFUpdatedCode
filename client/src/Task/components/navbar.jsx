@@ -44,7 +44,7 @@ export default function Navbar({ Logout, render }) {
     const fetchEmployeeData = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/getEmployee/${employeeId.id}`
+          `https://sf.doaguru.com/api/getEmployee/${employeeId.id}`
         );
         setProfile(response.data);
       } catch (error) {
@@ -61,7 +61,7 @@ export default function Navbar({ Logout, render }) {
         if (!userStr) return;
         const loggedInUser = JSON.parse(userStr);
         const response = await axios.get(
-          `http://localhost:8080/api/scheduler/notifications/unread?employee_id=${loggedInUser.id}`
+          `https://sf.doaguru.com/api/scheduler/notifications/unread?employee_id=${loggedInUser.id}`
         );
         setUnreadCount(response.data.length);
       } catch (err) {
@@ -81,7 +81,7 @@ export default function Navbar({ Logout, render }) {
   }, []);
 
   useEffect(() => {
-    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:8080" : "/", {
+    const socket = io(window.location.host === 'localhost:3000' ? "https://sf.doaguru.com" : "/", {
       transports: ["polling", "websocket"],
       withCredentials: true
     });
@@ -170,7 +170,7 @@ export default function Navbar({ Logout, render }) {
 
   // Use optional chaining to avoid accessing properties on null
   const profileImageSrc = profile?.profileIMG
-    ? profile.profileIMG.replace("http://localhost:8080", "http://localhost:8080")
+    ? profile.profileIMG.replace("https://sf.doaguru.com", "https://sf.doaguru.com")
     : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSt9ISaBFDC88ejiGrYACSt81CFq21QsZ6bow&s";
 
   return (

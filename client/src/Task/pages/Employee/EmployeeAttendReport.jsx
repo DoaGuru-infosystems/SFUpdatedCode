@@ -18,7 +18,7 @@ import {
 import * as XLSX from "xlsx";
 import BackdatedAttendModal from "./BackdatedAttendModal";
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "https://sf.doaguru.com/api";
 
 /* ─────────────────── helpers ─────────────────── */
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -211,7 +211,7 @@ const EmployeeAttendReport = () => {
                       <td className="px-3 py-2.5">
                         {d.attend?.login_time ? (
                           <div className="flex items-center gap-2">
-                            <img src={`http://localhost:8080/${d.attend.login_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
+                            <img src={`https://sf.doaguru.com/${d.attend.login_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
                             <div className="flex flex-col">
                               <span className="text-slate-700 font-black text-[11px]">{d.attend.login_time.slice(0, 5)}</span>
                               <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LAT: {d.attend.login_latitude}</span>
@@ -222,7 +222,7 @@ const EmployeeAttendReport = () => {
                       <td className="px-3 py-2.5">
                         {d.attend?.logout_time ? (
                           <div className="flex items-center gap-2">
-                            <img src={`http://localhost:8080/${d.attend.logout_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
+                            <img src={`https://sf.doaguru.com/${d.attend.logout_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
                             <div className="flex flex-col">
                               <span className="text-slate-700 font-black text-[11px]">{d.attend.logout_time.slice(0, 5)}</span>
                               <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LNG: {d.attend.logout_longitude}</span>

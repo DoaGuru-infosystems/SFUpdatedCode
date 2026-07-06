@@ -19,7 +19,7 @@ const ProjectTargetAssign = ({ onSuccess }) => {
     useEffect(() => {
         // Fetch all employees
         setLoading(true);
-        axios.get('http://localhost:8080/api/users')
+        axios.get('https://sf.doaguru.com/api/users')
             .then(res => {
                 setEmployees(res.data);
                 setLoading(false);
@@ -29,7 +29,7 @@ const ProjectTargetAssign = ({ onSuccess }) => {
                 setLoading(false);
             });
         // Fetch all projects
-        axios.get('http://localhost:8080/api/projects')
+        axios.get('https://sf.doaguru.com/api/projects')
             .then(res => setProjects(res.data))
             .catch(() => setProjects([]));
     }, []);
@@ -51,7 +51,7 @@ const ProjectTargetAssign = ({ onSuccess }) => {
                 targetVideo: form.targetVideo,
                 targetShoot: form.targetShoot
             };
-            const res = await axios.post("http://localhost:8080/api/assignProjectTarget", payload);
+            const res = await axios.post("https://sf.doaguru.com/api/assignProjectTarget", payload);
             if (res.data && res.data.success) {
                 toast.success("Project target assigned successfully.");
                 setForm({

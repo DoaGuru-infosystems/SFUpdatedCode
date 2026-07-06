@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const ReminderContext = createContext(null);
 
-const API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/scheduler`;
+const API_BASE = `${process.env.REACT_APP_API_URL || 'https://sf.doaguru.com'}/api/scheduler`;
 
 export const ReminderProvider = ({ children }) => {
   const [employees, setEmployees] = useState([]);

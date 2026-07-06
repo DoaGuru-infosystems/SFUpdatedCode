@@ -24,7 +24,7 @@ const AssignProjectTarget = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await axios.get('http://localhost:8080/api/getAllProjectTarget');
+            const res = await axios.get('https://sf.doaguru.com/api/getAllProjectTarget');
             setTargets(res.data.data || []);
         } catch (err) {
             setError('Failed to fetch assigned targets.');
@@ -41,7 +41,7 @@ const AssignProjectTarget = () => {
         await Promise.all(targets.map(async (tgt) => {
             try {
                 const userId = tgt.employeeId;
-                const url = `http://localhost:8080/api/getUserTasks/${userId}`;
+                const url = `https://sf.doaguru.com/api/getUserTasks/${userId}`;
                 const res = await axios.get(url);
 
                 // Filter tasks for selected date
@@ -88,7 +88,7 @@ const AssignProjectTarget = () => {
     // Handle Update Target
     const handleUpdateTarget = async (targetId) => {
         try {
-            const response = await axios.put(`http://localhost:8080/api/updateProjectTarget/${targetId}`, editFormData);
+            const response = await axios.put(`https://sf.doaguru.com/api/updateProjectTarget/${targetId}`, editFormData);
             if (response.data.success) {
                 setEditingTarget(null);
                 setEditFormData({ targetPost: '', targetVideo: '', targetShoot: '' });
@@ -108,7 +108,7 @@ const AssignProjectTarget = () => {
         }
 
         try {
-            const response = await axios.delete(`http://localhost:8080/api/deleteProjectTarget/${targetId}`);
+            const response = await axios.delete(`https://sf.doaguru.com/api/deleteProjectTarget/${targetId}`);
             if (response.data.success) {
                 fetchTargets(); // Refresh the list
                 toast.success('Target deleted successfully!');
@@ -210,7 +210,7 @@ const AssignProjectTarget = () => {
                 }
 
                 // Upload to backend
-                const response = await axios.post('http://localhost:8080/api/bulkAssignProjectTarget', {
+                const response = await axios.post('https://sf.doaguru.com/api/bulkAssignProjectTarget', {
                     targets: validatedData
                 });
 

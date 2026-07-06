@@ -74,7 +74,7 @@ function UserHome() {
     // console.dir(curr.current[0]);
     // console.log(curr.current[0].click());
     axios
-      .post("http://localhost:8080/lead", { u_Id: user.u_Id, ...leadForm })
+      .post("https://sf.doaguru.com/lead", { u_Id: user.u_Id, ...leadForm })
       .then((res) => {
         console.log(res.data);
         setNowUseEffect(!nowUseEffect);
@@ -105,7 +105,7 @@ function UserHome() {
       console.log("Modal header not found");
     }
     axios
-      .post("http://localhost:8080/updateLead", { ...leadForm })
+      .post("https://sf.doaguru.com/updateLead", { ...leadForm })
       .then((res) => {
         console.log(res.data);
         return res.data;
@@ -124,7 +124,7 @@ function UserHome() {
     // console.log(curr.current[2].click());
     console.log(user.email);
     axios
-      .put("http://localhost:8080/updateMeeting", {
+      .put("https://sf.doaguru.com/updateMeeting", {
         u_Id: user.u_Id,
         userName: user.name,
         emails: user.email,
@@ -177,7 +177,7 @@ function UserHome() {
 
   useEffect(() => {
     axios
-      .get(`http://localhost:8080/getlead/${user.u_Id}`)
+      .get(`https://sf.doaguru.com/getlead/${user.u_Id}`)
       .then((responce) => {
         // console.log(responce.data);
         if (responce.data.lead) {

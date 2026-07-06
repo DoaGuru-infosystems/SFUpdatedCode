@@ -13,7 +13,7 @@ const AdminAssignTaskDevlopment = () => {
 
   useEffect(() => {
     // Fetch users
-    axios.get('http://localhost:8080/api/users')
+    axios.get('https://sf.doaguru.com/api/users')
       .then(response => {
         setUsers(response.data);
       })
@@ -34,7 +34,7 @@ const AdminAssignTaskDevlopment = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8080/api/assign-project-target-development-team', {
+      const response = await axios.post('https://sf.doaguru.com/api/assign-project-target-development-team', {
         user_id: selectedUser,
         user_full_name: users.find(u => u.id == selectedUser)?.full_name || '',
         ProjectOrClientName: 'Development Task',

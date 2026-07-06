@@ -19,7 +19,7 @@ const AdminLeaveReverseModal = ({ isOpen, onClose, fetchLeaveData }) => {
   const getHolidaysOfCurrentYear = async () => {
     try {
       const { data } = await axios.get(
-        `http://localhost:8080/api/getAllHolidaysCurrentYear`
+        `https://sf.doaguru.com/api/getAllHolidaysCurrentYear`
       );
       setHolidays(data);
     } catch (error) {
@@ -31,7 +31,7 @@ const AdminLeaveReverseModal = ({ isOpen, onClose, fetchLeaveData }) => {
 
   const getAllUserData = async () => {
     try {
-      const { data } = await axios.get("http://localhost:8080/api/users");
+      const { data } = await axios.get("https://sf.doaguru.com/api/users");
       setAllUsers(data);
     } catch (error) {
       console.log(error);
@@ -59,7 +59,7 @@ const AdminLeaveReverseModal = ({ isOpen, onClose, fetchLeaveData }) => {
       );
 
       const promises = formattedDates.map((date) =>
-        axios.post("http://localhost:8080/api/adminReverseLeave", {
+        axios.post("https://sf.doaguru.com/api/adminReverseLeave", {
           user_id: userId,
           leave_date: date,
           leave_type: leaveType,
