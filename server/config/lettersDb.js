@@ -13,12 +13,28 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Wrap pool.query to return a Promise that resolves to [results, fields] for compatibility with async/await destructuring
+const originalQuery = pool.query.bind(pool);
+pool.query = (sql, values) => {
+  return new Promise((resolve, reject) => {
+    const callback = (err, results, fields) => {
+      if (err) return reject(err);
+      resolve([results, fields]);
+    };
+    if (values === undefined) {
+      originalQuery(sql, callback);
+    } else {
+      originalQuery(sql, values, callback);
+    }
+  });
+};
+
 // Test connection on startup
 pool.getConnection((err, connection) => {
   if (err) {
     console.error('❌ Letters DB Pool Connection Error:', err);
   } else {
-    console.log('✅ Letters DB Pool Connected. DB Name:', connection.config.database);
+    console.log('✅ Letters DB Pool Connected. DB Name:', connection.config?.database || 'sf');
     connection.release();
   }
 });

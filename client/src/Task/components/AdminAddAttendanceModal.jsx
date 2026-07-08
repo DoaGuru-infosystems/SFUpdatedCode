@@ -34,7 +34,7 @@ const AdminAddAttendanceModal = ({
     setLoading(true);
     try {
       const res = await axios.post(
-        "https://sf.doaguru.com/api/adminAddAttendance",
+        "http://localhost:3000/api/adminAddAttendance",
         {
           user_id,
           login_time,

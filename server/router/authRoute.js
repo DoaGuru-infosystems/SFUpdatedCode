@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {registerController, loginController, UserLogin, UserRegister, AdminLogin, SendAdminOtp, VerifyAdminOtp} = require('../controller/authController');
+const { registerController, loginController, UserLogin, UserRegister, AdminLogin, SendAdminOtp, VerifyAdminOtp } = require('../controller/authController');
 const { saveSubscription } = require('../controller/notificationController');
 
 router.post('/register', registerController);

@@ -30,6 +30,7 @@ const emailRoutes = require("./router/emailRoutes.js");
 const attendanceRotue = require("./router/attendanceRoute.js");
 const salaryRoute = require("./router/salaryRoute.js");
 const commitmentRoute = require("./router/commitmentRoute.js");
+const leaderRoute = require("./router/leaderRoute.js");
 require("./utils/fetchGoogleHolidays");
 // const reminderRoute = require("./router/reminderRoute.js");
 
@@ -71,6 +72,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api", attendanceRotue);
 app.use("/api", salaryRoute);
 app.use(commitmentRoute);
+app.use(leaderRoute);
 // app.use("/api", reminderRoute);
 
 // Scheduler Plugin Routes
@@ -225,7 +227,7 @@ scheduleLoginReminderWhatsapp();
 scheduleCheckNoTaskEmployee();
 
 // ── Scheduler Plugin Cron ─────────────────────────────────────
-try { startSchedulerCron(); } catch(e) { console.warn('[Scheduler] Cron failed to start:', e.message); }
+try { startSchedulerCron(); } catch (e) { console.warn('[Scheduler] Cron failed to start:', e.message); }
 // scheduleAdminAbsentCheckReminderWhatsapp();
 
 // require("./cron/attendanceReminder");

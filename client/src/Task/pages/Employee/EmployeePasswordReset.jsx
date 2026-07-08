@@ -21,7 +21,7 @@ const EmployeePasswordReset = () => {
     if (!email) return setMessage("Please enter a valid email.");
     setLoading(true);
     try {
-      const res = await axios.post("https://sf.doaguru.com/api/sendOtp", {
+      const res = await axios.post("http://localhost:3000/api/sendOtp", {
         email,
       });
       setStep(2);
@@ -37,7 +37,7 @@ const EmployeePasswordReset = () => {
     if (!otp) return setMessage("Enter the OTP received.");
     setLoading(true);
     try {
-      const res = await axios.post("https://sf.doaguru.com/api/verifyOtp", {
+      const res = await axios.post("http://localhost:3000/api/verifyOtp", {
         email,
         otp,
       });
@@ -57,7 +57,7 @@ const EmployeePasswordReset = () => {
     setLoading(true);
     try {
       const res = await axios.put(
-        "https://sf.doaguru.com/api/employeeResetPassword",
+        "http://localhost:3000/api/employeeResetPassword",
         {
           email,
           password,
