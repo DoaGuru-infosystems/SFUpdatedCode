@@ -5,6 +5,20 @@ import ReactDOM from 'react-dom/client';
 import Commonjs from './commonApp';
 import reportWebVitals from './reportWebVitals';
 import { BrowserRouter } from 'react-router-dom';
+import axios from 'axios';
+
+// Redirect all Axios requests to local server when running in development
+axios.interceptors.request.use(
+  (config) => {
+    if (config.url && config.url.includes("http://localhost:3000")) {
+      config.url = config.url.replace("http://localhost:3000", "http://localhost:8080");
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

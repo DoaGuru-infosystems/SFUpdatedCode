@@ -16,7 +16,7 @@ export default function Notifications() {
   }, [fetchUnreadNotifications]);
 
   useEffect(() => {
-    const socket = io(window.location.host === 'localhost:3000' ? "https://sf.doaguru.com" : "/", {
+    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:8080" : "/", {
       transports: ["polling", "websocket"],
       withCredentials: true
     });
@@ -50,12 +50,12 @@ export default function Notifications() {
 
   return (
     <div className="fade-in" style={{ padding: '12px 0', maxWidth: '800px', margin: '0 auto' }}>
-      
+
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '32px',
         flexWrap: 'wrap',
         gap: '16px'
@@ -68,7 +68,7 @@ export default function Notifications() {
             Active alerts and system notifications dispatched to you in real-time.
           </p>
         </div>
-        
+
         {unreadNotifications.length > 0 && (
           <button onClick={handleMarkAllRead} className="btn btn-secondary" style={{ fontSize: '0.825rem', padding: '8px 16px' }}>
             Mark All Read
@@ -80,16 +80,16 @@ export default function Notifications() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {unreadNotifications.length === 0 ? (
           <div className="glass-card" style={{ padding: '60px 40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            <div style={{ 
-              padding: '16px', 
-              borderRadius: '50%', 
-              background: 'rgba(16, 185, 129, 0.08)', 
-              color: 'var(--secondary)', 
-              display: 'inline-flex', 
-              marginBottom: '16px' 
+            <div style={{
+              padding: '16px',
+              borderRadius: '50%',
+              background: 'rgba(16, 185, 129, 0.08)',
+              color: 'var(--secondary)',
+              display: 'inline-flex',
+              marginBottom: '16px'
             }}>
               <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <h4 style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)' }}>Your feed is clean!</h4>
@@ -156,13 +156,13 @@ export default function Notifications() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700 }}>{notif.employee_name}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>|</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Channel:</span>
-                  <span style={{ 
-                    fontSize: '0.7rem', 
-                    color: 'var(--primary)', 
-                    background: 'var(--primary-glow)', 
-                    padding: '2px 8px', 
-                    borderRadius: '6px', 
-                    fontWeight: 800, 
+                  <span style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--primary)',
+                    background: 'var(--primary-glow)',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontWeight: 800,
                     textTransform: 'uppercase',
                     border: '1px solid rgba(79, 70, 229, 0.15)'
                   }}>{notif.channel_type}</span>

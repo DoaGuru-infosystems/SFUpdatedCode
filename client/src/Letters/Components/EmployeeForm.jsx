@@ -180,7 +180,7 @@ const EmployeeForm = () => {
     const fetchEmployees = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('https://sf.doaguru.com/api/users');
+        const response = await axios.get('http://localhost:3000/api/users');
         if (response.data && Array.isArray(response.data)) {
           setEmployees(response.data.filter(emp => emp.employment_status === 'active'));
         }
@@ -331,7 +331,7 @@ const EmployeeForm = () => {
                 <input type="text" placeholder="Employee ID" value={formData.employeeCode} onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })} className="dg-input" />
               </div>
             </div>
-            
+
             <p className="dg-form-section-title" style={{ marginTop: '1rem' }}>Tenure Dates</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
               <div className="dg-form-group">
@@ -396,11 +396,11 @@ const EmployeeForm = () => {
             <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', background: '#f8f9fa' }}>
               <div style={{ maxWidth: '720px', margin: '0 auto', background: 'white', borderRadius: '8px', padding: '3rem', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', color: '#1a1a1a', fontSize: '0.95rem', lineHeight: 1.8 }}>
                 <p style={{ textAlign: 'right', marginBottom: '1.5rem' }}>Date: {formData.currentDate || new Date().toLocaleDateString('en-GB')}</p>
-                
+
                 <h1 style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 700, marginBottom: '2rem', textDecoration: 'underline' }}>
                   {renderStatic('title')}
                 </h1>
-                
+
                 <p style={{ marginBottom: '1.5rem', textAlign: 'justify' }}>
                   {renderStatic('certifyPrefix')}<strong>{formData.name}</strong>
                   {formData.employeeCode ? ` (Employee ID: ${formData.employeeCode})` : ''}{renderStatic('employedWith')}
@@ -409,12 +409,12 @@ const EmployeeForm = () => {
                   <strong>{formatDate(formData.joining_date)}</strong>{renderStatic('to')}
                   <strong>{formatDate(formData.resignation_date)}</strong>.
                 </p>
-                
+
                 <p style={{ marginBottom: '1.5rem', textAlign: 'justify' }}>
                   During {pronouns.possessive}{renderStatic('perfMid1')}{pronouns.subject} {pronouns.be}{renderStatic('perfMid2')}
                   {pronouns.possessive.charAt(0).toUpperCase() + pronouns.possessive.slice(1)}{renderStatic('perfSuffix')}
                 </p>
-                
+
                 <p style={{ marginBottom: '2.5rem', textAlign: 'justify' }}>
                   {renderStatic('wishPrefix')}<strong>{formData.name}</strong>{renderStatic('wishSuffix')}
                 </p>
