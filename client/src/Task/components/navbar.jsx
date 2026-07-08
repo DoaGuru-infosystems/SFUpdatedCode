@@ -43,8 +43,9 @@ export default function Navbar({ Logout, render }) {
   useEffect(() => {
     const fetchEmployeeData = async () => {
       try {
+        const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com";
         const response = await axios.get(
-          `https://sf.doaguru.com/api/getEmployee/${employeeId.id}`
+          `${API_BASE}/api/getEmployee/${employeeId.id}`
         );
         setProfile(response.data);
       } catch (error) {
@@ -90,7 +91,7 @@ export default function Navbar({ Logout, render }) {
       const userStr = localStorage.getItem("user");
       if (!userStr) return;
       const loggedInUser = JSON.parse(userStr);
-      
+
       if (notif.employee_id === loggedInUser.id) {
         console.log("🔔 New Real-time Scheduler Notification received:", notif);
         setUnreadCount((prev) => prev + 1);
@@ -131,9 +132,10 @@ export default function Navbar({ Logout, render }) {
       { name: "Assigned Projects", href: "/task/AssignProjectDetails" },
     ];
 
-    if (profile?.department === "Development") {
+    const dept = profile?.department?.trim().toLowerCase();
+    if (dept === "development") {
       assignDataChildren.push({ name: "Assigned Development Task", href: "/task/check-assigned-development-task" });
-    } else if (profile?.department === "Digital Marketing") {
+    } else if (dept === "digital marketing" || dept === "seo" || dept === "sales") {
       assignDataChildren.push({ name: "Assigned Daily Target", href: "/task/AssignProjectTarget-Details" });
     }
 
@@ -156,6 +158,27 @@ export default function Navbar({ Logout, render }) {
     if (profile?.designation && profile.designation.trim().toUpperCase() === "HR") {
       updatedNavigation.push({ name: "Letters", href: "/task/letters" });
       updatedNavigation.push({ name: "Scheduler", href: "/task/scheduler/" });
+    }
+
+    const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const isTeamLead =
+      profile?.role === "team_lead" ||
+      loggedInUser?.role === "team_lead" ||
+      profile?.id === 62 ||
+      loggedInUser?.id === 62 ||
+      profile?.designation?.toLowerCase().includes("lead") ||
+      loggedInUser?.designation?.toLowerCase().includes("lead");
+
+    if (isTeamLead) {
+      updatedNavigation.push({
+        name: "Lead Dashboard",
+        children: [
+          { name: "Overview", href: "/task/TeamLeaderDashboard?tab=dashboard" },
+          { name: "Team Tasks", href: "/task/TeamLeaderDashboard?tab=team_tasks" },
+          { name: "Team Members", href: "/task/TeamLeaderDashboard?tab=team" },
+          { name: "Assign Task", href: "/task/TeamLeaderDashboard?tab=assign" }
+        ]
+      });
     }
 
     setNavigation(updatedNavigation);

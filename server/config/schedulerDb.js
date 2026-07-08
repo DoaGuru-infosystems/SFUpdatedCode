@@ -16,6 +16,22 @@ const schedulerPool = mysql.createPool({
   timezone: '+00:00'
 });
 
+// Add execute method to schedulerPool using mysql library wrapper for compatibility with await schedulerPool.execute
+const originalQuery = schedulerPool.query.bind(schedulerPool);
+schedulerPool.execute = (sql, values) => {
+  return new Promise((resolve, reject) => {
+    const callback = (err, results, fields) => {
+      if (err) return reject(err);
+      resolve([results, fields]);
+    };
+    if (values === undefined) {
+      originalQuery(sql, callback);
+    } else {
+      originalQuery(sql, values, callback);
+    }
+  });
+};
+
 const schedulerQuery = async (sql, params = []) => {
   try {
     const [rows] = await schedulerPool.execute(sql, params);

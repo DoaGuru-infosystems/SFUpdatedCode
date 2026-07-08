@@ -22,7 +22,7 @@ const ApplyLeaveModal = ({
   const getHolidaysOfCurrentYear = async () => {
     try {
       const { data } = await axios.get(
-        `https://sf.doaguru.com/api/getAllHolidaysCurrentYear`
+        `http://localhost:3000/api/getAllHolidaysCurrentYear`
       );
       setHolidays(data);
     } catch (error) {
@@ -50,7 +50,7 @@ const ApplyLeaveModal = ({
       );
 
       const promises = formattedDates.map((date) =>
-        axios.post("https://sf.doaguru.com/api/applyForLeaves", {
+        axios.post("http://localhost:3000/api/applyForLeaves", {
           user_id: userId,
           leave_date: date,
           leave_type: leaveType,

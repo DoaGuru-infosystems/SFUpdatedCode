@@ -47,6 +47,7 @@ import AssignDailyTarget from "./Task/pages/Employee/AssignTargetFIle";
 import AdminAssignTaskDevlopment from "./Task/pages/Admin/AdminAssignTaskDevlopment";
 import CheckAssignedTaskDevlopment from "./Task/pages/Employee/CheckAssignedTaskDevlopment";
 import EmployeeDetails from "./Task/pages/Admin/EmployeeDetails";
+import LeaderDashboard from "./Task/pages/Leader/LeaderDashboard";
 import WorkforceInsights from "./Task/pages/Admin/WorkforceInsights";
 
 // ── Scheduler Plugin ────────────────────────────────────────
@@ -184,8 +185,8 @@ const Commonjs = () => {
                       userRole === "admin"
                         ? "/task/Admin-Home-page"
                         : userRole === "user"
-                        ? "/task/UserHome"
-                        : "/task/login"
+                          ? "/task/UserHome"
+                          : "/task/login"
                     }
                     className="bg-white text-purple-500 font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-purple-500 hover:text-black transition-all duration-300 transform hover:scale-105"
                   >
@@ -260,6 +261,10 @@ const Commonjs = () => {
         <Route
           path="/task/check-assigned-development-task"
           element={<CheckAssignedTaskDevlopment />}
+        />
+        <Route
+          path="/task/TeamLeaderDashboard"
+          element={<LeaderDashboard />}
         />
 
         {/* Admin Routes  */}
