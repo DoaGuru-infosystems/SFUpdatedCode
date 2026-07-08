@@ -444,7 +444,7 @@ const DownloadSalarySlip = () => {
           let filtered = response.data;
           if (debouncedSearch) {
             const searchLower = debouncedSearch.toLowerCase();
-            filtered = filtered.filter(item => 
+            filtered = filtered.filter(item =>
               (item.employeeName && item.employeeName.toLowerCase().includes(searchLower)) ||
               (item.employeeId && String(item.employeeId).toLowerCase().includes(searchLower)) ||
               (item.month && item.month.toLowerCase().includes(searchLower)) ||
@@ -494,7 +494,7 @@ const DownloadSalarySlip = () => {
   const handleDownload = async (slip) => {
     let userDetails = {};
     try {
-      const response = await axios.get('https://sf.doaguru.com/api/users');
+      const response = await axios.get('http://localhost:3000/api/users');
       if (response.data && Array.isArray(response.data)) {
         const found = response.data.find(emp => emp.employee_id == slip.employeeId || emp.full_name === slip.employeeName);
         if (found) {
@@ -507,7 +507,7 @@ const DownloadSalarySlip = () => {
 
     const monthNames = ["January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"];
-      
+
     const monthNum = monthNames.indexOf(slip.month) + 1 || 1;
 
     const formData = {
@@ -828,11 +828,10 @@ const DownloadSalarySlip = () => {
                   <button
                     key={p}
                     onClick={() => handlePageChange(p)}
-                    className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                      currentPage === p
-                        ? 'bg-primary text-white shadow-md shadow-primary/20'
-                        : 'border border-gray-200 dark:border-white/10 bg-white dark:bg-brand-card text-slate-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/10'
-                    }`}
+                    className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all duration-200 ${currentPage === p
+                      ? 'bg-primary text-white shadow-md shadow-primary/20'
+                      : 'border border-gray-200 dark:border-white/10 bg-white dark:bg-brand-card text-slate-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/10'
+                      }`}
                   >
                     {p}
                   </button>

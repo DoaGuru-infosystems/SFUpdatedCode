@@ -113,7 +113,7 @@ export default function AdminNavbar({ Logout, render }) {
     // ═══ Real-Time Socket Connection ═══
     // In Production (cPanel/Passenger), we MUST prioritize 'polling' and use 
     // the application's own origin to prevent handshake failures.
-    const socket = io(window.location.host === 'localhost:3000' ? "https://sf.doaguru.com" : "/", {
+    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:8080" : "/", {
       transports: ["polling", "websocket"],
       withCredentials: true,
       secure: window.location.protocol === "https:",
@@ -405,11 +405,11 @@ export default function AdminNavbar({ Logout, render }) {
                     </p>
                   </div>
                   <Menu as="div" className="relative ml-3">
-                    <MenuButton className="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                    <MenuButton className="relative rounded-full p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors focus:outline-none">
                       <span className="sr-only">View notifications</span>
                       <BellIcon className="h-6 w-6" aria-hidden="true" />
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-gray-800">
+                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-white">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}

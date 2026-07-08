@@ -15,7 +15,7 @@ const EmployeeDashboard = () => {
     // Fetch employee data on component mount
     const fetchEmployeeData = async () => {
       try {
-        const response = await axios.get(`https://sf.doaguru.com/api/getEmployee/${employeeId.id}`);
+        const response = await axios.get(`http://localhost:3000/api/getEmployee/${employeeId.id}`);
         setProfile(response.data);
       } catch (error) {
         console.error('Error:', error);
@@ -47,8 +47,8 @@ const EmployeeDashboard = () => {
     console.log(formData);
 
     try {
-      const response = await axios.post('https://sf.doaguru.com/api/updateEmployee', formData, {
-        // const response = await axios.post('https://sf.doaguru.com/api/updateEmployee', formData, {
+      const response = await axios.post('http://localhost:3000/api/updateEmployee', formData, {
+        // const response = await axios.post('http://localhost:3000/api/updateEmployee', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -130,7 +130,7 @@ const EmployeeDashboard = () => {
             {/* Profile Picture */}
             <div className="relative">
               <img
-                src={profile.profileIMG?.replace("https://sf.doaguru.com", "https://sf.doaguru.com") || 'https://static.vecteezy.com/system/resources/previews/020/765/399/non_2x/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg'}
+                src={profile.profileIMG?.replace("http://localhost:3000", "http://localhost:3000") || 'https://static.vecteezy.com/system/resources/previews/020/765/399/non_2x/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg'}
                 alt="Profile"
                 className="w-24 h-24 rounded-full object-cover"
               />

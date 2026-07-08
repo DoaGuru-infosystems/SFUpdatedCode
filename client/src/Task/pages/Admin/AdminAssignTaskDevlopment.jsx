@@ -11,9 +11,8 @@ const AdminAssignTaskDevlopment = () => {
   const [loading, setLoading] = useState(false);
   const [assignedTasks, setAssignedTasks] = useState([]);
 
-  useEffect(() => {
-    // Fetch users
-    axios.get('https://sf.doaguru.com/api/users')
+  const fetchUsers = () => {
+    axios.get('http://localhost:3000/api/users')
       .then(response => {
         setUsers(response.data);
       })
@@ -21,6 +20,21 @@ const AdminAssignTaskDevlopment = () => {
         console.error('Error fetching users:', error);
         toast.error('Failed to load users');
       });
+  };
+
+  const fetchAssignedTasks = () => {
+    axios.get('http://localhost:3000/api/get-all-assigned-development-tasks')
+      .then(response => {
+        setAssignedTasks(response.data || []);
+      })
+      .catch(error => {
+        console.error('Error fetching assigned tasks:', error);
+      });
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchAssignedTasks();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -34,7 +48,7 @@ const AdminAssignTaskDevlopment = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('https://sf.doaguru.com/api/assign-project-target-development-team', {
+      await axios.post('http://localhost:3000/api/assign-project-target-development-team', {
         user_id: selectedUser,
         user_full_name: users.find(u => u.id == selectedUser)?.full_name || '',
         ProjectOrClientName: 'Development Task',
@@ -45,15 +59,7 @@ const AdminAssignTaskDevlopment = () => {
       });
 
       toast.success('Task assigned successfully!');
-
-      // Add to assigned tasks list
-      const newTask = {
-        user_name: users.find(u => u.id == selectedUser)?.full_name || '',
-        taskDescription,
-        status,
-        taskDate
-      };
-      setAssignedTasks(prev => [...prev, newTask]);
+      fetchAssignedTasks();
 
       // Reset form
       setTaskDescription('');
@@ -66,6 +72,16 @@ const AdminAssignTaskDevlopment = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   return (
@@ -156,14 +172,20 @@ const AdminAssignTaskDevlopment = () => {
                 Date
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Assigned By
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Progress Note
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {assignedTasks.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
+                <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
                   No tasks assigned yet.
                 </td>
               </tr>
@@ -171,21 +193,28 @@ const AdminAssignTaskDevlopment = () => {
               assignedTasks.map((task, index) => (
                 <tr key={index}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {task.user_name}
+                    {task.user_full_name}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                    {task.taskDescription}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {task.taskDate}
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs break-words">
+                    {task.task_description}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                    {formatDate(task.task_date)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">
+                    {task.assigned_by || 'Admin'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      task.status === 'Completed' ? 'bg-green-100 text-green-800' :
                       task.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      'bg-gray-100 text-gray-800'
+                    }`}>
                       {task.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-500 italic max-w-xs break-words">
+                    {task.status_note || 'No note added yet'}
                   </td>
                 </tr>
               ))

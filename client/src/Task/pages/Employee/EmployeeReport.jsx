@@ -47,7 +47,7 @@ const EmployeeTaskReport = () => {
       setUserId(user.id);
 
       // Fetch tasks for the logged-in user
-      axios.get(`https://sf.doaguru.com/api/getUserTasks/${user.id}`)
+      axios.get(`http://localhost:3000/api/getUserTasks/${user.id}`)
         .then(response => {
           const sortedData = response.data.sort((a, b) => new Date(b.task_date) - new Date(a.task_date));
           setTasks(sortedData);
@@ -60,7 +60,7 @@ const EmployeeTaskReport = () => {
   }, []);
 
   const handleDownload = () => {
-    window.location.href = `https://sf.doaguru.com/api/downloadUserTasks/${userId}`;
+    window.location.href = `http://localhost:3000/api/downloadUserTasks/${userId}`;
   };
 
   return (

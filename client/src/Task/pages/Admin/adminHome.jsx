@@ -43,11 +43,11 @@ const AdminHomePage = () => {
         const year = today.getFullYear();
 
         const [usersRes, projectsRes, leavesRes, attendanceRes, notificationsRes] = await Promise.all([
-          axios.get("https://sf.doaguru.com/api/users"),
-          axios.get("https://sf.doaguru.com/api/projects"),
-          axios.get("https://sf.doaguru.com/api/getAllLeaveDataForAdmin"),
-          axios.get(`https://sf.doaguru.com/api/getMonthlyAttendance/${month}/${year}`),
-          axios.get("https://sf.doaguru.com/api/admin-notifications"),
+          axios.get("http://localhost:3000/api/users"),
+          axios.get("http://localhost:3000/api/projects"),
+          axios.get("http://localhost:3000/api/getAllLeaveDataForAdmin"),
+          axios.get(`http://localhost:3000/api/getMonthlyAttendance/${month}/${year}`),
+          axios.get("http://localhost:3000/api/admin-notifications"),
         ]);
 
         setUsers(usersRes.data || []);

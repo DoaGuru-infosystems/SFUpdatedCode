@@ -105,12 +105,12 @@ export default function ReminderForm() {
     if (isEdit) {
       const fetchReminder = async () => {
         try {
-          const res = await axios.get(`${process.env.REACT_APP_API_URL || 'https://sf.doaguru.com'}/api/scheduler/reminders/${id}`);
+          const res = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/scheduler/reminders/${id}`);
           const data = res.data;
-          
+
           // Format date and boolean flags
           const formattedDate = data.reminder_date ? data.reminder_date.split('T')[0] : '';
-          
+
           setFormData({
             assignment_type: data.assignment_type || 'self',
             employee_id: data.employee_id || '',
@@ -210,7 +210,7 @@ export default function ReminderForm() {
 
   return (
     <div className="fade-in" style={{ padding: '12px 0', maxWidth: '1200px', margin: '0 auto' }}>
-      
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
         <button
@@ -219,7 +219,7 @@ export default function ReminderForm() {
           style={{ padding: '10px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            <path d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
         <div>
@@ -233,13 +233,13 @@ export default function ReminderForm() {
       </div>
 
       {errorMessage && (
-        <div style={{ 
-          background: 'rgba(239, 68, 68, 0.08)', 
-          border: '1px solid rgba(239, 68, 68, 0.16)', 
-          borderRadius: '12px', 
-          padding: '16px 20px', 
-          color: 'var(--danger)', 
-          marginBottom: '28px', 
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.08)',
+          border: '1px solid rgba(239, 68, 68, 0.16)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          color: 'var(--danger)',
+          marginBottom: '28px',
           fontSize: '0.925rem',
           fontWeight: 500
         }}>
@@ -248,22 +248,22 @@ export default function ReminderForm() {
       )}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        
+
         {/* SECTION 1: AUDIENCE & TEAM ASSIGNMENT (Horizontal Row Layout) */}
         <div className="glass-card" style={{ padding: '28px', position: 'relative', zIndex: isSingleDropdownOpen ? 10 : 1 }}>
-          <h3 style={{ 
-            fontSize: '1.1rem', 
-            fontWeight: 800, 
-            color: 'var(--primary)', 
-            borderBottom: '1px solid var(--border-glass)', 
-            paddingBottom: '12px', 
-            marginBottom: '20px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '10px' 
+          <h3 style={{
+            fontSize: '1.1rem',
+            fontWeight: 800,
+            color: 'var(--primary)',
+            borderBottom: '1px solid var(--border-glass)',
+            paddingBottom: '12px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
           }}>
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+              <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             1. Assignment & Distribution Scope
           </h3>
@@ -289,7 +289,7 @@ export default function ReminderForm() {
             {formData.assignment_type === 'single' && (
               <div className="form-group fade-in" style={{ flex: '2 1 400px', margin: 0, position: 'relative' }} ref={singleDropdownRef}>
                 <label className="form-label">Select Recipient</label>
-                
+
                 {/* Custom Searchable Dropdown */}
                 <div style={{ position: 'relative' }}>
                   <div
@@ -495,13 +495,13 @@ export default function ReminderForm() {
             )}
 
             {formData.assignment_type === 'team' && (
-              <div style={{ 
-                flex: '2 1 400px', 
-                background: 'rgba(16, 185, 129, 0.05)', 
-                border: '1px solid rgba(16, 185, 129, 0.15)', 
-                borderRadius: '10px', 
-                padding: '14px 20px', 
-                color: 'var(--secondary)', 
+              <div style={{
+                flex: '2 1 400px',
+                background: 'rgba(16, 185, 129, 0.05)',
+                border: '1px solid rgba(16, 185, 129, 0.15)',
+                borderRadius: '10px',
+                padding: '14px 20px',
+                color: 'var(--secondary)',
                 fontSize: '0.875rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -517,19 +517,19 @@ export default function ReminderForm() {
 
         {/* SECTION 2: TRIGGER METRICS & TIMING (Horizontal Grid Row) */}
         <div className="glass-card" style={{ padding: '28px' }}>
-          <h3 style={{ 
-            fontSize: '1.1rem', 
-            fontWeight: 800, 
-            color: 'var(--primary)', 
-            borderBottom: '1px solid var(--border-glass)', 
-            paddingBottom: '12px', 
-            marginBottom: '20px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '10px' 
+          <h3 style={{
+            fontSize: '1.1rem',
+            fontWeight: 800,
+            color: 'var(--primary)',
+            borderBottom: '1px solid var(--border-glass)',
+            paddingBottom: '12px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
           }}>
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             2. Trigger Schedule Rules
           </h3>
@@ -640,19 +640,19 @@ export default function ReminderForm() {
 
         {/* SECTION 3: DELIVERY RULES & DND (Horizontal Configuration Layout) */}
         <div className="glass-card" style={{ padding: '28px' }}>
-          <h3 style={{ 
-            fontSize: '1.1rem', 
-            fontWeight: 800, 
-            color: 'var(--primary)', 
-            borderBottom: '1px solid var(--border-glass)', 
-            paddingBottom: '12px', 
-            marginBottom: '20px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '10px' 
+          <h3 style={{
+            fontSize: '1.1rem',
+            fontWeight: 800,
+            color: 'var(--primary)',
+            borderBottom: '1px solid var(--border-glass)',
+            paddingBottom: '12px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
           }}>
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+              <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
             3. Delivery Configurations & Silent Window
           </h3>
@@ -672,7 +672,7 @@ export default function ReminderForm() {
                 <option value="inapp_only">In-App Notification Feed</option>
                 <option value="whatsapp_only">WhatsApp Integration Only</option>
                 <option value="email_only">SMTP Email Routing Only</option>
-               
+
                 <option value="inapp_whatsapp">In-App & WhatsApp</option>
                 <option value="inapp_email">In-App & Email</option>
                 <option value="all_channels">Omnichannel (WhatsApp, Email & In-App)</option>
@@ -747,19 +747,19 @@ export default function ReminderForm() {
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
           {/* Note Input */}
           <div className="glass-card" style={{ padding: '28px', flex: '1 1 450px' }}>
-            <h3 style={{ 
-              fontSize: '1.1rem', 
-              fontWeight: 800, 
-              color: 'var(--primary)', 
-              borderBottom: '1px solid var(--border-glass)', 
-              paddingBottom: '12px', 
-              marginBottom: '20px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px' 
+            <h3 style={{
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              color: 'var(--primary)',
+              borderBottom: '1px solid var(--border-glass)',
+              paddingBottom: '12px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
             }}>
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Description & Task Details
             </h3>
@@ -779,19 +779,19 @@ export default function ReminderForm() {
 
           {/* Template editor */}
           <div className="glass-card" style={{ padding: '28px', flex: '1 1 450px' }}>
-            <h3 style={{ 
-              fontSize: '1.1rem', 
-              fontWeight: 800, 
-              color: 'var(--primary)', 
-              borderBottom: '1px solid var(--border-glass)', 
-              paddingBottom: '12px', 
-              marginBottom: '20px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px' 
+            <h3 style={{
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              color: 'var(--primary)',
+              borderBottom: '1px solid var(--border-glass)',
+              paddingBottom: '12px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
             }}>
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
               Payload Customizer Template
             </h3>
@@ -806,25 +806,25 @@ export default function ReminderForm() {
                 className="form-textarea"
                 rows="2"
               />
-              <div style={{ 
-                marginTop: '12px', 
-                padding: '10px 14px', 
-                background: 'rgba(79, 70, 229, 0.03)', 
-                borderRadius: '8px', 
-                border: '1px dashed rgba(79, 70, 229, 0.15)', 
-                display: 'flex', 
-                flexWrap: 'wrap', 
-                alignItems: 'center', 
-                gap: '8px' 
+              <div style={{
+                marginTop: '12px',
+                padding: '10px 14px',
+                background: 'rgba(79, 70, 229, 0.03)',
+                borderRadius: '8px',
+                border: '1px dashed rgba(79, 70, 229, 0.15)',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: '8px'
               }}>
                 <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Available Tags:</span>
                 {['{{employee_name}}', '{{title}}', '{{note}}', '{{date}}', '{{time}}'].map((tag) => (
-                  <code key={tag} style={{ 
-                    fontSize: '0.725rem', 
-                    background: '#ffffff', 
-                    color: 'var(--primary)', 
-                    padding: '3px 8px', 
-                    borderRadius: '6px', 
+                  <code key={tag} style={{
+                    fontSize: '0.725rem',
+                    background: '#ffffff',
+                    color: 'var(--primary)',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
                     border: '1px solid var(--border-glass)',
                     fontWeight: 700
                   }}>
@@ -874,7 +874,7 @@ export default function ReminderForm() {
             {submitting ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                 <svg className="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
-                  <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
                 Processing...
               </span>
@@ -887,7 +887,7 @@ export default function ReminderForm() {
         </div>
 
       </form>
-      
+
     </div>
   );
 }

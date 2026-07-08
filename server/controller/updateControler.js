@@ -235,6 +235,7 @@ const updateEmployeeKyc = (req, res) => {
 
     // Allowed table fields only
     const allowedFields = [
+      "role",
       "full_name",
       "mobile_number",
       "email_id",

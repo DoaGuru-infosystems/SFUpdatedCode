@@ -76,7 +76,7 @@ const TerminationLetter = () => {
     const fetchEmployees = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('https://sf.doaguru.com/api/users');
+        const response = await axios.get('http://localhost:3000/api/users');
         if (response.data && Array.isArray(response.data)) {
           setEmployees(response.data.filter(emp => emp.employment_status === 'active'));
         }
@@ -161,8 +161,8 @@ const TerminationLetter = () => {
 
   const reasonText = reason === 'Poor Performance' ? staticText.reasonPoorPerf
     : reason === 'Misconduct' ? staticText.reasonMisconduct
-    : reason === 'Downsizing' ? staticText.reasonDownsizing
-    : staticText.reasonAbsconding;
+      : reason === 'Downsizing' ? staticText.reasonDownsizing
+        : staticText.reasonAbsconding;
 
   return (
     <div className="dg-page-container">
@@ -313,8 +313,8 @@ const TerminationLetter = () => {
                   onBlur={e => {
                     const key = reason === 'Poor Performance' ? 'reasonPoorPerf'
                       : reason === 'Misconduct' ? 'reasonMisconduct'
-                      : reason === 'Downsizing' ? 'reasonDownsizing'
-                      : 'reasonAbsconding';
+                        : reason === 'Downsizing' ? 'reasonDownsizing'
+                          : 'reasonAbsconding';
                     handleStaticChange(key, e.currentTarget.textContent);
                   }}
                   style={{ outline: isEditMode ? '1px dashed #3b82f6' : 'none', padding: isEditMode ? '1px 3px' : 0, borderRadius: '2px', backgroundColor: isEditMode ? 'rgba(59,130,246,0.05)' : 'transparent', display: 'inline' }}

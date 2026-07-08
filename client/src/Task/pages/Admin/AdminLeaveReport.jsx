@@ -36,7 +36,7 @@ const AdminLeaveReport = () => {
     setIsLoading(true);
     try {
       const { data } = await axios.get(
-        "https://sf.doaguru.com/api/getAllLeaveDataForAdmin"
+        "http://localhost:3000/api/getAllLeaveDataForAdmin"
       );
       setLeaveData(data);
     } catch (error) {
@@ -50,7 +50,7 @@ const AdminLeaveReport = () => {
     try {
       const confirm = window.confirm(`Update status to ${status.toUpperCase()}?`);
       if (confirm) {
-        await axios.put(`https://sf.doaguru.com/api/approveRejectLeaves/${id}`, { status });
+        await axios.put(`http://localhost:3000/api/approveRejectLeaves/${id}`, { status });
         fetchLeaveData();
         alert(`Leave Status Updated to ${status}`);
       }

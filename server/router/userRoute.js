@@ -71,7 +71,9 @@ const {
   deleteExpense,
   updateExpense,
   addExpense,
-  getExpenses
+  getExpenses,
+  updateAssignedProjectStatus,
+  getAllAssignedDevelopmentTasks
 } = require("../controller/itemController.js");
 
 router.get("/test", test);
@@ -126,6 +128,7 @@ router.get("/api/getProject/:user_id", projectFromAssign);
 router.get("/api/getAllAssignments", getAllAssignments);
 router.delete("/api/deleteAssignment/:id", deleteAssignment);
 router.post("/api/assignProject", assignProject);
+router.put("/api/update-assigned-project-status/:id", updateAssignedProjectStatus);
 
 // Employee Task Show to admin
 router.get("/api/getUserTasks/:userId", getUserTasks);
@@ -197,6 +200,7 @@ router.post("/api/bulkAssignProjectTarget", bulkAssignProjectTarget);
 router.post("/api/assign-project-target-development-team", AssignDevelopmentTask);
 router.get("/api/get-assigned-development-tasks/:employeeId", getAssignDevelopmentTask);
 router.put("/api/update-assigned-development-task/:id", updateAssignDevelopmentTask);
+router.get("/api/get-all-assigned-development-tasks", getAllAssignedDevelopmentTasks);
 router.get("/api/getHolidaysByMonthYear/:month/:year", getHolidaysByMonthYear);
 
 

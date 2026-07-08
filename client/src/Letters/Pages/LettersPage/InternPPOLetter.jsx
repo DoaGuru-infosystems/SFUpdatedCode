@@ -84,23 +84,23 @@ const InternPPOLetterPDF = ({ formData, companyInfo, staticText }) => {
           </View>
           <View style={pdfStyles.tableRow}>
             <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{staticText.rowBasic}</Text></View>
-            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{basic.toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
-            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{(basic * 12).toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
+            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{basic.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
+            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{(basic * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
           </View>
           <View style={pdfStyles.tableRow}>
             <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{staticText.rowHRA}</Text></View>
-            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{hra.toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
-            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{(hra * 12).toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
+            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{hra.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
+            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{(hra * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
           </View>
           <View style={pdfStyles.tableRow}>
             <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{staticText.rowAllowances}</Text></View>
-            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{allowances.toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
-            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{(allowances * 12).toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
+            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{allowances.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
+            <View style={pdfStyles.tableCol}><Text style={pdfStyles.tableCell}>{(allowances * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
           </View>
           <View style={pdfStyles.tableRow}>
-            <View style={[pdfStyles.tableColHeader, {backgroundColor: '#e2e8f0'}]}><Text style={[pdfStyles.tableCellHeader, pdfStyles.bold]}>{staticText.rowTotal}</Text></View>
-            <View style={[pdfStyles.tableColHeader, {backgroundColor: '#e2e8f0'}]}><Text style={[pdfStyles.tableCellHeader, pdfStyles.bold]}>{monthlyGross.toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
-            <View style={[pdfStyles.tableColHeader, {backgroundColor: '#e2e8f0'}]}><Text style={[pdfStyles.tableCellHeader, pdfStyles.bold]}>{Number(formData.newCTC).toLocaleString('en-IN', {maximumFractionDigits: 0})}</Text></View>
+            <View style={[pdfStyles.tableColHeader, { backgroundColor: '#e2e8f0' }]}><Text style={[pdfStyles.tableCellHeader, pdfStyles.bold]}>{staticText.rowTotal}</Text></View>
+            <View style={[pdfStyles.tableColHeader, { backgroundColor: '#e2e8f0' }]}><Text style={[pdfStyles.tableCellHeader, pdfStyles.bold]}>{monthlyGross.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
+            <View style={[pdfStyles.tableColHeader, { backgroundColor: '#e2e8f0' }]}><Text style={[pdfStyles.tableCellHeader, pdfStyles.bold]}>{Number(formData.newCTC).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></View>
           </View>
         </View>
 
@@ -162,7 +162,7 @@ const InternPPOLetter = () => {
     const fetchEmployees = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('https://sf.doaguru.com/api/users');
+        const response = await axios.get('http://localhost:3000/api/users');
         if (response.data && Array.isArray(response.data)) {
           setEmployees(response.data.filter(emp => emp.employment_status === 'active'));
         }
@@ -327,23 +327,23 @@ const InternPPOLetter = () => {
                   <tbody>
                     <tr>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{rs('rowBasic')}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{basic.toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{(basic * 12).toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{basic.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{(basic * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                     </tr>
                     <tr>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{rs('rowHRA')}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{hra.toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{(hra * 12).toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{hra.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{(hra * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                     </tr>
                     <tr>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{rs('rowAllowances')}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{allowances.toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{(allowances * 12).toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{allowances.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{(allowances * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                     </tr>
                     <tr style={{ backgroundColor: '#e2e8f0', fontWeight: 'bold' }}>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{rs('rowTotal')}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{monthlyGross.toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{Number(formData.newCTC || 0).toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{monthlyGross.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{Number(formData.newCTC || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                     </tr>
                   </tbody>
                 </table>

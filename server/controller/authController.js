@@ -253,12 +253,12 @@ const SendAdminOtp = async (req, res) => {
     } catch (emailError) {
       console.warn(`⚠️ SMTP Email failed to send, but OTP is generated: ${otp}`);
       console.error(emailError);
-      
+
       // If we are in local development mode, allow success response with instructions
       if (process.env.NODE_ENV === "development" || !process.env.NODE_ENV) {
-        res.status(200).json({ 
-          success: true, 
-          message: `[DEV ONLY] OTP email failed to send, but you can find it in server console: ${otp}` 
+        res.status(200).json({
+          success: true,
+          message: `[DEV ONLY] OTP email failed to send, but you can find it in server console: ${otp}`
         });
       } else {
         throw emailError;
