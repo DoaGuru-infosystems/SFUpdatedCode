@@ -87,7 +87,7 @@ const UpdateEmployeeModal = ({
       }
 
       const response = await axios.put(
-        `https://sf.doaguru.com/api/updateEmployeeKyc/${empId}`,
+        `http://localhost:3000/api/updateEmployeeKyc/${empId}`,
         fd,
         {
           headers: {
@@ -140,7 +140,7 @@ const UpdateEmployeeModal = ({
                 </label>
                 {employee?.profileIMG && (
                   <img
-                    src={employee.profileIMG?.replace("https://sf.doaguru.com", "https://sf.doaguru.com")}
+                    src={employee.profileIMG?.replace("http://localhost:3000", "http://localhost:3000")}
                     alt="Current Profile"
                     className="w-16 h-16 rounded-full object-cover mb-2 border"
                   />
@@ -224,6 +224,24 @@ const UpdateEmployeeModal = ({
                   <option value="seo">SEO</option>
                   <option value="management">Management</option>
                   <option value="sales">Sales</option>
+                </select>
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  System Role
+                </label>
+
+                <select
+                  name="role"
+                  value={formData.role || "user"}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-lg"
+                >
+                  <option value="user">Employee (User)</option>
+                  <option value="team_lead">Team Lead</option>
+                  <option value="admin">Administrator</option>
                 </select>
               </div>
 

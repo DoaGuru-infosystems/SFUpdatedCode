@@ -62,7 +62,7 @@ const RelievingLetter = () => {
     const fetchEmployees = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('https://sf.doaguru.com/api/users');
+        const response = await axios.get('http://localhost:3000/api/users');
         if (response.data && Array.isArray(response.data)) {
           setEmployees(response.data.filter(emp => emp.employment_status === 'active'));
         }

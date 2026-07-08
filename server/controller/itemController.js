@@ -367,6 +367,13 @@ const AddData = (req, res) => {
     // ═══ Admin Notification Trigger ═══
     addAdminNotification(user_id, user_full_name, "task", `${user_full_name} added a task: ${TaskDescription.substring(0, 30)}...`);
 
+    try {
+      const socketUtil = require("../utils/socket");
+      socketUtil.getIO().emit("task-updated", { user_id });
+    } catch (err) {
+      console.error("Socket emit error in AddData:", err);
+    }
+
     res.send('Data saved successfully');
   });
 };
@@ -528,6 +535,14 @@ const UpdateTask = (req, res) => {
       }
       // Success Response 
       console.log('Task updated successfully:', updateResult);
+
+      try {
+        const socketUtil = require("../utils/socket");
+        socketUtil.getIO().emit("task-updated", { id });
+      } catch (err) {
+        console.error("Socket emit error in UpdateTask:", err);
+      }
+
       return res.status(200).json({
         message: "Task updated successfully",
         result: updateResult
@@ -559,7 +574,7 @@ const ProjectsList = (req, res) => {
   db.query(query, (err, result) => {
     if (err) {
       console.error('Error fetching projects:', err);
-      res.status(500).send('Error fetching projects', err);
+      res.status(500).json({ error: 'Error fetching projects', details: err.message });
       return;
     }
     res.json(result);
@@ -572,7 +587,7 @@ const CategoryList = (req, res) => {
   db.query(query, (err, result) => {
     if (err) {
       console.error('Error fetching categories:', err);
-      res.status(500).send('Error fetching categories', err);
+      res.status(500).json({ error: 'Error fetching categories', details: err.message });
       return;
     }
     res.json(result);
@@ -737,7 +752,7 @@ const UpdateEmployeeAPI = (req, res) => {
   if (req.file) {
     profilePictureUrl = `${baseURL}/uploads/${req.file.filename}`;
     if (profilePictureUrl.startsWith("http://sf.doaguru.com")) {
-      profilePictureUrl = profilePictureUrl.replace("http://sf.doaguru.com", "https://sf.doaguru.com");
+      profilePictureUrl = profilePictureUrl.replace("http://sf.doaguru.com", "http://localhost:3000");
     }
   }
 
@@ -785,6 +800,7 @@ const getEmployeeAPI = (req, res) => {
   const query = `
     SELECT 
       id,
+      role,
       full_name,
       mobile_number,
       designation,
@@ -813,14 +829,31 @@ const getEmployeeAPI = (req, res) => {
 
 //  fetch from asing task
 const projectFromAssign = (req, res) => {
-  const user_id = req.params.user_id; // Assuming user_id is a parameter in the request
-  const query = 'SELECT * FROM assigned_projects WHERE user_id = ?'; // Adjusted query to filter by user_id
+  const user_id = req.params.user_id;
+  const query = `
+    SELECT 
+      ap.id, 
+      ap.project_id, 
+      ap.category_id, 
+      ap.user_id,
+      p.name as project_name,
+      c.name as category_name,
+      ap.created_at,
+      ap.status,
+      ap.status_note,
+      ap.assigned_by
+    FROM assigned_projects ap
+    LEFT JOIN projects p ON ap.project_id = p.id
+    LEFT JOIN category c ON ap.category_id = c.id
+    WHERE ap.user_id = ?
+    ORDER BY ap.id ASC
+  `;
   db.query(query, [user_id], (err, result) => {
     if (err) {
       console.error('Error fetching projects:', err);
       res.status(500).json({ error: 'Failed to fetch projects' });
     } else {
-      res.status(200).json(result); // Assuming result contains the fetched projects
+      res.status(200).json(result);
     }
   });
 }
@@ -889,7 +922,10 @@ const getAllAssignments = (req, res) => {
       u.full_name as user_name,
       p.name as project_name,
       c.name as category_name,
-      ap.created_at
+      ap.created_at,
+      ap.status,
+      ap.status_note,
+      ap.assigned_by
     FROM assigned_projects ap
     LEFT JOIN task_users u ON ap.user_id = u.id
     LEFT JOIN projects p ON ap.project_id = p.id
@@ -2426,7 +2462,7 @@ const SalaryCalculatorsByUser = (req, res) => {
           basePay +
           sundayFixedPay +
           paidLeaveAmount +
-          paidHolidayPay + 
+          paidHolidayPay +
           (compOffsAdjustedThisMonth * dailySalary);
 
         const totalDaysInCalculatedRange = endMoment.diff(startMoment, 'days') + 1;
@@ -2452,7 +2488,7 @@ const SalaryCalculatorsByUser = (req, res) => {
           workedSundaysHalf,
           totalSundays,
           totalDaysInMonth: totalDaysInCalculatedRange,
-          
+
           // Comp-off Summary
           earnedCompOffsThisMonth: (workedSundaysFull + (workedSundaysHalf * 0.5)),
           compOffsAdjustedThisMonth,
@@ -2694,16 +2730,54 @@ const getEmployeeWiseProjectTarget = (req, res) => {
 const updateProjectTarget = (req, res) => {
   try {
     const { id } = req.params;
-    const { targetPost, targetVideo, targetShoot } = req.body;
+    const { targetPost, targetVideo, targetShoot, status, status_note } = req.body;
 
-    const updateQuery = `UPDATE assigntarget SET targetPost = ?, targetVideo = ?, targetShoot = ? WHERE id = ?`;
-    db.query(updateQuery, [targetPost, targetVideo, targetShoot, id], (err, result) => {
+    let fields = [];
+    let params = [];
+
+    if (targetPost !== undefined) {
+      fields.push("targetPost = ?");
+      params.push(targetPost);
+    }
+    if (targetVideo !== undefined) {
+      fields.push("targetVideo = ?");
+      params.push(targetVideo);
+    }
+    if (targetShoot !== undefined) {
+      fields.push("targetShoot = ?");
+      params.push(targetShoot);
+    }
+    if (status !== undefined) {
+      fields.push("status = ?");
+      params.push(status);
+    }
+    if (status_note !== undefined) {
+      fields.push("status_note = ?");
+      params.push(status_note);
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).send('No fields provided for update');
+    }
+
+    params.push(id);
+    const updateQuery = `UPDATE assigntarget SET ${fields.join(", ")} WHERE id = ?`;
+
+    db.query(updateQuery, params, (err, result) => {
       if (err) {
         return res.status(400).json({ success: false, message: err.message });
       }
       if (result.affectedRows === 0) {
         return res.status(404).json({ success: false, message: "Target not found" });
       }
+
+      try {
+        const socketUtil = require("../utils/socket");
+        socketUtil.getIO().emit("target-updated", { id });
+      } catch (err) {
+        console.error("Socket emit error in updateProjectTarget:", err);
+      }
+
       res.status(200).json({ success: true, message: "Target updated successfully" });
     });
   } catch (error) {
@@ -2841,7 +2915,7 @@ const getAssignDevelopmentTask = (req, res) => {
   const { employeeId } = req.params;
   console.log("Employee ID :", employeeId);
 
-  const query = `SELECT * FROM assign_development_tasks WHERE user_id = ?`;
+  const query = `SELECT * FROM assign_development_tasks WHERE user_id = ? ORDER BY id ASC`;
   db.query(query, [employeeId], (err, results) => {
     if (err) {
       console.error('Database error:', err);
@@ -2958,6 +3032,60 @@ const deleteExpense = (req, res) => {
   });
 };
 
+const updateAssignedProjectStatus = (req, res) => {
+  const { id } = req.params;
+  const { status, status_note } = req.body;
+
+  let fields = [];
+  let params = [];
+
+  if (status !== undefined) {
+    fields.push("status = ?");
+    params.push(status);
+  }
+  if (status_note !== undefined) {
+    fields.push("status_note = ?");
+    params.push(status_note);
+  }
+
+  if (fields.length === 0) {
+    return res.status(400).send('No fields provided for update');
+  }
+
+  params.push(id);
+  const query = `UPDATE assigned_projects SET ${fields.join(", ")} WHERE id = ?`;
+
+  db.query(query, params, (err, result) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Assignment not found' });
+    }
+
+    try {
+      const socketUtil = require("../utils/socket");
+      socketUtil.getIO().emit("assigned-project-updated", { id });
+    } catch (err) {
+      console.error("Socket emit error in updateAssignedProjectStatus:", err);
+    }
+
+    res.status(200).json({ message: 'Assignment updated successfully' });
+  });
+};
+
+const getAllAssignedDevelopmentTasks = (req, res) => {
+  const query = `SELECT * FROM assign_development_tasks ORDER BY id ASC`;
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).send(err);
+    }
+    res.json(results);
+  });
+};
+
 module.exports = {
   test,
   addLead,
@@ -3025,5 +3153,7 @@ module.exports = {
   addExpense,
   getExpenses,
   updateExpense,
-  deleteExpense
+  deleteExpense,
+  updateAssignedProjectStatus,
+  getAllAssignedDevelopmentTasks
 };

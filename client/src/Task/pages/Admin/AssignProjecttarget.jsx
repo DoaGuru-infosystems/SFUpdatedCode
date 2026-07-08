@@ -24,7 +24,7 @@ const AssignProjectTarget = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await axios.get('https://sf.doaguru.com/api/getAllProjectTarget');
+            const res = await axios.get('http://localhost:3000/api/getAllProjectTarget');
             setTargets(res.data.data || []);
         } catch (err) {
             setError('Failed to fetch assigned targets.');
@@ -41,7 +41,7 @@ const AssignProjectTarget = () => {
         await Promise.all(targets.map(async (tgt) => {
             try {
                 const userId = tgt.employeeId;
-                const url = `https://sf.doaguru.com/api/getUserTasks/${userId}`;
+                const url = `http://localhost:3000/api/getUserTasks/${userId}`;
                 const res = await axios.get(url);
 
                 // Filter tasks for selected date
@@ -88,7 +88,7 @@ const AssignProjectTarget = () => {
     // Handle Update Target
     const handleUpdateTarget = async (targetId) => {
         try {
-            const response = await axios.put(`https://sf.doaguru.com/api/updateProjectTarget/${targetId}`, editFormData);
+            const response = await axios.put(`http://localhost:3000/api/updateProjectTarget/${targetId}`, editFormData);
             if (response.data.success) {
                 setEditingTarget(null);
                 setEditFormData({ targetPost: '', targetVideo: '', targetShoot: '' });
@@ -108,7 +108,7 @@ const AssignProjectTarget = () => {
         }
 
         try {
-            const response = await axios.delete(`https://sf.doaguru.com/api/deleteProjectTarget/${targetId}`);
+            const response = await axios.delete(`http://localhost:3000/api/deleteProjectTarget/${targetId}`);
             if (response.data.success) {
                 fetchTargets(); // Refresh the list
                 toast.success('Target deleted successfully!');
@@ -210,7 +210,7 @@ const AssignProjectTarget = () => {
                 }
 
                 // Upload to backend
-                const response = await axios.post('https://sf.doaguru.com/api/bulkAssignProjectTarget', {
+                const response = await axios.post('http://localhost:3000/api/bulkAssignProjectTarget', {
                     targets: validatedData
                 });
 
@@ -382,10 +382,14 @@ const AssignProjectTarget = () => {
                                         <th className="py-4 px-6 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Workforce Member</th>
                                         <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Entity</th>
                                         <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned</th>
+                                        <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned By</th>
+                                        <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Guidelines</th>
                                         <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Target: Posts</th>
                                         <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Target: Videos</th>
                                         <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Target: Shoots</th>
                                         <th className="py-4 px-6 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Progress</th>
+                                        <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                        <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Progress Note</th>
                                         <th className="py-4 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
@@ -407,6 +411,12 @@ const AssignProjectTarget = () => {
                                             </td>
                                             <td className="py-4 px-6 text-center text-sm font-medium text-slate-500">
                                                 {formatDate(tgt.created_at)}
+                                            </td>
+                                            <td className="py-4 px-6 text-center text-xs font-bold text-slate-700">
+                                                {tgt.assigned_by || 'Admin'}
+                                            </td>
+                                            <td className="py-4 px-6 text-center text-xs font-medium text-slate-500 italic max-w-xs break-words">
+                                                {tgt.note || 'No guidelines'}
                                             </td>
 
                                             <td className="py-4 px-6 text-center">
@@ -460,6 +470,20 @@ const AssignProjectTarget = () => {
                                                     </div>
                                                     <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Progress Score</span>
                                                 </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-center">
+                                                <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-bold rounded-full ${
+                                                    tgt.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                                    tgt.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                                                    tgt.status === 'Hold' ? 'bg-red-100 text-red-800' :
+                                                    tgt.status === 'In Pipeline' ? 'bg-blue-100 text-blue-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {tgt.status || 'Pending'}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-6 text-center text-xs text-slate-500 italic max-w-xs break-words">
+                                                {tgt.status_note || 'No note added'}
                                             </td>
 
                                             <td className="py-4 px-6">

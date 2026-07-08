@@ -31,7 +31,7 @@ const RegisterUser = () => {
             return;
         }
         const { confirmPassword, ...dataToSend } = formData;
-        axios.post('https://sf.doaguru.com/api/register', dataToSend)
+        axios.post('http://localhost:3000/api/register', dataToSend)
             .then(response => {
                 console.log(response);
                 alert(response.data.message);

@@ -16,6 +16,8 @@ function LoginPage({ setRender }) {
     const user = JSON.parse(localStorage.getItem("user"));
     if (user && user.role === "admin") {
       navigate("/task/Admin-Home-page");
+    } else if (user && user.role === "team_lead") {
+      navigate("/task/TeamLeaderDashboard");
     } else if (user && user.role === "user") {
       navigate("/task/UserHome");
     }
@@ -23,8 +25,9 @@ function LoginPage({ setRender }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
     axios
-      .post("https://sf.doaguru.com/api/login", { emailId, password })
+      .post(`${API_BASE}/api/login`, { emailId, password })
 
       .then((response) => {
         if (response.data && response.data.user) {
@@ -34,7 +37,11 @@ function LoginPage({ setRender }) {
           toast.success(response.data.message, { position: "top-right" });
           console.log(response.data.message);
           setRender();
-          navigate("/task/UserHome");
+          if (response.data.user.role === "team_lead") {
+            navigate("/task/TeamLeaderDashboard");
+          } else {
+            navigate("/task/UserHome");
+          }
         } else {
           console.error("Unexpected response format:", response.data);
           alert("Login successful, but user data is missing.");
@@ -57,8 +64,9 @@ function LoginPage({ setRender }) {
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
+    const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
     axios
-      .post("https://sf.doaguru.com/api/admin-login", { emailId, password })
+      .post(`${API_BASE}/api/admin-login`, { emailId, password })
       .then((response) => {
         if (response.data && response.data.user) {
           let save = response.data.user;

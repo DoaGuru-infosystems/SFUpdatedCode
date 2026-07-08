@@ -25,7 +25,7 @@ function FollowUpPage() {
     e.preventDefault();
     console.log(leadReport);
     setLeadReport(defaultData);
-    axios.post('https://sf.doaguru.com/insertfollowup', { u_Id: user.u_Id, lead_Id, ...leadReport })
+    axios.post('http://localhost:3000/insertfollowup', { u_Id: user.u_Id, lead_Id, ...leadReport })
       .then((res) => {
         console.log(res.data);
         alert("Successfully added follow up report.");
@@ -53,7 +53,7 @@ function FollowUpPage() {
     } else {
       console.log('Modal header not found');
     }
-    axios.put(`https://sf.doaguru.com/updateFollowReport`, { report_id: followUp[index].report_id, ...leadReport })
+    axios.put(`http://localhost:3000/updateFollowReport`, { report_id: followUp[index].report_id, ...leadReport })
       .then((res) => {
         console.log(res.data);
         setNowEffect(!nowEffect);
@@ -64,7 +64,7 @@ function FollowUpPage() {
   }
 
   useEffect(() => {
-    axios.get(`https://sf.doaguru.com/getlead/${user.u_Id}`)
+    axios.get(`http://localhost:3000/getlead/${user.u_Id}`)
       .then((res) => {
         let followUpArr = [...res.data.followUp];
         let leadArr = [...res.data.lead];
