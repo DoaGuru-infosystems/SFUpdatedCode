@@ -60,10 +60,15 @@ const ProjectAssignmentForm = () => {
 
     setLoading(true);
     try {
+      const userStr = localStorage.getItem("user");
+      const loggedInUser = userStr ? JSON.parse(userStr) : null;
+      const assignedBy = loggedInUser ? (loggedInUser.full_name || 'Admin') : 'Admin';
+
       const { data } = await axios.post('http://localhost:3000/api/assignProject', {
         userId: selectedUser,
         projectId: selectedProject,
-        categoryId: selectedCategory
+        categoryId: selectedCategory,
+        assigned_by: assignedBy
       });
       toast.success(data.message || 'Entity deployment successful!');
       setSelectedProject('');

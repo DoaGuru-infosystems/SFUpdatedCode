@@ -296,8 +296,38 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                       {calendarData.map((row, idx) => (
                         <tr key={idx} className={`transition-colors ${row.isSunday ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
                           <td className="px-3 py-1.5"><span className="font-black text-slate-800">{moment(row.dateStr).format("DD MMM")}</span> <span className="text-[9px] text-slate-400 font-bold uppercase">{moment(row.dateStr).format("ddd")}</span></td>
-                          <td className="px-3 py-1.5 font-bold text-slate-600">{row.attend?.login_time?.slice(0, 5) || "—"}</td>
-                          <td className="px-3 py-1.5 font-bold text-slate-600">{row.attend?.logout_time?.slice(0, 5) || "—"}</td>
+                          <td className="px-3 py-1.5 font-bold text-slate-600">
+                            {row.attend?.login_time ? (
+                              <div className="flex items-center gap-2">
+                                {row.attend.login_selfie_url && (
+                                  <img
+                                    src={`http://localhost:3000/${row.attend.login_selfie_url}`}
+                                    className="w-8 h-8 rounded object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                                    alt="Login Selfie"
+                                    onClick={() => window.open(`http://localhost:3000/${row.attend.login_selfie_url}`, '_blank')}
+                                    title="Click to view full selfie"
+                                  />
+                                )}
+                                <span>{row.attend.login_time.slice(0, 5)}</span>
+                              </div>
+                            ) : "—"}
+                          </td>
+                          <td className="px-3 py-1.5 font-bold text-slate-600">
+                            {row.attend?.logout_time ? (
+                              <div className="flex items-center gap-2">
+                                {row.attend.logout_selfie_url && (
+                                  <img
+                                    src={`http://localhost:3000/${row.attend.logout_selfie_url}`}
+                                    className="w-8 h-8 rounded object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                                    alt="Logout Selfie"
+                                    onClick={() => window.open(`http://localhost:3000/${row.attend.logout_selfie_url}`, '_blank')}
+                                    title="Click to view full selfie"
+                                  />
+                                )}
+                                <span>{row.attend.logout_time.slice(0, 5)}</span>
+                              </div>
+                            ) : "—"}
+                          </td>
                           <td className="px-3 py-1.5 text-slate-700 font-bold">{row.attend?.work_minutes || "—"}m</td>
                           <td className="px-3 py-1.5">
                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase border ${STATUS_CONFIG[row.status].bg} ${STATUS_CONFIG[row.status].text} ${STATUS_CONFIG[row.status].border}`}>

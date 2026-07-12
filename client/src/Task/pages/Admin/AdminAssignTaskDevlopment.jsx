@@ -205,11 +205,10 @@ const AdminAssignTaskDevlopment = () => {
                     {task.assigned_by || 'Admin'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${task.status === 'Completed' ? 'bg-green-100 text-green-800' :
                       task.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                        'bg-gray-100 text-gray-800'
+                      }`}>
                       {task.status}
                     </span>
                   </td>

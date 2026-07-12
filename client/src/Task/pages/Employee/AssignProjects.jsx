@@ -4,12 +4,9 @@ import PaginationControls from "../../components/Pagination";
 import { toast } from "react-hot-toast";
 
 function AssignProjectDetails() {
-  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com";
+  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
   const [taskData, setTaskData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [editingProject, setEditingProject] = useState(null);
-  const [editData, setEditData] = useState({ status: "Pending", status_note: "" });
-
   // Pagination state
   const [currentPagetask, setCurrentPagetask] = useState(1);
   const [rowsPerPagetask, setRowsPerPagetask] = useState(5);
@@ -59,37 +56,6 @@ function AssignProjectDetails() {
     myTask();
   }, []);
 
-  const startEdit = (project) => {
-    setEditingProject(project.id);
-    setEditData({
-      status: project.status || "Pending",
-      status_note: project.status_note || ""
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingProject(null);
-  };
-
-  const saveEdit = async () => {
-    if (!editingProject) return;
-    setLoading(true);
-    try {
-      await axios.put(`${API_BASE}/api/update-assigned-project-status/${editingProject}`, {
-        status: editData.status,
-        status_note: editData.status_note
-      });
-      toast.success("Project status updated successfully!");
-      setEditingProject(null);
-      myTask();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to update project status.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -124,15 +90,14 @@ function AssignProjectDetails() {
               <th scope="col" className="px-3 py-2">Category</th>
               <th scope="col" className="px-3 py-2">Assigned By</th>
               <th scope="col" className="px-3 py-2">Assign Date</th>
-              <th scope="col" className="px-3 py-2">Status</th>
-              <th scope="col" className="px-3 py-2">Progress Note</th>
-              <th scope="col" className="px-3 py-2">Actions</th>
+
+
             </tr>
           </thead>
           <tbody>
             {taskData.length === 0 ? (
               <tr>
-                <td colSpan="9" className="px-3 py-4 text-center text-sm text-gray-500 font-medium">
+                <td colSpan="6" className="px-3 py-4 text-center text-sm text-gray-500 font-medium">
                   No assigned projects found.
                 </td>
               </tr>
@@ -145,72 +110,7 @@ function AssignProjectDetails() {
                   <td className="px-3 py-2 text-slate-600">{task.category_name || "N/A"}</td>
                   <td className="px-3 py-2 text-slate-700 font-bold">{task.assigned_by || "Admin"}</td>
                   <td className="px-3 py-2">{formatDate(task.created_at)}</td>
-                  <td className="px-3 py-2">
-                    {editingProject === task.id ? (
-                      <select
-                        value={editData.status}
-                        onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                        className="border border-gray-300 rounded p-1 text-xs bg-white font-semibold"
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="In Pipeline">In Pipeline</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Hold">Hold</option>
-                        <option value="Completed">Completed</option>
-                      </select>
-                    ) : (
-                      <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-bold rounded-full ${
-                        task.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                        task.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                        task.status === 'Hold' ? 'bg-red-100 text-red-800' :
-                        task.status === 'In Pipeline' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {task.status || 'Pending'}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    {editingProject === task.id ? (
-                      <textarea
-                        value={editData.status_note}
-                        onChange={(e) => setEditData({ ...editData, status_note: e.target.value })}
-                        placeholder="Progress update note..."
-                        className="border border-gray-300 rounded p-1 text-xs w-full min-w-[150px]"
-                        rows="2"
-                      />
-                    ) : (
-                      <span className="italic text-xs text-slate-500 font-medium break-words">
-                        {task.status_note || 'No note added yet'}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs font-semibold">
-                    {editingProject === task.id ? (
-                      <div className="flex space-x-1.5">
-                        <button
-                          onClick={saveEdit}
-                          disabled={loading}
-                          className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded transition-colors text-[11px] font-bold"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="bg-gray-400 hover:bg-gray-500 text-white px-2 py-1 rounded transition-colors text-[11px] font-bold"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => startEdit(task)}
-                        className="text-blue-600 hover:text-blue-900 font-bold border border-blue-100 hover:border-blue-300 rounded px-2 py-1 bg-blue-50/50 hover:bg-blue-50"
-                      >
-                        Edit
-                      </button>
-                    )}
-                  </td>
+
                 </tr>
               ))
             )}

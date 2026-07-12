@@ -210,8 +210,13 @@ const AssignProjectTarget = () => {
                 }
 
                 // Upload to backend
+                const userStr = localStorage.getItem("user");
+                const loggedInUser = userStr ? JSON.parse(userStr) : null;
+                const assignedBy = loggedInUser ? (loggedInUser.full_name || 'Admin') : 'Admin';
+
                 const response = await axios.post('http://localhost:3000/api/bulkAssignProjectTarget', {
-                    targets: validatedData
+                    targets: validatedData,
+                    assigned_by: assignedBy
                 });
 
                 if (response.data.success) {
@@ -415,8 +420,8 @@ const AssignProjectTarget = () => {
                                             <td className="py-4 px-6 text-center text-xs font-bold text-slate-700">
                                                 {tgt.assigned_by || 'Admin'}
                                             </td>
-                                            <td className="py-4 px-6 text-center text-xs font-medium text-slate-500 italic max-w-xs break-words">
-                                                {tgt.note || 'No guidelines'}
+                                            <td className="py-4 px-6 text-center text-sm font-semibold text-slate-800 max-w-xs break-words">
+                                                {tgt.note || <span className="italic text-gray-400 font-normal">No guidelines</span>}
                                             </td>
 
                                             <td className="py-4 px-6 text-center">
@@ -472,13 +477,12 @@ const AssignProjectTarget = () => {
                                                 </div>
                                             </td>
                                             <td className="py-4 px-6 text-center">
-                                                <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-bold rounded-full ${
-                                                    tgt.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                                <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-bold rounded-full ${tgt.status === 'Completed' ? 'bg-green-100 text-green-800' :
                                                     tgt.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                                                    tgt.status === 'Hold' ? 'bg-red-100 text-red-800' :
-                                                    tgt.status === 'In Pipeline' ? 'bg-blue-100 text-blue-800' :
-                                                    'bg-gray-100 text-gray-800'
-                                                }`}>
+                                                        tgt.status === 'Hold' ? 'bg-red-100 text-red-800' :
+                                                            tgt.status === 'In Pipeline' ? 'bg-blue-100 text-blue-800' :
+                                                                'bg-gray-100 text-gray-800'
+                                                    }`}>
                                                     {tgt.status || 'Pending'}
                                                 </span>
                                             </td>

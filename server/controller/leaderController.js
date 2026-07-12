@@ -26,43 +26,51 @@ const sendAssignmentNotifications = (leaderId, employeeId, details) => {
     // 2. Add Admin Notification (DB + Push + Socket IO)
     addAdminNotification(leaderId, leaderName, "Task Assignment", adminMsg);
 
-    // 3. Add Employee Notification (DB + Socket IO)
-    db.query(`SELECT id FROM scheduler_reminders WHERE title = 'System Task Assignment' LIMIT 1`, (err, reminders) => {
-      const proceedInsert = (rId) => {
-        const notifSql = `
-          INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status)
-          VALUES (?, ?, 'inapp', ?, 'sent')
-        `;
-        db.query(notifSql, [rId, employeeId, employeeMsg], (err2, result) => {
-          if (err2) {
-            console.error("❌ Failed to create employee notification in database:", err2.message);
-            return;
-          }
-          
-          const socketNotif = {
-            id: result.insertId,
-            employee_id: employeeId,
-            message_body: employeeMsg
-          };
-          socketUtil.getIO().emit("new-scheduler-notification", socketNotif);
-        });
-      };
+    // 3. Add Scheduler Notification to Employee & All Admins (DB + Socket IO)
+    db.query(`SELECT id, role FROM task_users WHERE role = 'admin' OR id = ?`, [employeeId], (errUsers, userList) => {
+      if (errUsers || userList.length === 0) return;
 
-      if (!err && reminders.length > 0) {
-        proceedInsert(reminders[0].id);
-      } else {
-        const createReminderQuery = `
-          INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type)
-          VALUES ('System Task Assignment', CURDATE(), '00:00:00', 'single')
-        `;
-        db.query(createReminderQuery, (err2, result) => {
-          if (err2) {
-            console.error("❌ Failed to create system reminder in database:", err2.message);
-            return;
-          }
-          proceedInsert(result.insertId);
-        });
-      }
+      db.query(`SELECT id FROM scheduler_reminders WHERE title = 'System Task Assignment' LIMIT 1`, (errRem, reminders) => {
+        const proceedInsert = (rId) => {
+          userList.forEach(u => {
+            const isTargetEmployee = u.id === parseInt(employeeId);
+            const msgText = isTargetEmployee ? employeeMsg : adminMsg;
+
+            const notifSql = `
+              INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status)
+              VALUES (?, ?, 'inapp', ?, 'sent')
+            `;
+            db.query(notifSql, [rId, u.id, msgText], (errInsert, result) => {
+              if (errInsert) {
+                console.error("❌ Failed to create notification for user ID " + u.id, errInsert.message);
+                return;
+              }
+              const socketNotif = {
+                id: result.insertId,
+                employee_id: u.id,
+                message_body: msgText
+              };
+              socketUtil.getIO().emit("new-scheduler-notification", socketNotif);
+            });
+          });
+        };
+
+        if (!errRem && reminders.length > 0) {
+          proceedInsert(reminders[0].id);
+        } else {
+          const createReminderQuery = `
+            INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type)
+            VALUES ('System Task Assignment', CURDATE(), '00:00:00', 'single')
+          `;
+          db.query(createReminderQuery, (err2, result) => {
+            if (err2) {
+              console.error("❌ Failed to create system reminder in database:", err2.message);
+              return;
+            }
+            proceedInsert(result.insertId);
+          });
+        }
+      });
     });
   });
 };
@@ -132,7 +140,7 @@ const getTeamDailyTasks = (req, res) => {
       }
 
       const getTasksQuery = `
-        SELECT t.*, u.full_name, u.designation, u.department 
+        SELECT t.*, u.full_name, u.designation, u.department, 'Completed' AS status
         FROM tasks t 
         JOIN task_users u ON t.user_id = u.id 
         WHERE LOWER(u.department) = LOWER(?)
@@ -174,7 +182,7 @@ const getTeamFulfillment = (req, res) => {
       }
 
       const getTargetsQuery = `
-        SELECT at.id, at.employeeId, at.projectId, at.targetPost, at.targetVideo, at.targetShoot, at.month, at.year, 
+        SELECT at.id, at.employeeId, at.projectId, at.targetPost, at.targetVideo, at.targetShoot, at.month, at.year, at.assigned_by, 
                u.full_name AS employeeName, p.name AS projectName 
         FROM assigntarget at 
         JOIN task_users u ON at.employeeId = u.id 
@@ -226,6 +234,7 @@ const getTeamFulfillment = (req, res) => {
               projectName: tgt.projectName,
               month: tgt.month,
               year: tgt.year,
+              assigned_by: tgt.assigned_by,
               target: {
                 post: tgt.targetPost || 0,
                 video: tgt.targetVideo || 0,
@@ -247,7 +256,7 @@ const getTeamFulfillment = (req, res) => {
 // 4. Assign Team Task / Project Target
 const assignTeamTask = (req, res) => {
   try {
-    const { leaderId, employeeId, department } = req.body;
+    const { leaderId, employeeId, department, projectId } = req.body;
     if (!leaderId || !employeeId || !department) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
@@ -263,80 +272,149 @@ const assignTeamTask = (req, res) => {
       const leaderName = leaderObj ? leaderObj.full_name : "Team Leader";
       const employeeName = employeeObj ? employeeObj.full_name : "Employee";
 
-      if (department.toLowerCase() === "development") {
-        const { ProjectOrClientName, Category, subCategory, TaskDescription, task_date, note } = req.body;
-        if (!TaskDescription) {
-          return res.status(400).json({ success: false, message: "Task description is required" });
-        }
+      db.query(`SELECT id FROM category WHERE LOWER(name) = LOWER(?) LIMIT 1`, [department], (catErr, catRes) => {
+        const categoryId = (!catErr && catRes.length > 0) ? catRes[0].id : null;
 
-        const taskDate = task_date || new Date().toISOString().split("T")[0];
-
-        const query = `
-          INSERT INTO assign_development_tasks 
-          (user_id, user_full_name, project_or_client_name, category, sub_category, task_description, status, task_date, assigned_by, status_note)
-          VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)
-        `;
-
-        db.query(query, [employeeId, employeeName, ProjectOrClientName || "Development Task", Category || "Development", subCategory || "Task Assignment", TaskDescription, taskDate, leaderName, note || null], (err, result) => {
-          if (err) {
-            return res.status(500).json({ success: false, message: err.message });
-          }
-          sendAssignmentNotifications(
-            leaderId, 
-            employeeId, 
-            `Project: ${ProjectOrClientName || "Development Task"} - Task: ${TaskDescription}`
-          );
-          return res.status(200).json({ success: true, message: "Development task assigned successfully", id: result.insertId });
-        });
-
-      } else if (department.toLowerCase() === "digital marketing" || department.toLowerCase() === "seo") {
-        const { projectId, month, year, targetPost, targetVideo, targetShoot, note } = req.body;
-        if (!projectId || !month || !year) {
-          return res.status(400).json({ success: false, message: "Project, month and year are required" });
-        }
-
-        const query = `
-          INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by, note)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        db.query(query, [employeeId, projectId, month, year, targetPost || 0, targetVideo || 0, targetShoot || 0, leaderName, note || null], (err, result) => {
-          if (err) {
-            return res.status(500).json({ success: false, message: err.message });
-          }
-          
-          // Auto-sync with assigned_projects table
+        const autoSyncProject = (projId, catId) => {
+          if (!projId) return;
           const checkProjectAssignedQuery = `SELECT id FROM assigned_projects WHERE user_id = ? AND project_id = ?`;
-          db.query(checkProjectAssignedQuery, [employeeId, projectId], (checkErr, checkRes) => {
+          db.query(checkProjectAssignedQuery, [employeeId, projId], (checkErr, checkRes) => {
             if (!checkErr && checkRes.length === 0) {
               const assignProjectQuery = `
-                INSERT INTO assigned_projects (project_id, user_id, assigned_by)
-                VALUES (?, ?, ?)
+                INSERT INTO assigned_projects (project_id, category_id, user_id, assigned_by)
+                VALUES (?, ?, ?, ?)
               `;
-              db.query(assignProjectQuery, [projectId, employeeId, leaderName], (apErr) => {
+              db.query(assignProjectQuery, [projId, catId, employeeId, leaderName], (apErr) => {
                 if (apErr) console.error("Error auto-assigning project in assigned_projects:", apErr);
               });
             } else if (!checkErr && checkRes.length > 0) {
               const updateAssignByQuery = `
-                UPDATE assigned_projects SET assigned_by = ? WHERE user_id = ? AND project_id = ?
+                UPDATE assigned_projects SET assigned_by = ?, category_id = COALESCE(category_id, ?) WHERE user_id = ? AND project_id = ?
               `;
-              db.query(updateAssignByQuery, [leaderName, employeeId, projectId], (apErr) => {
+              db.query(updateAssignByQuery, [leaderName, catId, employeeId, projId], (apErr) => {
                 if (apErr) console.error("Error updating assigned_by in assigned_projects:", apErr);
               });
             }
           });
+        };
 
-          db.query(`SELECT name FROM projects WHERE id = ?`, [projectId], (pErr, pRes) => {
-            const projectName = (!pErr && pRes.length > 0) ? pRes[0].name : "Marketing Project";
-            const detailsStr = `Project ${projectName} - Targets: Post ${targetPost || 0}, Video ${targetVideo || 0}, Shoot ${targetShoot || 0} for ${month}/${year}`;
-            sendAssignmentNotifications(leaderId, employeeId, detailsStr);
+        if (department.toLowerCase() === "development") {
+          const { ProjectOrClientName, Category, subCategory, TaskDescription, task_date, note } = req.body;
+          if (!TaskDescription) {
+            return res.status(400).json({ success: false, message: "Task description is required" });
+          }
+
+          const taskDate = task_date || new Date().toISOString().split("T")[0];
+
+          const query = `
+            INSERT INTO assign_development_tasks 
+            (user_id, user_full_name, project_or_client_name, category, sub_category, task_description, status, task_date, assigned_by, status_note)
+            VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)
+          `;
+
+          db.query(query, [employeeId, employeeName, ProjectOrClientName || "Development Task", Category || "Development", subCategory || "Task Assignment", TaskDescription, taskDate, leaderName, note || null], (err, result) => {
+            if (err) {
+              return res.status(500).json({ success: false, message: err.message });
+            }
+            
+            autoSyncProject(projectId, categoryId);
+
+            sendAssignmentNotifications(
+              leaderId,
+              employeeId,
+              `Project: ${ProjectOrClientName || "Development Task"} - Task: ${TaskDescription}${note ? ` - Note: ${note}` : ''}`
+            );
+            return res.status(200).json({ success: true, message: "Development task assigned successfully", id: result.insertId });
           });
 
-          return res.status(200).json({ success: true, message: "Project target assigned successfully", id: result.insertId });
-        });
-      } else {
-        return res.status(400).json({ success: false, message: "Unsupported department for assignment" });
+        } else if (department.toLowerCase() === "digital marketing" || department.toLowerCase() === "seo") {
+          const { month, year, targetPost, targetVideo, targetShoot, note } = req.body;
+          if (!projectId || !month || !year) {
+            return res.status(400).json({ success: false, message: "Project, month and year are required" });
+          }
+
+          const query = `
+            INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
+
+          db.query(query, [employeeId, projectId, month, year, targetPost || 0, targetVideo || 0, targetShoot || 0, leaderName, note || null], (err, result) => {
+            if (err) {
+              return res.status(500).json({ success: false, message: err.message });
+            }
+
+            autoSyncProject(projectId, categoryId);
+
+            db.query(`SELECT name FROM projects WHERE id = ?`, [projectId], (pErr, pRes) => {
+              const projectName = (!pErr && pRes.length > 0) ? pRes[0].name : "Marketing Project";
+              const detailsStr = `Project ${projectName} - Targets: Post ${targetPost || 0}, Video ${targetVideo || 0}, Shoot ${targetShoot || 0} for ${month}/${year}${note ? ` - Note: ${note}` : ''}`;
+              sendAssignmentNotifications(leaderId, employeeId, detailsStr);
+            });
+
+            return res.status(200).json({ success: true, message: "Project target assigned successfully", id: result.insertId });
+          });
+        } else {
+          return res.status(400).json({ success: false, message: "Unsupported department for assignment" });
+        }
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get all tasks assigned to the team by the leader
+const getTeamAssignedTasks = (req, res) => {
+  try {
+    const { leaderId } = req.query;
+    if (!leaderId) {
+      return res.status(400).json({ success: false, message: "leaderId is required" });
+    }
+
+    const getLeaderDeptQuery = `SELECT department, full_name FROM task_users WHERE id = ?`;
+    db.query(getLeaderDeptQuery, [leaderId], (err, leaderResult) => {
+      if (err) return res.status(500).json({ success: false, message: err.message });
+      if (leaderResult.length === 0) return res.status(404).json({ success: false, message: "Leader not found" });
+
+      const department = leaderResult[0].department;
+      const leaderName = leaderResult[0].full_name;
+
+      if (!department) {
+        return res.status(200).json({ success: true, devTasks: [], targetTasks: [] });
       }
+
+      // Query Development Tasks for users in this department
+      const devTasksQuery = `
+        SELECT a.*, u.full_name AS employeeName 
+        FROM assign_development_tasks a
+        JOIN task_users u ON a.user_id = u.id
+        WHERE LOWER(u.department) = LOWER(?)
+        ORDER BY a.task_date DESC
+      `;
+
+      // Query Target Tasks for users in this department
+      const targetTasksQuery = `
+        SELECT at.*, u.full_name AS employeeName, p.name AS projectName
+        FROM assigntarget at
+        JOIN task_users u ON at.employeeId = u.id
+        LEFT JOIN projects p ON at.projectId = p.id
+        WHERE LOWER(u.department) = LOWER(?)
+        ORDER BY at.id DESC
+      `;
+
+      db.query(devTasksQuery, [department], (errDev, devTasks) => {
+        if (errDev) return res.status(500).json({ success: false, message: errDev.message });
+
+        db.query(targetTasksQuery, [department], (errTarget, targetTasks) => {
+          if (errTarget) return res.status(500).json({ success: false, message: errTarget.message });
+
+          return res.status(200).json({
+            success: true,
+            devTasks: devTasks || [],
+            targetTasks: targetTasks || []
+          });
+        });
+      });
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -347,5 +425,6 @@ module.exports = {
   getTeamMembers,
   getTeamDailyTasks,
   getTeamFulfillment,
-  assignTeamTask
+  assignTeamTask,
+  getTeamAssignedTasks
 };

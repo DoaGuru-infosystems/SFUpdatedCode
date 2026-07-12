@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 
 function AssignDailyTarget() {
-  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com";
+  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
   const [targets, setTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -81,18 +81,18 @@ function AssignDailyTarget() {
 
   return (
     <div className="TaskView min-h-screen">
-      <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6 font-sans text-slate-800">My Assigned Daily Targets</h1>
+      <div className="max-w-7xl mx-auto p-3 sm:p-6">
+        <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 font-sans text-slate-800">My Assigned Daily Targets</h1>
         <div className="bg-white rounded-xl shadow border border-black">
-          <h3 className="text-lg font-bold px-6 pt-6 pb-2 text-black font-sans">Assigned Daily Targets</h3>
+          <h3 className="text-base sm:text-lg font-bold px-4 sm:px-6 pt-4 sm:pt-6 pb-2 text-black font-sans">Assigned Daily Targets</h3>
           {loading ? (
-            <div className="p-6 text-center text-black">Loading...</div>
+            <div className="p-4 sm:p-6 text-center text-black">Loading...</div>
           ) : error ? (
-            <div className="p-6 text-center text-red-600">{error}</div>
+            <div className="p-4 sm:p-6 text-center text-red-600">{error}</div>
           ) : targets.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">No targets assigned yet.</div>
+            <div className="p-4 sm:p-6 text-center text-gray-500">No targets assigned yet.</div>
           ) : (
-            <div className="overflow-x-auto p-6">
+            <div className="overflow-x-auto p-2 sm:p-6">
               <table className="min-w-full border border-black bg-white">
                 <thead className="bg-black text-white text-xs uppercase tracking-wider">
                   <tr>
@@ -117,8 +117,8 @@ function AssignDailyTarget() {
                       <td className="py-3 px-3 border-b border-black text-center font-semibold text-indigo-600">{tgt.targetPost || 0}</td>
                       <td className="py-3 px-3 border-b border-black text-center font-semibold text-indigo-600">{tgt.targetVideo || 0}</td>
                       <td className="py-3 px-3 border-b border-black text-center font-semibold text-indigo-600">{tgt.targetShoot || 0}</td>
-                      <td className="py-3 px-3 border-b border-black text-center text-xs text-slate-600 max-w-xs break-words">
-                        {tgt.note || <span className="italic text-gray-400">No guidelines provided</span>}
+                      <td className="py-3 px-3 border-b border-black text-center text-sm font-semibold text-slate-800 max-w-xs break-words">
+                        {tgt.note || <span className="italic text-gray-400 font-normal">No guidelines provided</span>}
                       </td>
                       <td className="py-3 px-3 border-b border-black text-center">
                         {editingTarget === tgt.id ? (
@@ -134,13 +134,12 @@ function AssignDailyTarget() {
                             <option value="Completed">Completed</option>
                           </select>
                         ) : (
-                          <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-bold rounded-full ${
-                            tgt.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                          <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-bold rounded-full ${tgt.status === 'Completed' ? 'bg-green-100 text-green-800' :
                             tgt.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                            tgt.status === 'Hold' ? 'bg-red-100 text-red-800' :
-                            tgt.status === 'In Pipeline' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                              tgt.status === 'Hold' ? 'bg-red-100 text-red-800' :
+                                tgt.status === 'In Pipeline' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                            }`}>
                             {tgt.status || 'Pending'}
                           </span>
                         )}

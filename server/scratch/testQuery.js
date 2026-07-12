@@ -17,7 +17,7 @@ async function check() {
   try {
     connection = await mysql.createConnection(dbConfig);
     console.log('Successfully connected to database:', dbConfig.database);
-    
+
     const [tables] = await connection.query('SHOW TABLES');
     console.log('Tables in database:');
     console.log(tables.map(t => Object.values(t)[0]));

@@ -31,6 +31,12 @@ const attendanceRotue = require("./router/attendanceRoute.js");
 const salaryRoute = require("./router/salaryRoute.js");
 const commitmentRoute = require("./router/commitmentRoute.js");
 const leaderRoute = require("./router/leaderRoute.js");
+
+const getOfferLetters = require("./router/letterRoutes.js");
+const saveInternshipOffer = require("./router/letterRoutes.js");
+const getOfferLetterById = require("./router/letterRoutes.js");
+const updateOfferLetter = require("./router/letterRoutes.js");
+const updateInternshipOffer = require("./router/letterRoutes.js");
 require("./utils/fetchGoogleHolidays");
 // const reminderRoute = require("./router/reminderRoute.js");
 
@@ -79,9 +85,16 @@ app.use(leaderRoute);
 global.schedulerUseMockDb = false;
 app.use("/api/scheduler", schedulerRoute);
 
+app.use("/api/get-letters", getOfferLetters);
+app.use("/api/save-intern-offer", saveInternshipOffer);
+app.use("/api/get-letter-by-id", getOfferLetterById);
+app.use("/api/update-offer-letter", updateOfferLetter);
+app.use("/api/update-intern-offer", updateInternshipOffer);
+
 // Letters Plugin Routes
-const letterRoutes = require("./letters/Routes/routes.js");
-app.use(letterRoutes);
+const letterRoutes = require("./router/letterRoutes.js");
+app.use("/api/letter-routes", letterRoutes);
+app.use("/letterRoutes", letterRoutes);
 
 // Serve uploaded files (images) for front-end
 app.use("/uploads", express.static("uploads"));
@@ -105,7 +118,7 @@ app.use(express.static(join(__dirname, "build")));
 
 app.get("*", (req, res, next) => {
   // If the request is for an API route, skip serving the React HTML file
-  if (req.url.startsWith("/api")) {
+  if (req.url.startsWith("/api") || req.url.startsWith("/letterRoutes")) {
     return next();
   }
 

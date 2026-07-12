@@ -264,7 +264,7 @@ const OfferLater = () => {
     const fetchOfferLetter = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/offer-letters/${id}`, {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/letter-routes/offer-letters/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.data) {

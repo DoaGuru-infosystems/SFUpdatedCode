@@ -184,7 +184,7 @@ const InternExperienceLetter = () => {
   const handleDownload = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/intern-experience-letters`, {
+      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/letter-routes/intern-experience-letters`, {
         ...formData,
         startDate: handleFormatDate(formData.startDate),
         endDate: handleFormatDate(formData.endDate)

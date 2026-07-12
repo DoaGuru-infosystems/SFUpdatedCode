@@ -262,9 +262,9 @@ export default function AdminNavbar({ Logout, render }) {
     <Disclosure as="nav" className="bg-white border-b border-gray-200 shadow-sm relative z-[1000]">
       {({ open }) => (
         <>
-          <div className="mx-auto max-w-full sm:mx-5 px-2 sm:px-3 lg:px-1">
+          <div className="mx-auto max-w-full lg:mx-5 px-2 lg:px-3 lg:px-1">
             <div className="relative flex h-16 items-center justify-between">
-              <div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
+              <div className="absolute inset-y-0 left-0 flex items-center lg:hidden">
                 {!user || (
                   <DisclosureButton className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
                     <span className="sr-only">Open main menu</span>
@@ -276,7 +276,7 @@ export default function AdminNavbar({ Logout, render }) {
                   </DisclosureButton>
                 )}
               </div>
-              <div className="flex flex-1 items-center ms-12 sm:items-center sm:justify-start">
+              <div className="flex flex-1 items-center ms-12 lg:items-center lg:justify-start">
                 <div className="flex flex-shrink-0 items-center">
                   <img
                     className="h-12 w-auto"
@@ -284,7 +284,7 @@ export default function AdminNavbar({ Logout, render }) {
                     alt="DOAGuru Infosystem"
                   />
                 </div>
-                <div className="hidden sm:ml-6 sm:block">
+                <div className="hidden lg:ml-6 lg:block">
                   {!user || (
                     <div className="flex space-x-4 items-center">
                       {navigation.map((item) => (
@@ -543,7 +543,7 @@ export default function AdminNavbar({ Logout, render }) {
             </div>
           </div>
 
-          <DisclosurePanel className="sm:hidden">
+          <DisclosurePanel className="lg:hidden">
             <div className="space-y-1 px-2 pb-3 pt-2">
               {navigation.map((item) => (
                 <div key={item.name}>

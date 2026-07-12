@@ -3,7 +3,13 @@ import axios from 'axios';
 
 const ReminderContext = createContext(null);
 
-const API_BASE = `${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/scheduler`;
+const getApiUrl = () => {
+  return window.location.hostname === 'localhost'
+    ? 'http://localhost:8080'
+    : (process.env.REACT_APP_API_URL || 'http://localhost:3000');
+};
+
+const API_BASE = `${getApiUrl()}/api/scheduler`;
 
 export const ReminderProvider = ({ children }) => {
   const [employees, setEmployees] = useState([]);

@@ -16,7 +16,7 @@ const ViewOfferLettersPage = () => {
   useEffect(() => {
     const fetchOfferLetters = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/offer-letters`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/letter-routes/offer-letters`);
         setOfferLetters(response.data);
       } catch (error) {
         console.error('Failed to fetch offer letters:', error);

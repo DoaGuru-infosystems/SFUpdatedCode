@@ -15,7 +15,7 @@ function LoginPage() {
     setLoading(true);
 
     axios
-      .post(`${process.env.REACT_APP_API_URL}/api/login`, { username, password })
+      .post(`${process.env.REACT_APP_API_URL}/api/letter-routes/login`, { username, password })
       .then((response) => {
         if (response.data && response.data.token) {
           localStorage.setItem("token", response.data.token);

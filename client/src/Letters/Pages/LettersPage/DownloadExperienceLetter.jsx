@@ -25,7 +25,7 @@ const DownloadExperienceLetter = () => {
     const fetchAllDesignations = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/experience-letters`, {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/letter-routes/experience-letters`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = response.data.data || response.data || [];
@@ -55,7 +55,7 @@ const DownloadExperienceLetter = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      let url = `${process.env.REACT_APP_API_URL}/api/experience-letters?page=${currentPage}&limit=${limit}`;
+      let url = `${process.env.REACT_APP_API_URL}/api/letter-routes/experience-letters?page=${currentPage}&limit=${limit}`;
       if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
@@ -117,14 +117,14 @@ const DownloadExperienceLetter = () => {
   }, [currentPage, debouncedSearch, startDate, endDate, designation]);
 
   const handleDownload = (id) => {
-    window.open(`${process.env.REACT_APP_API_URL}/api/generatePDF/${id}`, '_blank');
+    window.open(`${process.env.REACT_APP_API_URL}/api/letter-routes/generatePDF/${id}`, '_blank');
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this experience letter record?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`${process.env.REACT_APP_API_URL}/api/experience-letters/${id}`, {
+        await axios.delete(`${process.env.REACT_APP_API_URL}/api/letter-routes/experience-letters/${id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (letters.length === 1 && currentPage > 1) {
@@ -157,7 +157,7 @@ const DownloadExperienceLetter = () => {
   if (error) {
     return (
       <div className="flex-1 px-6 py-8 max-w-[1200px] mx-auto w-full">
-        <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 px-5 py-4 rounded-xl" role="alert">
+        <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl" role="alert">
           <span className="font-bold">Error:</span>
           <span>{error}</span>
         </div>
@@ -180,8 +180,8 @@ const DownloadExperienceLetter = () => {
       </div>
 
       {/* Filters Bar */}
-      <div className="mb-6 bg-white dark:bg-brand-card border border-gray-100 dark:border-white/[0.06] rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
-        <div className="relative w-full md:w-72">
+      <div className="mb-6 bg-white dark:bg-brand-card border border-gray-100 dark:border-white/[0.06] rounded-2xl p-4 flex flex-col lg:flex-row gap-4 items-center justify-between shadow-sm">
+        <div className="relative w-full lg:w-72">
           {loading ? (
             <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-primary animate-spin" size={18} />
           ) : (
@@ -196,7 +196,7 @@ const DownloadExperienceLetter = () => {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">From:</span>
             <input
@@ -261,7 +261,7 @@ const DownloadExperienceLetter = () => {
                 <thead>
                   <tr className="bg-gray-50 dark:bg-white/[0.02] border-b border-gray-100 dark:border-white/[0.06]">
                     {['Name', 'Designation', 'Joining Date', 'Resignation Date', 'Actions'].map((h) => (
-                      <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -271,7 +271,7 @@ const DownloadExperienceLetter = () => {
                   {letters.map((letter) => (
                     <tr key={letter.id}
                       className="border-b border-gray-50 dark:border-white/[0.04] transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary-light flex-shrink-0">
                             {letter.name?.charAt(0)?.toUpperCase() || '?'}
@@ -279,20 +279,20 @@ const DownloadExperienceLetter = () => {
                           <span className="font-medium text-gray-900 dark:text-white whitespace-nowrap">{letter.name || '—'}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3">
                         {letter.designation ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-primary-light bg-primary/10 border border-primary/20">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap text-primary-light bg-primary/10 border border-primary/20">
                             {letter.designation}
                           </span>
                         ) : '—'}
                       </td>
-                      <td className="px-5 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {letter.joining_date ? new Date(letter.joining_date).toLocaleDateString('en-IN') : '—'}
                       </td>
-                      <td className="px-5 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {letter.resignation_date ? new Date(letter.resignation_date).toLocaleDateString('en-IN') : '—'}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button onClick={() => handleDownload(letter.id)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 cursor-pointer transition-all duration-200 hover:bg-emerald-500/20 hover:-translate-y-px">
@@ -311,7 +311,7 @@ const DownloadExperienceLetter = () => {
             </div>
 
             {/* Pagination Controls */}
-            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 dark:border-white/[0.06] bg-gray-50/50 dark:bg-white/[0.01]">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-white/[0.06] bg-gray-50/50 dark:bg-white/[0.01]">
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 Showing <span className="font-semibold text-gray-900 dark:text-white">{((currentPage - 1) * limit) + 1}</span> to{' '}
                 <span className="font-semibold text-gray-900 dark:text-white">

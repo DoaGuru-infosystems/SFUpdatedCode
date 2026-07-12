@@ -43,7 +43,7 @@ export default function Navbar({ Logout, render }) {
   useEffect(() => {
     const fetchEmployeeData = async () => {
       try {
-        const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com";
+        const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
         const response = await axios.get(
           `${API_BASE}/api/getEmployee/${employeeId.id}`
         );
@@ -62,7 +62,7 @@ export default function Navbar({ Logout, render }) {
         if (!userStr) return;
         const loggedInUser = JSON.parse(userStr);
         const response = await axios.get(
-          `https://sf.doaguru.com/api/scheduler/notifications/unread?employee_id=${loggedInUser.id}`
+          `http://localhost:3000/api/scheduler/notifications/unread?employee_id=${loggedInUser.id}`
         );
         setUnreadCount(response.data.length);
       } catch (err) {
@@ -82,7 +82,7 @@ export default function Navbar({ Logout, render }) {
   }, []);
 
   useEffect(() => {
-    const socket = io(window.location.host === 'localhost:3000' ? "https://sf.doaguru.com" : "/", {
+    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:3000" : "/", {
       transports: ["polling", "websocket"],
       withCredentials: true
     });
@@ -176,7 +176,8 @@ export default function Navbar({ Logout, render }) {
           { name: "Overview", href: "/task/TeamLeaderDashboard?tab=dashboard" },
           { name: "Team Tasks", href: "/task/TeamLeaderDashboard?tab=team_tasks" },
           { name: "Team Members", href: "/task/TeamLeaderDashboard?tab=team" },
-          { name: "Assign Task", href: "/task/TeamLeaderDashboard?tab=assign" }
+          { name: "Assign Task", href: "/task/TeamLeaderDashboard?tab=assign" },
+          { name: "Assigned Tasks", href: "/task/TeamLeaderDashboard?tab=assigned_tasks" }
         ]
       });
     }
@@ -193,7 +194,7 @@ export default function Navbar({ Logout, render }) {
 
   // Use optional chaining to avoid accessing properties on null
   const profileImageSrc = profile?.profileIMG
-    ? profile.profileIMG.replace("https://sf.doaguru.com", "https://sf.doaguru.com")
+    ? profile.profileIMG.replace("http://localhost:3000", "http://localhost:3000")
     : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSt9ISaBFDC88ejiGrYACSt81CFq21QsZ6bow&s";
 
   return (

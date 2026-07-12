@@ -12,6 +12,44 @@ const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 dotenv.config();
 
+const sendAdminAssignmentNotification = (employeeId, details) => {
+  const socketUtil = require("../utils/socket");
+  const employeeMsg = `Admin has assigned you a new task: ${details}.`;
+
+  db.query(`SELECT id FROM scheduler_reminders WHERE title = 'System Task Assignment' LIMIT 1`, (errRem, reminders) => {
+    const proceedInsert = (rId) => {
+      const notifSql = `
+        INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status)
+        VALUES (?, ?, 'inapp', ?, 'sent')
+      `;
+      db.query(notifSql, [rId, employeeId, employeeMsg], (errInsert, result) => {
+        if (!errInsert) {
+          const socketNotif = {
+            id: result.insertId,
+            employee_id: employeeId,
+            message_body: employeeMsg
+          };
+          socketUtil.getIO().emit("new-scheduler-notification", socketNotif);
+        }
+      });
+    };
+
+    if (!errRem && reminders.length > 0) {
+      proceedInsert(reminders[0].id);
+    } else {
+      const createReminderQuery = `
+        INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type)
+        VALUES ('System Task Assignment', CURDATE(), '00:00:00', 'single')
+      `;
+      db.query(createReminderQuery, (err2, result) => {
+        if (!err2) {
+          proceedInsert(result.insertId);
+        }
+      });
+    }
+  });
+};
+
 const test = async (req, res) => {
   res.send({ data: "Test Sucess Full" });
 };
@@ -367,6 +405,50 @@ const AddData = (req, res) => {
     // ═══ Admin Notification Trigger ═══
     addAdminNotification(user_id, user_full_name, "task", `${user_full_name} added a task: ${TaskDescription.substring(0, 30)}...`);
 
+    // ═══ Team Lead Notification Trigger ═══
+    db.query('SELECT department FROM task_users WHERE id = ?', [user_id], (errDept, deptRes) => {
+      if (!errDept && deptRes.length > 0) {
+        const dept = deptRes[0].department;
+        if (dept) {
+          db.query(`SELECT id FROM task_users WHERE (role = 'team_lead' OR id = 62 OR LOWER(designation) LIKE '%lead%') AND LOWER(department) = LOWER(?)`, [dept], (errLead, leadRes) => {
+            if (!errLead && leadRes.length > 0) {
+              const msg = `Employee ${user_full_name} filled a daily task for project ${ProjectOrClientName} - Task: ${TaskDescription.substring(0, 50)}...`;
+              db.query(`SELECT id FROM scheduler_reminders WHERE title = 'System Task Update' LIMIT 1`, (errRem, remRes) => {
+                const insertTLNotif = (remId) => {
+                  leadRes.forEach(lead => {
+                    db.query(`INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status) VALUES (?, ?, 'inapp', ?, 'sent')`, [remId, lead.id, msg], (errNotif, notifRes) => {
+                      if (!errNotif) {
+                         try {
+                           const socketUtil = require("../utils/socket");
+                           socketUtil.getIO().emit("new-scheduler-notification", {
+                              id: notifRes.insertId,
+                              employee_id: lead.id,
+                              message_body: msg
+                           });
+                         } catch (e) {
+                           console.error(e);
+                         }
+                      }
+                    });
+                  });
+                };
+                
+                if (!errRem && remRes.length > 0) {
+                  insertTLNotif(remRes[0].id);
+                } else {
+                  db.query(`INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type) VALUES ('System Task Update', CURDATE(), '00:00:00', 'single')`, (errCreateRem, createRemRes) => {
+                    if (!errCreateRem) {
+                      insertTLNotif(createRemRes.insertId);
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      }
+    });
+
     try {
       const socketUtil = require("../utils/socket");
       socketUtil.getIO().emit("task-updated", { user_id });
@@ -535,6 +617,56 @@ const UpdateTask = (req, res) => {
       }
       // Success Response 
       console.log('Task updated successfully:', updateResult);
+
+      // ═══ Admin & Team Lead Notification Trigger ═══
+      db.query('SELECT t.user_id, t.TaskDescription, t.ProjectOrClientName, u.full_name, u.department FROM tasks t JOIN task_users u ON t.user_id = u.id WHERE t.id = ?', [id], (errTask, taskRes) => {
+        if (!errTask && taskRes.length > 0) {
+          const { user_id, TaskDescription, ProjectOrClientName, full_name, department } = taskRes[0];
+          
+          // Notify Admin
+          const { addAdminNotification } = require('./notificationController');
+          addAdminNotification(user_id, full_name, "task", `${full_name} updated a task: ${TaskDescription.substring(0, 30)}...`);
+
+          // Notify Team Lead
+          if (department) {
+            db.query(`SELECT id FROM task_users WHERE (role = 'team_lead' OR id = 62 OR LOWER(designation) LIKE '%lead%') AND LOWER(department) = LOWER(?)`, [department], (errLead, leadRes) => {
+              if (!errLead && leadRes.length > 0) {
+                const msg = `Employee ${full_name} updated their daily task for project ${ProjectOrClientName} - Task: ${TaskDescription.substring(0, 50)}...`;
+                db.query(`SELECT id FROM scheduler_reminders WHERE title = 'System Task Update' LIMIT 1`, (errRem, remRes) => {
+                  const insertTLNotif = (remId) => {
+                    leadRes.forEach(lead => {
+                      db.query(`INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status) VALUES (?, ?, 'inapp', ?, 'sent')`, [remId, lead.id, msg], (errNotif, notifRes) => {
+                        if (!errNotif) {
+                           try {
+                             const socketUtil = require("../utils/socket");
+                             socketUtil.getIO().emit("new-scheduler-notification", {
+                                id: notifRes.insertId,
+                                employee_id: lead.id,
+                                message_body: msg
+                             });
+                           } catch (e) {
+                             console.error(e);
+                           }
+                        }
+                      });
+                    });
+                  };
+                  
+                  if (!errRem && remRes.length > 0) {
+                    insertTLNotif(remRes[0].id);
+                  } else {
+                    db.query(`INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type) VALUES ('System Task Update', CURDATE(), '00:00:00', 'single')`, (errCreateRem, createRemRes) => {
+                      if (!errCreateRem) {
+                        insertTLNotif(createRemRes.insertId);
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        }
+      });
 
       try {
         const socketUtil = require("../utils/socket");
@@ -871,7 +1003,7 @@ const projectFromAssign = (req, res) => {
 
 
 const assignProject = (req, res) => {
-  const { projectId, categoryId, userId } = req.body;
+  const { projectId, categoryId, userId, assigned_by } = req.body;
 
   if (!userId) {
     return res.status(400).json({ message: 'User ID is required.' });
@@ -902,11 +1034,38 @@ const assignProject = (req, res) => {
       return res.status(400).json({ message: 'This specific assignment already exists for this user.' });
     }
 
-    const assignQuery = 'INSERT INTO assigned_projects (project_id, category_id, user_id) VALUES (?, ?, ?)';
-    db.query(assignQuery, [pid, cid, userId], (assignErr, assignResults) => {
+    const assignQuery = 'INSERT INTO assigned_projects (project_id, category_id, user_id, assigned_by) VALUES (?, ?, ?, ?)';
+    db.query(assignQuery, [pid, cid, userId, assigned_by || 'Admin'], (assignErr, assignResults) => {
       if (assignErr) {
         return res.status(500).send(assignErr);
       }
+
+      // Auto-sync to assigntarget or assign_development_tasks to allow status updates
+      if (pid) {
+        db.query(`SELECT department FROM task_users WHERE id = ?`, [userId], (errUser, resUser) => {
+          if (!errUser && resUser.length > 0) {
+            const dept = resUser[0].department;
+            const today = new Date();
+            const month = today.getMonth() + 1;
+            const year = today.getFullYear();
+            
+            if (dept === 'Digital Marketing' || dept === 'SEO') {
+              const tgtQuery = `INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by) VALUES (?, ?, ?, ?, 0, 0, 0, ?)`;
+              db.query(tgtQuery, [userId, pid, month, year, assigned_by || 'Admin']);
+            } else {
+              db.query(`SELECT name FROM projects WHERE id = ?`, [pid], (errProj, resProj) => {
+                if (!errProj && resProj.length > 0) {
+                  const pName = resProj[0].name;
+                  const devQuery = `INSERT INTO assign_development_tasks (user_id, project_or_client_name, assignment_date, status, assigned_by) VALUES (?, ?, CURDATE(), 'Pending', ?)`;
+                  db.query(devQuery, [userId, pName, assigned_by || 'Admin']);
+                }
+              });
+            }
+          }
+        });
+      }
+
+      sendAdminAssignmentNotification(userId, 'A new project/category has been assigned to you');
       res.status(201).json({ message: 'Assignment recorded successfully' });
     });
   });
@@ -2667,12 +2826,29 @@ const getEmployeeSalary = (req, res) => {
 // Assign Project Target 
 const assignProjectTarget = (req, res) => {
   try {
-    const { employeeId, projectId, month, year, targetPost, targetVideo, targetShoot } = req.body;
-    const insertQuery = `INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-    db.query(insertQuery, [employeeId, projectId, month, year, targetPost, targetVideo, targetShoot], (err, result) => {
+    const { employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by } = req.body;
+    const insertQuery = `INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    db.query(insertQuery, [employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by || 'Admin'], (err, result) => {
       if (err) {
         return res.status(400).json({ success: false, message: err.message });
       }
+
+      // Auto-sync with assigned_projects
+      const checkProjectAssignedQuery = `SELECT id FROM assigned_projects WHERE user_id = ? AND project_id = ?`;
+      db.query(checkProjectAssignedQuery, [employeeId, projectId], (checkErr, checkRes) => {
+        if (!checkErr && checkRes.length === 0) {
+          db.query(`SELECT department FROM projects WHERE id = ? LIMIT 1`, [projectId], (pErr, pRes) => {
+            const department = (!pErr && pRes.length > 0) ? pRes[0].department : 'Digital Marketing';
+            db.query(`SELECT id FROM category WHERE LOWER(name) = LOWER(?) LIMIT 1`, [department], (cErr, cRes) => {
+              const categoryId = (!cErr && cRes.length > 0) ? cRes[0].id : null;
+              const assignProjectQuery = `INSERT INTO assigned_projects (project_id, category_id, user_id, assigned_by) VALUES (?, ?, ?, ?)`;
+              db.query(assignProjectQuery, [projectId, categoryId, employeeId, assigned_by || 'Admin']);
+            });
+          });
+        }
+      });
+
+      sendAdminAssignmentNotification(employeeId, `Project target for ${month}/${year}`);
       res.status(200).json({ success: true, message: "Project target assigned successfully" });
     });
   } catch (error) {
@@ -2724,6 +2900,157 @@ const getEmployeeWiseProjectTarget = (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
+};
+
+const sendTargetUpdateNotifications = (targetId, updatedFields) => {
+  const getTargetDetailsQuery = `
+    SELECT t.*, u.full_name AS employee_name, u.department AS employee_department, p.name AS project_name
+    FROM assigntarget t
+    JOIN task_users u ON t.employeeId = u.id
+    JOIN projects p ON t.projectId = p.id
+    WHERE t.id = ?
+  `;
+  db.query(getTargetDetailsQuery, [targetId], (err, res) => {
+    if (err || res.length === 0) return;
+    const target = res[0];
+
+    const msg = `Employee ${target.employee_name} updated monthly targets for project ${target.project_name} (${target.month}/${target.year}) to: Status: ${updatedFields.status || target.status}${updatedFields.status_note ? ` - Note: ${updatedFields.status_note}` : ''}.`;
+
+    const findRecipientsQuery = `
+      SELECT id, role, full_name, department 
+      FROM task_users 
+      WHERE (role = 'team_lead' OR id = 62 OR LOWER(designation) LIKE '%lead%')
+    `;
+    db.query(findRecipientsQuery, (err2, teamLeads) => {
+      if (err2 || teamLeads.length === 0) return;
+
+      let assignedLead = teamLeads.find(tl => tl.full_name.trim().toLowerCase() === (target.assigned_by || '').trim().toLowerCase());
+      if (!assignedLead) {
+        assignedLead = teamLeads.find(tl => tl.department && target.employee_department && tl.department.toLowerCase() === target.employee_department.toLowerCase());
+      }
+      const recipientId = assignedLead ? assignedLead.id : teamLeads[0].id;
+
+      db.query(`SELECT id FROM scheduler_reminders WHERE title = 'System Task Update' LIMIT 1`, (err3, reminders) => {
+        const insertNotif = (reminderId) => {
+          const notifSql = `
+            INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status)
+            VALUES (?, ?, 'inapp', ?, 'sent')
+          `;
+          db.query(notifSql, [reminderId, recipientId, msg], (err4, result) => {
+            if (!err4) {
+              // Emit socket notifications to Team Lead
+              const socketNotifTL = {
+                id: result.insertId,
+                employee_id: recipientId,
+                message_body: msg
+              };
+              const socketUtil = require("../utils/socket");
+              socketUtil.getIO().emit("new-scheduler-notification", socketNotifTL);
+
+              // Also emit socket notification to Admin if they are active
+              const socketNotifAdmin = {
+                id: result.insertId,
+                employee_id: 'admin', // send to admin socket room or generic channel
+                message_body: msg
+              };
+              socketUtil.getIO().emit("new-scheduler-notification", socketNotifAdmin);
+              
+              addAdminNotification(target.employeeId, target.employee_name, "task", msg);
+            }
+          });
+        };
+
+        if (!err3 && reminders.length > 0) {
+          insertNotif(reminders[0].id);
+        } else {
+          const createReminderQuery = `
+            INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type)
+            VALUES ('System Task Update', CURDATE(), '00:00:00', 'single')
+          `;
+          db.query(createReminderQuery, (err4, result) => {
+            if (!err4) {
+              insertNotif(result.insertId);
+            }
+          });
+        }
+      });
+    });
+  });
+};
+
+const sendDevTaskUpdateNotifications = (taskId, updatedFields) => {
+  const getTaskDetailsQuery = `
+    SELECT t.*, u.full_name AS employee_name, u.department AS employee_department
+    FROM assign_development_tasks t
+    JOIN task_users u ON t.user_id = u.id
+    WHERE t.id = ?
+  `;
+  db.query(getTaskDetailsQuery, [taskId], (err, res) => {
+    if (err || res.length === 0) return;
+    const task = res[0];
+
+    const msg = `Employee ${task.employee_name} updated development task for project ${task.project_or_client_name} to: Status: ${updatedFields.status || task.status}.`;
+
+    const findRecipientsQuery = `
+      SELECT id, role, full_name, department 
+      FROM task_users 
+      WHERE (role = 'team_lead' OR id = 62 OR LOWER(designation) LIKE '%lead%')
+    `;
+    db.query(findRecipientsQuery, (err2, teamLeads) => {
+      if (err2 || teamLeads.length === 0) return;
+
+      let assignedLead = teamLeads.find(tl => tl.full_name.trim().toLowerCase() === (task.assigned_by || '').trim().toLowerCase());
+      if (!assignedLead) {
+        assignedLead = teamLeads.find(tl => tl.department && task.employee_department && tl.department.toLowerCase() === task.employee_department.toLowerCase());
+      }
+      const recipientId = assignedLead ? assignedLead.id : teamLeads[0].id;
+
+      db.query(`SELECT id FROM scheduler_reminders WHERE title = 'System Task Update' LIMIT 1`, (err3, reminders) => {
+        const insertNotif = (reminderId) => {
+          const notifSql = `
+            INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status)
+            VALUES (?, ?, 'inapp', ?, 'sent')
+          `;
+          db.query(notifSql, [reminderId, recipientId, msg], (err4, result) => {
+            if (!err4) {
+              // Emit socket notifications to Team Lead
+              const socketNotifTL = {
+                id: result.insertId,
+                employee_id: recipientId,
+                message_body: msg
+              };
+              const socketUtil = require("../utils/socket");
+              socketUtil.getIO().emit("new-scheduler-notification", socketNotifTL);
+
+              // Also emit socket notification to Admin if they are active
+              const socketNotifAdmin = {
+                id: result.insertId,
+                employee_id: 'admin', // send to admin socket room or generic channel
+                message_body: msg
+              };
+              socketUtil.getIO().emit("new-scheduler-notification", socketNotifAdmin);
+              
+              addAdminNotification(task.user_id, task.employee_name, "task", msg);
+            }
+          });
+        };
+
+        if (!err3 && reminders.length > 0) {
+          insertNotif(reminders[0].id);
+        } else {
+          const createReminderQuery = `
+            INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type)
+            VALUES ('System Task Update', CURDATE(), '00:00:00', 'single')
+          `;
+          db.query(createReminderQuery, (err4, result) => {
+            if (!err4) {
+              insertNotif(result.insertId);
+            }
+          });
+        }
+      });
+    });
+  });
 };
 
 // Update Project Target
@@ -2778,6 +3105,7 @@ const updateProjectTarget = (req, res) => {
         console.error("Socket emit error in updateProjectTarget:", err);
       }
 
+      sendTargetUpdateNotifications(id, { status, status_note });
       res.status(200).json({ success: true, message: "Target updated successfully" });
     });
   } catch (error) {
@@ -2808,7 +3136,7 @@ const deleteProjectTarget = (req, res) => {
 // Bulk Assign Project Targets
 const bulkAssignProjectTarget = (req, res) => {
   try {
-    const { targets } = req.body;
+    const { targets, assigned_by } = req.body;
 
     if (!targets || !Array.isArray(targets) || targets.length === 0) {
       return res.status(400).json({ success: false, message: "Targets array is required" });
@@ -2834,7 +3162,8 @@ const bulkAssignProjectTarget = (req, res) => {
         parseInt(target.projectId),
         parseInt(target.targetPost) || 0,
         parseInt(target.targetVideo) || 0,
-        parseInt(target.targetShoot) || 0
+        parseInt(target.targetShoot) || 0,
+        assigned_by || 'Admin'
       ]);
     });
 
@@ -2847,12 +3176,13 @@ const bulkAssignProjectTarget = (req, res) => {
 
     // Insert multiple targets with ON DUPLICATE KEY UPDATE
     const insertQuery = `
-            INSERT INTO assigntarget (employeeId, projectId, targetPost, targetVideo, targetShoot) 
+            INSERT INTO assigntarget (employeeId, projectId, targetPost, targetVideo, targetShoot, assigned_by) 
             VALUES ?
             ON DUPLICATE KEY UPDATE 
                 targetPost = VALUES(targetPost), 
                 targetVideo = VALUES(targetVideo),
-                targetShoot = VALUES(targetShoot)
+                targetShoot = VALUES(targetShoot),
+                assigned_by = VALUES(assigned_by)
         `;
 
     db.query(insertQuery, [validatedTargets], (err, result) => {
@@ -2862,6 +3192,12 @@ const bulkAssignProjectTarget = (req, res) => {
       }
 
       const inserted = result.affectedRows;
+      
+      // Send notifications to each employee
+      targets.forEach((target) => {
+        sendAdminAssignmentNotification(target.employeeId, `Project target (bulk)`);
+      });
+
       res.status(200).json({
         success: true,
         message: `Successfully processed ${validatedTargets.length} targets. ${inserted} records inserted/updated.`
@@ -2907,6 +3243,7 @@ const AssignDevelopmentTask = (req, res) => {
       console.error("Database error:", err);
       return res.status(500).json({ error: err.message });
     }
+    sendAdminAssignmentNotification(user_id, `Development Task: ${TaskDescription}`);
     res.status(201).json({ message: 'Development task assigned successfully', id: result.insertId });
   });
 };
@@ -2947,6 +3284,7 @@ const updateAssignDevelopmentTask = (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
+    sendDevTaskUpdateNotifications(id, { status });
     res.status(200).json({ message: 'Development task updated successfully' });
   });
 };

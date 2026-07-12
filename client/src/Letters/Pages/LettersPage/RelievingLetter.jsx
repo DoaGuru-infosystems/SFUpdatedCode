@@ -118,7 +118,7 @@ const RelievingLetter = () => {
   const handlePrint = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/relieving-letters`, {
+      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/letter-routes/relieving-letters`, {
         employeeName, department, designation, dateOfJoining, dateOfRelieving, lastWorkingDay, gender: gender?.value || gender, signatory
       }, { headers: { 'Authorization': `Bearer ${token}` } });
     } catch (error) {

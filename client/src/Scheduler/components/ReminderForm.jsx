@@ -105,7 +105,10 @@ export default function ReminderForm() {
     if (isEdit) {
       const fetchReminder = async () => {
         try {
-          const res = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/scheduler/reminders/${id}`);
+          const apiUrl = window.location.hostname === 'localhost'
+            ? 'http://localhost:8080'
+            : (process.env.REACT_APP_API_URL || 'http://localhost:3000');
+          const res = await axios.get(`${apiUrl}/api/scheduler/reminders/${id}`);
           const data = res.data;
 
           // Format date and boolean flags

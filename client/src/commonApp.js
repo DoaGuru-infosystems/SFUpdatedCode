@@ -141,7 +141,7 @@ const Commonjs = () => {
       if (path === "/") {
         if (user.role === "admin") {
           navigate("/task/Admin-Home-page");
-        } else if (user.role === "user") {
+        } else if (user.role === "user" || user.role === "team_lead") {
           navigate("/task/UserHome");
         }
       }
@@ -215,11 +215,11 @@ const Commonjs = () => {
           <Route path="/task/Admin-Home-page" element={<AdminHomePage />} />
         )}
 
-        {page === "task" && userRole === "user" && (
+        {page === "task" && (userRole === "user" || userRole === "team_lead") && (
           <Route path="/task/UserHome" element={<UserHome />} />
         )}
 
-        {page === "task" && userRole !== "admin" && userRole !== "user" && (
+        {page === "task" && userRole !== "admin" && userRole !== "user" && userRole !== "team_lead" && (
           <Route
             path="/task/login"
             element={<LoginPage setRender={handleRender} />}

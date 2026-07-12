@@ -24,7 +24,7 @@ function HomePage() {
 
   useEffect(() => {
     axios
-      .get(`${process.env.REACT_APP_API_URL}/api/offer-letters`)
+      .get(`${process.env.REACT_APP_API_URL}/api/letter-routes/offer-letters`)
       .then((res) => setOfferLetters(res.data))
       .catch((err) => console.error("Failed to fetch offer letters:", err))
       .finally(() => setLoading(false));

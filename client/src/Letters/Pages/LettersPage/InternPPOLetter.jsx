@@ -222,7 +222,7 @@ const InternPPOLetter = () => {
   const handleDownload = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/intern-ppo-letters`, {
+      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/letter-routes/intern-ppo-letters`, {
         ...formData, joiningDate: handleFormatDate(formData.joiningDate)
       }, { headers: { 'Authorization': `Bearer ${token}` } });
     } catch (err) { console.error('Failed to save to Database:', err); }

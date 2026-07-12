@@ -42,6 +42,10 @@ const ProjectTargetAssign = ({ onSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
+            const userStr = localStorage.getItem("user");
+            const loggedInUser = userStr ? JSON.parse(userStr) : null;
+            const assignedBy = loggedInUser ? (loggedInUser.full_name || 'Admin') : 'Admin';
+
             const payload = {
                 employeeId: form.employeeId,
                 projectId: form.projectId,
@@ -49,7 +53,8 @@ const ProjectTargetAssign = ({ onSuccess }) => {
                 year: form.year,
                 targetPost: form.targetPost,
                 targetVideo: form.targetVideo,
-                targetShoot: form.targetShoot
+                targetShoot: form.targetShoot,
+                assigned_by: assignedBy
             };
             const res = await axios.post("http://localhost:3000/api/assignProjectTarget", payload);
             if (res.data && res.data.success) {

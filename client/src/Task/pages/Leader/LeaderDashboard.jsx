@@ -31,8 +31,8 @@ import {
 } from "react-icons/fa";
 
 const LeaderDashboard = () => {
-  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com";
-  
+  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -53,9 +53,11 @@ const LeaderDashboard = () => {
   // Filters and Selection States
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [dailyTasks, setDailyTasks] = useState([]);
+  const [assignedTasks, setAssignedTasks] = useState({ devTasks: [], targetTasks: [] });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [memberFilter, setMemberFilter] = useState("All");
+  const [assignedTaskMemberFilter, setAssignedTaskMemberFilter] = useState("All");
 
   // Assignment Form State
   const [assignForm, setAssignForm] = useState({
@@ -120,6 +122,7 @@ const LeaderDashboard = () => {
   useEffect(() => {
     if (leader) {
       fetchDailyTasks();
+      fetchAssignedTasks();
     }
   }, [leader, selectedDate]);
 
@@ -135,16 +138,19 @@ const LeaderDashboard = () => {
     socket.on("task-updated", () => {
       console.log("⚡ Real-time Task update received!");
       fetchDailyTasks();
+      fetchAssignedTasks();
     });
 
     socket.on("target-updated", () => {
       console.log("⚡ Real-time Target update received!");
       fetchDailyTasks();
+      fetchAssignedTasks();
     });
 
     socket.on("assigned-project-updated", () => {
       console.log("⚡ Real-time Project assignment update received!");
       fetchDailyTasks();
+      fetchAssignedTasks();
     });
 
     return () => {
@@ -163,15 +169,43 @@ const LeaderDashboard = () => {
     }
   };
 
+  const fetchAssignedTasks = async () => {
+    try {
+      const res = await axios.get(
+        `${API_BASE}/api/team-lead/assigned-tasks?leaderId=${leader.id}`
+      );
+      setAssignedTasks({
+        devTasks: res.data.devTasks || [],
+        targetTasks: res.data.targetTasks || []
+      });
+    } catch (error) {
+      console.error("Error fetching assigned tasks:", error);
+    }
+  };
+
+  const allAssignedTasks = useMemo(() => {
+    const devs = (assignedTasks.devTasks || []).map(t => ({
+      ...t,
+      userId: t.user_id,
+      normalizedStatus: t.status || 'Pending'
+    }));
+    const tgts = (assignedTasks.targetTasks || []).map(t => ({
+      ...t,
+      userId: t.employeeId,
+      normalizedStatus: t.status || 'Pending'
+    }));
+    return [...devs, ...tgts];
+  }, [assignedTasks]);
+
   // Calculations for Stats (Overview Page)
   const stats = useMemo(() => {
     let myTasks = 0;
     let completed = 0;
     let inProgress = 0;
 
-    dailyTasks.forEach((t) => {
-      if (t.user_id === leader?.id) myTasks++;
-      if (t.status?.toLowerCase() === "completed" || t.status === "Done") {
+    allAssignedTasks.forEach((t) => {
+      if (String(t.userId) === String(leader?.id)) myTasks++;
+      if (t.normalizedStatus.toLowerCase() === "completed" || t.normalizedStatus.toLowerCase() === "done") {
         completed++;
       } else {
         inProgress++;
@@ -179,18 +213,18 @@ const LeaderDashboard = () => {
     });
 
     return {
-      total: dailyTasks.length,
+      total: allAssignedTasks.length,
       myTasks,
       completed,
       inProgress
     };
-  }, [dailyTasks, leader]);
+  }, [allAssignedTasks, leader]);
 
   // Chart Data: Completed vs Active per member
   const barChartData = useMemo(() => {
     return teamMembers.map((m) => {
-      const mTasks = dailyTasks.filter((t) => t.user_id === m.id);
-      const completed = mTasks.filter((t) => t.status?.toLowerCase() === "completed" || t.status === "Done").length;
+      const mTasks = allAssignedTasks.filter((t) => String(t.userId) === String(m.id));
+      const completed = mTasks.filter((t) => t.normalizedStatus.toLowerCase() === "completed" || t.normalizedStatus.toLowerCase() === "done").length;
       const active = mTasks.length - completed;
       return {
         name: m.full_name.split(" ")[0],
@@ -198,39 +232,47 @@ const LeaderDashboard = () => {
         Active: active
       };
     });
-  }, [teamMembers, dailyTasks]);
+  }, [teamMembers, allAssignedTasks]);
 
   // Donut Chart Data
   const donutChartData = useMemo(() => {
     let completed = 0;
     let inProgress = 0;
-    let todo = 0;
+    let inPipeline = 0;
+    let hold = 0;
+    let pending = 0;
 
-    dailyTasks.forEach((t) => {
-      const status = t.status?.toLowerCase() || "";
+    allAssignedTasks.forEach((t) => {
+      const status = t.normalizedStatus.toLowerCase();
       if (status === "completed" || status === "done") {
         completed++;
       } else if (status === "in progress" || status === "working") {
         inProgress++;
+      } else if (status === "in pipeline") {
+        inPipeline++;
+      } else if (status === "hold") {
+        hold++;
       } else {
-        todo++;
+        pending++;
       }
     });
 
     return [
       { name: "Completed", value: completed, color: "#10B981" },
       { name: "In Progress", value: inProgress, color: "#6366F1" },
-      { name: "To Do", value: todo, color: "#94A3B8" }
+      { name: "In Pipeline", value: inPipeline, color: "#3B82F6" },
+      { name: "Hold", value: hold, color: "#F59E0B" },
+      { name: "Pending", value: pending, color: "#94A3B8" }
     ];
-  }, [dailyTasks]);
+  }, [allAssignedTasks]);
 
   // Filter Tasks list
   const filteredTasks = useMemo(() => {
     return dailyTasks.filter((t) => {
       const matchesSearch = t.TaskDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            t.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+        t.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesMember = memberFilter === "All" || String(t.user_id) === String(memberFilter);
-      
+
       const st = t.status?.toLowerCase() || "";
       let matchesStatus = true;
       if (statusFilter === "Completed") {
@@ -245,6 +287,18 @@ const LeaderDashboard = () => {
     });
   }, [dailyTasks, searchTerm, memberFilter, statusFilter]);
 
+  const filteredAssignedDevTasks = useMemo(() => {
+    if (!assignedTasks.devTasks) return [];
+    if (assignedTaskMemberFilter === "All") return assignedTasks.devTasks;
+    return assignedTasks.devTasks.filter(t => String(t.user_id) === String(assignedTaskMemberFilter));
+  }, [assignedTasks.devTasks, assignedTaskMemberFilter]);
+
+  const filteredAssignedTargetTasks = useMemo(() => {
+    if (!assignedTasks.targetTasks) return [];
+    if (assignedTaskMemberFilter === "All") return assignedTasks.targetTasks;
+    return assignedTasks.targetTasks.filter(t => String(t.employeeId) === String(assignedTaskMemberFilter));
+  }, [assignedTasks.targetTasks, assignedTaskMemberFilter]);
+
   // Calculate task completion details for Team tab
   const membersWithTaskStats = useMemo(() => {
     return teamMembers.map((m) => {
@@ -253,7 +307,7 @@ const LeaderDashboard = () => {
       const active = mTasks.length - done;
       const total = mTasks.length;
       const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
-      
+
       const initials = m.full_name
         ? m.full_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
         : "EM";
@@ -336,7 +390,7 @@ const LeaderDashboard = () => {
 
       await axios.post(`${API_BASE}/api/team-lead/assign-task`, payload);
       toast.success("Task/Target assigned successfully!");
-      
+
       setAssignForm({
         employeeId: "",
         projectId: "",
@@ -385,7 +439,7 @@ const LeaderDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50/50 p-6 lg:p-10 font-sans text-slate-800">
       <div className="max-w-7xl mx-auto space-y-8">
-        
+
         {/* Breadcrumb Header Row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1">
@@ -412,7 +466,7 @@ const LeaderDashboard = () => {
                 className="bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
               />
             </div>
-            
+
             <button
               onClick={() => setActiveTab("assign")}
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm transition-all duration-200"
@@ -424,7 +478,7 @@ const LeaderDashboard = () => {
 
         {/* Tab View Contents */}
         <AnimatePresence mode="wait">
-          
+
           {/* TAB 1: OVERVIEW INDEX */}
           {activeTab === "dashboard" && (
             <motion.div
@@ -491,7 +545,7 @@ const LeaderDashboard = () => {
                     <h3 className="font-bold text-slate-800 text-sm">Team Task Progress</h3>
                     <p className="text-slate-400 text-xs mt-0.5">Completed vs. active tasks per member</p>
                   </div>
-                  
+
                   <div className="h-64">
                     {barChartData.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-slate-400 text-xs">No chart data available.</div>
@@ -577,11 +631,10 @@ const LeaderDashboard = () => {
                           <span className="bg-rose-50 text-rose-600 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-rose-100">
                             High
                           </span>
-                          <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
-                            isCompleted 
-                              ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                              : "bg-indigo-50 text-indigo-600 border-indigo-100"
-                          }`}>
+                          <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${isCompleted
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                            : "bg-indigo-50 text-indigo-600 border-indigo-100"
+                            }`}>
                             {t.status || "Pending"}
                           </span>
                         </div>
@@ -640,73 +693,106 @@ const LeaderDashboard = () => {
                 </div>
               </div>
 
-              {/* Grid List of Cards */}
+              {/* Table List View of Tasks */}
               {filteredTasks.length === 0 ? (
                 <div className="text-center py-16 bg-white border border-slate-100 rounded-2xl">
                   <p className="text-slate-400 font-bold text-xs">No tasks found matching your filters.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredTasks.map((t) => {
-                    const initials = t.full_name
-                      ? t.full_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-                      : "EM";
-                    const isCompleted = t.status?.toLowerCase() === "completed" || t.status === "done";
+                <div className="bg-white rounded-2xl border border-slate-150 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                          <th className="p-4 pl-6">Member</th>
+                          <th className="p-4">Project & Task</th>
+                          <th className="p-4">Tags</th>
+                          <th className="p-4 text-center">Metrics</th>
+                          <th className="p-4 text-center">Time</th>
+                          <th className="p-4 text-center pr-6">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredTasks.map((t) => {
+                          const initials = t.full_name
+                            ? t.full_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+                            : "EM";
+                          const isCompleted = t.status?.toLowerCase() === "completed" || t.status === "done";
 
-                    return (
-                      <div key={t.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="bg-rose-50 text-rose-600 text-[9px] font-black px-2.5 py-0.5 rounded-full border border-rose-100">
-                              High
-                            </span>
-                            <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full border ${
-                              isCompleted 
-                                ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                                : "bg-indigo-50 text-indigo-600 border-indigo-100"
-                            }`}>
-                              {t.status || "Pending"}
-                            </span>
-                            {t.Category && (
-                              <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-2.5 py-0.5 rounded-full border border-blue-100 uppercase">
-                                {t.Category}
-                              </span>
-                            )}
-                            {t.SubCategory && (
-                              <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-2.5 py-0.5 rounded-full border border-slate-200 uppercase">
-                                {t.SubCategory}
-                              </span>
-                            )}
-                          </div>
+                          return (
+                            <tr key={t.id} className="hover:bg-slate-50/30 transition-colors">
+                              {/* Member */}
+                              <td className="p-4 pl-6">
+                                <div className="flex items-center gap-3">
+                                  {renderAvatar(t.profileIMG || teamMembers.find((m) => m.id === t.user_id)?.profileIMG, initials, "w-8 h-8", "text-xs")}
+                                  <span className="text-xs font-bold text-slate-700">{t.full_name}</span>
+                                </div>
+                              </td>
 
-                          <div>
-                            <h3 className="font-bold text-slate-800 text-sm leading-snug">{t.ProjectOrClientName}</h3>
-                            <p className="text-slate-500 text-[11px] leading-relaxed mt-1 line-clamp-2">
-                              {t.TaskDescription}
-                            </p>
-                            {(t.postCount !== undefined || t.videoCount !== undefined || t.shootCount !== undefined) && (
-                              <div className="flex gap-3 text-xs font-bold text-slate-500 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100 w-fit">
-                                <span className="flex items-center gap-1">Posts: <strong className="text-slate-700">{t.postCount || 0}</strong></span>
-                                <span className="flex items-center gap-1">Videos: <strong className="text-slate-700">{t.videoCount || 0}</strong></span>
-                                <span className="flex items-center gap-1">Shoots: <strong className="text-slate-700">{t.shootCount || 0}</strong></span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                              {/* Project & Task */}
+                              <td className="p-4 max-w-[350px]">
+                                <h3 className="font-bold text-slate-800 text-xs truncate" title={t.ProjectOrClientName}>
+                                  {t.ProjectOrClientName}
+                                </h3>
+                                <p className="text-slate-500 text-[10px] mt-0.5 line-clamp-2" title={t.TaskDescription}>
+                                  {t.TaskDescription}
+                                </p>
+                              </td>
 
-                        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                          <div className="flex items-center gap-2">
-                            {renderAvatar(t.profileIMG || teamMembers.find((m) => m.id === t.user_id)?.profileIMG, initials, "w-6 h-6", "text-[9px]")}
-                            <span className="text-[11px] font-bold text-slate-600">{t.full_name}</span>
-                          </div>
+                              {/* Tags */}
+                              <td className="p-4">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="bg-rose-50 text-rose-600 text-[9px] font-black px-2 py-0.5 rounded border border-rose-100">
+                                    High
+                                  </span>
+                                  {t.Category && (
+                                    <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-2 py-0.5 rounded border border-blue-100 uppercase truncate max-w-[100px]" title={t.Category}>
+                                      {t.Category}
+                                    </span>
+                                  )}
+                                  {t.SubCategory && (
+                                    <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded border border-slate-200 uppercase truncate max-w-[100px]" title={t.SubCategory}>
+                                      {t.SubCategory}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
 
-                          <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                            <FaClock size={8} /> {t.ConsumingTimeInMin || 0} Mins
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                              {/* Metrics */}
+                              <td className="p-4 text-center">
+                                {(t.postCount !== undefined || t.videoCount !== undefined || t.shootCount !== undefined) ? (
+                                  <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-slate-500">
+                                    <span title="Posts">P: <strong className="text-slate-700">{t.postCount || 0}</strong></span>
+                                    <span title="Videos">V: <strong className="text-slate-700">{t.videoCount || 0}</strong></span>
+                                    <span title="Shoots">S: <strong className="text-slate-700">{t.shootCount || 0}</strong></span>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">-</span>
+                                )}
+                              </td>
+
+                              {/* Time */}
+                              <td className="p-4 text-center">
+                                <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap">
+                                  {t.ConsumingTimeInMin || 0} Mins
+                                </span>
+                              </td>
+
+                              {/* Status */}
+                              <td className="p-4 text-center pr-6">
+                                <span className={`text-[9px] font-black px-2.5 py-1 rounded-full border ${isCompleted
+                                  ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                  : "bg-indigo-50 text-indigo-600 border-indigo-100"
+                                  }`}>
+                                  {t.status || "Pending"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -845,7 +931,7 @@ const LeaderDashboard = () => {
                 </div>
 
                 <form onSubmit={handleAssignSubmit} className="space-y-5">
-                  
+
                   {/* Select Team Member */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -937,9 +1023,9 @@ const LeaderDashboard = () => {
                             className="w-full bg-slate-50 border border-slate-250 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 shadow-sm appearance-none cursor-pointer"
                           >
                             {[...Array(12)].map((_, i) => (
-                                <option key={i + 1} value={i + 1}>
-                                  {new Date(0, i).toLocaleString("default", { month: "long" })}
-                                </option>
+                              <option key={i + 1} value={i + 1}>
+                                {new Date(0, i).toLocaleString("default", { month: "long" })}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -1008,7 +1094,7 @@ const LeaderDashboard = () => {
                             onChange={handleFormChange}
                             className="w-full bg-slate-50 border border-slate-250 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 shadow-sm"
                           />
-                      </div>
+                        </div>
                       </div>
                       <div className="space-y-1.5 mt-4">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -1039,10 +1125,143 @@ const LeaderDashboard = () => {
             </motion.div>
           )}
 
-          </AnimatePresence>
-        </div>
-      </div>
-    );
-  };
+          {/* TAB 5: ASSIGNED TASKS */}
+          {activeTab === "assigned_tasks" && (
+            <motion.div
+              key="tab-assigned-tasks"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 overflow-hidden">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800">Assigned Tasks Overview</h2>
+                    <p className="text-slate-400 text-xs font-medium mt-0.5">Tasks & targets you've assigned to your team</p>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto shrink-0">
+                    <select
+                      value={assignedTaskMemberFilter}
+                      onChange={(e) => setAssignedTaskMemberFilter(e.target.value)}
+                      className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 outline-none focus:border-indigo-500 cursor-pointer shadow-sm"
+                    >
+                      <option value="All">All Members</option>
+                      {teamMembers.map((m) => (
+                        <option key={m.id} value={m.id}>{m.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-  export default LeaderDashboard;
+                <div className="space-y-8">
+                  {/* Development Tasks */}
+                  {filteredAssignedDevTasks.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-bold text-indigo-700 mb-3 border-b border-indigo-100 pb-2">Development Tasks</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Employee</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project/Task</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Date</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Note</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {filteredAssignedDevTasks.map((t, idx) => (
+                              <tr key={`dev-${t.id}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-3 text-xs font-bold text-slate-800">{t.employeeName}</td>
+                                <td className="px-4 py-3">
+                                  <div className="text-xs font-bold text-slate-800">{t.project_or_client_name}</div>
+                                  <div className="text-[10px] text-slate-500 truncate max-w-xs">{t.task_description}</div>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-600 font-medium">
+                                  {new Date(t.task_date).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                    t.status?.toLowerCase() === 'completed' || t.status === 'Done' ? 'bg-emerald-100 text-emerald-700' : 
+                                    t.status?.toLowerCase() === 'in progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {t.status || 'Pending'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-500 italic max-w-xs truncate">
+                                  {t.status_note || 'N/A'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Target Tasks */}
+                  {filteredAssignedTargetTasks.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-bold text-indigo-700 mb-3 border-b border-indigo-100 pb-2">Target Tasks (Marketing/SEO)</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Employee</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Month/Year</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Targets (P/V/S)</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Update Note</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {filteredAssignedTargetTasks.map((t, idx) => (
+                              <tr key={`tgt-${t.id}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-3 text-xs font-bold text-slate-800">{t.employeeName}</td>
+                                <td className="px-4 py-3 text-xs font-bold text-slate-800">{t.projectName || 'Marketing Project'}</td>
+                                <td className="px-4 py-3 text-xs text-slate-600 font-medium">
+                                  {t.month}/{t.year}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-600">
+                                  Post: <span className="font-bold">{t.targetPost || 0}</span> | 
+                                  Video: <span className="font-bold">{t.targetVideo || 0}</span> | 
+                                  Shoot: <span className="font-bold">{t.targetShoot || 0}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                    t.status?.toLowerCase() === 'completed' || t.status === 'Done' ? 'bg-emerald-100 text-emerald-700' : 
+                                    t.status?.toLowerCase() === 'in progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {t.status || 'Pending'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-500 italic max-w-xs truncate">
+                                  {t.status_note || 'N/A'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredAssignedDevTasks.length === 0 && filteredAssignedTargetTasks.length === 0 && (
+                    <div className="py-12 text-center">
+                      <p className="text-slate-400 text-sm font-medium">No tasks have been assigned to your team yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+export default LeaderDashboard;

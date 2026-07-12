@@ -118,7 +118,7 @@ const TerminationLetter = () => {
   const handlePrint = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/termination-letters`, {
+      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/letter-routes/termination-letters`, {
         employeeName, employeeId, designation, department, terminationDate, gender, signatory, reason
       }, { headers: { 'Authorization': `Bearer ${token}` } });
     } catch (error) {

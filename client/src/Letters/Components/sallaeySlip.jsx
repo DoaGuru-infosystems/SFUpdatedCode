@@ -544,7 +544,7 @@ const SalarySlip = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/salary-slips`, {
+      await axios.post(`${process.env.REACT_APP_API_URL || ''}/api/letter-routes/salary-slips`, {
         employeeName: formData.employeeName,
         employeeId: formData.employeeId,
         month: monthNames[formData.month - 1],

@@ -400,7 +400,7 @@ const InternshipOfferLetter = () => {
 
   const handleSaveInfo = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/saveInternshipOffer`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/letter-routes/saveInternshipOffer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
