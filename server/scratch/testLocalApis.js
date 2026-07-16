@@ -16,7 +16,12 @@ const endpoints = [
   // Scheduler endpoints
   { method: 'GET', url: '/api/scheduler/employees' },
   { method: 'GET', url: '/api/scheduler/reminders' },
-  { method: 'GET', url: '/api/scheduler/notifications' }
+  { method: 'GET', url: '/api/scheduler/notifications' },
+  
+  // Development Tasks & Assigned Projects endpoints
+  { method: 'GET', url: '/api/get-all-assigned-development-tasks' },
+  { method: 'GET', url: '/api/getAllAssignments' },
+  { method: 'GET', url: '/test' }
 ];
 
 async function runTests() {

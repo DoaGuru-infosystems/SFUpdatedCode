@@ -51,6 +51,10 @@ const sendAdminAssignmentNotification = (employeeId, details) => {
   });
 };
 
+const test = (req, res) => {
+  res.status(200).json({ message: "API is working properly" });
+};
+
 const addLead = (req, res) => {
   try {
     const { u_Id, fullName, mobileNo, email, address, inquiryType } = req.body;
@@ -3138,6 +3142,7 @@ const getAllAssignedDevelopmentTasks = (req, res) => {
 };
 
 module.exports = {
+  test,
   addLead,
   updateLead,
   createFollowUpReport,

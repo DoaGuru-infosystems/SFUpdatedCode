@@ -115,6 +115,9 @@ const Commonjs = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("adminLoginTime");
+    localStorage.removeItem("lastAdminActivityTime");
     setRender(true);
     handleRender();
     // navigate('/');

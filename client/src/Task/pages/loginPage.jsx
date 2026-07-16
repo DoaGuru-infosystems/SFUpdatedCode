@@ -34,6 +34,9 @@ function LoginPage({ setRender }) {
           let save = response.data.user;
           save = JSON.stringify(save);
           localStorage.setItem("user", save);
+          if (response.data.token) {
+            localStorage.setItem("token", response.data.token);
+          }
           toast.success(response.data.message, { position: "top-right" });
           console.log(response.data.message);
           setRender();
@@ -72,6 +75,10 @@ function LoginPage({ setRender }) {
           let save = response.data.user;
           save = JSON.stringify(save);
           localStorage.setItem("user", save);
+          localStorage.setItem("adminLoginTime", Date.now().toString());
+          if (response.data.token) {
+            localStorage.setItem("token", response.data.token);
+          }
 
           toast.success(response.data.message, { position: "top-right" });
           setRender();

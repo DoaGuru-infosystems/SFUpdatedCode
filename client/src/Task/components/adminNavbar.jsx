@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import CLogo from "../assets/images/NewCLogo.png";
 import {
@@ -59,8 +59,94 @@ export default function AdminNavbar({ Logout, render }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [showSessionExpiredModal, setShowSessionExpiredModal] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState(6);
   const location = useLocation();
   const navigate = useNavigate();
+  const logoutCallbackRef = useRef(Logout);
+  useEffect(() => {
+    logoutCallbackRef.current = Logout;
+  }, [Logout]);
+
+  // ── Admin Fixed 30-Minute Session Duration Timer (Exact 30 minutes after login) ──
+  useEffect(() => {
+    const TIMEOUT_DURATION = 30 * 60 * 1000; // Exactly 30 minutes in milliseconds
+
+    const performAutoLogout = () => {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return;
+      let parsedUser = null;
+      try { parsedUser = JSON.parse(userStr); } catch (e) { return; }
+
+      if (parsedUser && parsedUser.role === "admin") {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("adminLoginTime");
+        localStorage.removeItem("lastAdminActivityTime");
+        setShowSessionExpiredModal(true);
+      }
+    };
+
+    const userStr = localStorage.getItem("user");
+    if (!userStr) return;
+    let parsedUser = null;
+    try { parsedUser = JSON.parse(userStr); } catch (e) { return; }
+
+    if (parsedUser && parsedUser.role === "admin") {
+      if (!localStorage.getItem("adminLoginTime")) {
+        localStorage.setItem("adminLoginTime", Date.now().toString());
+      }
+    }
+
+    // Check every 1 second against the fixed login time in localStorage
+    const intervalId = setInterval(() => {
+      const uStr = localStorage.getItem("user");
+      if (!uStr) return;
+      let pUser = null;
+      try { pUser = JSON.parse(uStr); } catch (e) { return; }
+
+      if (pUser && pUser.role === "admin") {
+        const loginTime = parseInt(localStorage.getItem("adminLoginTime") || Date.now().toString(), 10);
+        if (Date.now() - loginTime >= TIMEOUT_DURATION) {
+          performAutoLogout();
+        }
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []); // Empty dependency array ensures fixed timer runs uninterrupted from login!
+
+  // Auto-redirect countdown inside custom session expired modal
+  useEffect(() => {
+    if (!showSessionExpiredModal) return;
+
+    const timer = setInterval(() => {
+      setCountdownSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          if (typeof logoutCallbackRef.current === "function") {
+            logoutCallbackRef.current();
+          } else {
+            window.location.href = "/task/login";
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showSessionExpiredModal]);
+
+  const handleImmediateRedirect = () => {
+    if (typeof logoutCallbackRef.current === "function") {
+      logoutCallbackRef.current();
+    } else {
+      window.location.href = "/task/login";
+    }
+  };
 
   // Notification Sound - Professional "Ping" Tone
   const playNotificationSound = () => {
@@ -259,7 +345,8 @@ export default function AdminNavbar({ Logout, render }) {
   }, [render]);
 
   return (
-    <Disclosure as="nav" className="bg-white border-b border-gray-200 shadow-sm relative z-[1000]">
+    <>
+      <Disclosure as="nav" className="bg-white border-b border-gray-200 shadow-sm relative z-[1000]">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-full lg:mx-5 px-2 lg:px-3 lg:px-1">
@@ -656,5 +743,61 @@ export default function AdminNavbar({ Logout, render }) {
         </>
       )}
     </Disclosure>
+
+      {/* ── Premium Custom Session Expired UI Modal ── */}
+      {showSessionExpiredModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-md transition-opacity duration-300 px-4 animate-fade-in">
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white p-6 shadow-2xl transition-all sm:p-8 border border-gray-100 transform scale-100">
+            {/* Top decorative gradient bar */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-500 via-amber-500 to-red-600" />
+            
+            {/* Warning Icon & Glowing Ring */}
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 ring-8 ring-red-500/10 mb-6">
+              <svg className="h-8 w-8 text-red-600 animate-pulse" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+
+            {/* Content */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+                Session Expired
+              </h3>
+              <p className="mt-3 text-sm text-gray-600 leading-relaxed">
+                Your <span className="font-semibold text-gray-900">30-minute security time limit</span> has been reached. For your protection, your active session has been closed.
+              </p>
+            </div>
+
+            {/* Countdown Progress Bar & Timer */}
+            <div className="mt-6 bg-gray-50 rounded-xl p-4 border border-gray-100 shadow-inner">
+              <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-2">
+                <span>Automatic Redirect</span>
+                <span className="text-red-600 font-bold">{countdownSeconds} seconds</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-red-500 to-amber-500 h-2 rounded-full transition-all duration-1000 ease-linear"
+                  style={{ width: `${(countdownSeconds / 6) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={handleImmediateRedirect}
+                className="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-500/30 hover:from-red-700 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <span>Login Again Now</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -213,9 +213,10 @@ const AdminLogin = async (req, res) => {
           id: user.id,
           role: user.role,
           email: user.email_id,
+          loginTime: Date.now(),
         },
         process.env.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "30m" }
       );
 
       res.send({
