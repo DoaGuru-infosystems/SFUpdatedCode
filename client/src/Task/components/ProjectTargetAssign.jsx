@@ -19,7 +19,7 @@ const ProjectTargetAssign = ({ onSuccess }) => {
     useEffect(() => {
         // Fetch all employees
         setLoading(true);
-        axios.get('http://localhost:3000/api/users')
+        axios.get(window.API_BASE + '/api/users')
             .then(res => {
                 setEmployees(res.data);
                 setLoading(false);
@@ -29,7 +29,7 @@ const ProjectTargetAssign = ({ onSuccess }) => {
                 setLoading(false);
             });
         // Fetch all projects
-        axios.get('http://localhost:3000/api/projects')
+        axios.get(window.API_BASE + '/api/projects')
             .then(res => setProjects(res.data))
             .catch(() => setProjects([]));
     }, []);
@@ -56,7 +56,7 @@ const ProjectTargetAssign = ({ onSuccess }) => {
                 targetShoot: form.targetShoot,
                 assigned_by: assignedBy
             };
-            const res = await axios.post("http://localhost:3000/api/assignProjectTarget", payload);
+            const res = await axios.post(window.API_BASE + "/api/assignProjectTarget", payload);
             if (res.data && res.data.success) {
                 toast.success("Project target assigned successfully.");
                 setForm({

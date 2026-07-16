@@ -67,7 +67,7 @@ function EmployeeCard() {
     // Fetch employee data on component mount
     const fetchEmployeeData = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/api/getEmployee/${employeeId.id}`);
+        const response = await axios.get(`${window.API_BASE}/api/getEmployee/${employeeId.id}`);
         setEmployeeData(response.data);
         // console.log(response.data);
 
@@ -178,7 +178,7 @@ function EmployeeCard() {
                   boxShadow: '0 0 8px rgba(0,0,0,0.2)'
                 }}>
                   <img
-                    src={employeeData.profileIMG?.replace("http://localhost:3000", "http://localhost:3000")}
+                    src={employeeData.profileIMG?.replace(window.API_BASE, window.API_BASE)}
                     alt="Profile IMG"
                     style={{
                       width: '100%',

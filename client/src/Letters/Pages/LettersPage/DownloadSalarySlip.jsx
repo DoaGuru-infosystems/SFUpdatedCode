@@ -494,7 +494,7 @@ const DownloadSalarySlip = () => {
   const handleDownload = async (slip) => {
     let userDetails = {};
     try {
-      const response = await axios.get('http://localhost:3000/api/users');
+      const response = await axios.get(window.API_BASE + '/api/users');
       if (response.data && Array.isArray(response.data)) {
         const found = response.data.find(emp => emp.employee_id == slip.employeeId || emp.full_name === slip.employeeName);
         if (found) {

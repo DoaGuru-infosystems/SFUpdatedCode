@@ -11,6 +11,7 @@ const { sendLeaveStatusReminderWhatsApp } = require("../utils/whatsappUtils")
 const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 dotenv.config();
+const excel = require('exceljs');
 
 const sendAdminAssignmentNotification = (employeeId, details) => {
   const socketUtil = require("../utils/socket");
@@ -50,12 +51,6 @@ const sendAdminAssignmentNotification = (employeeId, details) => {
   });
 };
 
-const test = async (req, res) => {
-  res.send({ data: "Test Sucess Full" });
-};
-
-const excel = require('exceljs');
-
 const addLead = (req, res) => {
   try {
     const { u_Id, fullName, mobileNo, email, address, inquiryType } = req.body;
@@ -85,8 +80,6 @@ const addLead = (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
-
-
 
 const updateLead = (req, res) => {
   try {
@@ -298,30 +291,6 @@ const mailTest = async (req, res) => {
 }
 
 
-// Add task is here
-// const AddData = (req, res) => {
-//   console.log('here');
-//   const { user_id,user_full_name, ProjectOrClientName, Category, subCategory, TaskDescription, ConsumingTimeInMin,VideoCount, PostCreativeCount } = req.body;
-
-//   if (!user_id || !user_full_name || !ProjectOrClientName || !Category || !subCategory || !TaskDescription || !ConsumingTimeInMin) {
-//     return res.status(400).send('All fields are required');
-//   }
-//   const taskDate = new Date().toISOString().split('T')[0]; // current date 
-//   // let PostCreativeCount = postCount
-//   // let VideoCount = videoCount
-//   console.log(user_id, user_full_name, ProjectOrClientName, Category, subCategory, TaskDescription, ConsumingTimeInMin,VideoCount, PostCreativeCount)
-
-//   const query = 'INSERT INTO tasks (user_id, name, ProjectOrClientName, Category, SubCategory, TaskDescription, ConsumingTimeInMin, videoCount, postCount, task_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-//   db.query(query, [user_id, user_full_name, ProjectOrClientName, Category, subCategory, TaskDescription, ConsumingTimeInMin, VideoCount, PostCreativeCount, taskDate], (err, result) => {
-//     console.log(result)
-//     if (err) {
-//       return res.status(500).send(err);
-//     }
-//     res.send('Data saved successfully');
-//   });
-// }
-
-
 const AddData = (req, res) => {
   const {
     user_id,
@@ -418,21 +387,21 @@ const AddData = (req, res) => {
                   leadRes.forEach(lead => {
                     db.query(`INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status) VALUES (?, ?, 'inapp', ?, 'sent')`, [remId, lead.id, msg], (errNotif, notifRes) => {
                       if (!errNotif) {
-                         try {
-                           const socketUtil = require("../utils/socket");
-                           socketUtil.getIO().emit("new-scheduler-notification", {
-                              id: notifRes.insertId,
-                              employee_id: lead.id,
-                              message_body: msg
-                           });
-                         } catch (e) {
-                           console.error(e);
-                         }
+                        try {
+                          const socketUtil = require("../utils/socket");
+                          socketUtil.getIO().emit("new-scheduler-notification", {
+                            id: notifRes.insertId,
+                            employee_id: lead.id,
+                            message_body: msg
+                          });
+                        } catch (e) {
+                          console.error(e);
+                        }
                       }
                     });
                   });
                 };
-                
+
                 if (!errRem && remRes.length > 0) {
                   insertTLNotif(remRes[0].id);
                 } else {
@@ -505,39 +474,6 @@ const FetchFUllData = (req, res) => {
   });
 };
 
-// Route to update  task details 
-// const UpdateTask = (req, res) => {
-//   try {
-//     const { ProjectOrClientName, Category, SubCategory, TaskDescription, ConsumingTimeInMin, id } = req.body;
-//     console.log(ProjectOrClientName, Category, SubCategory, TaskDescription, ConsumingTimeInMin, id);
-
-//     const updateTask = `
-//       UPDATE tasks
-//       SET ProjectOrClientName = ?,
-//           Category = ?,
-//           SubCategory = ?,
-//           TaskDescription = ?,
-//           ConsumingTimeInMin = ?
-//       WHERE id = ?;
-//     `;
-
-//     db.query(updateTask, [ProjectOrClientName, Category, SubCategory, TaskDescription, ConsumingTimeInMin, id], (updateErr, updateResult) => {
-//       if (updateErr) {
-//         console.error('Error updating task:', updateErr);
-//         return res.status(500).json({ error: 'Internal server error' });
-//       }
-//       // Success Response 
-//       console.log(updateResult);
-//       return res.status(200).json({
-//         message: "Task updated successfully",
-//         result: updateResult
-//       });
-//     });
-//   } catch (e) {
-//     console.error('Caught error:', e);
-//     res.status(500).json({ error: e.message });
-//   }
-// };
 
 const UpdateTask = (req, res) => {
   try {
@@ -613,7 +549,10 @@ const UpdateTask = (req, res) => {
     ], (updateErr, updateResult) => {
       if (updateErr) {
         console.error('Error updating task:', updateErr);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({
+          error: updateErr.message,
+          sqlMessage: updateErr.sqlMessage || 'Internal server error'
+        });
       }
       // Success Response 
       console.log('Task updated successfully:', updateResult);
@@ -622,7 +561,7 @@ const UpdateTask = (req, res) => {
       db.query('SELECT t.user_id, t.TaskDescription, t.ProjectOrClientName, u.full_name, u.department FROM tasks t JOIN task_users u ON t.user_id = u.id WHERE t.id = ?', [id], (errTask, taskRes) => {
         if (!errTask && taskRes.length > 0) {
           const { user_id, TaskDescription, ProjectOrClientName, full_name, department } = taskRes[0];
-          
+
           // Notify Admin
           const { addAdminNotification } = require('./notificationController');
           addAdminNotification(user_id, full_name, "task", `${full_name} updated a task: ${TaskDescription.substring(0, 30)}...`);
@@ -637,21 +576,21 @@ const UpdateTask = (req, res) => {
                     leadRes.forEach(lead => {
                       db.query(`INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status) VALUES (?, ?, 'inapp', ?, 'sent')`, [remId, lead.id, msg], (errNotif, notifRes) => {
                         if (!errNotif) {
-                           try {
-                             const socketUtil = require("../utils/socket");
-                             socketUtil.getIO().emit("new-scheduler-notification", {
-                                id: notifRes.insertId,
-                                employee_id: lead.id,
-                                message_body: msg
-                             });
-                           } catch (e) {
-                             console.error(e);
-                           }
+                          try {
+                            const socketUtil = require("../utils/socket");
+                            socketUtil.getIO().emit("new-scheduler-notification", {
+                              id: notifRes.insertId,
+                              employee_id: lead.id,
+                              message_body: msg
+                            });
+                          } catch (e) {
+                            console.error(e);
+                          }
                         }
                       });
                     });
                   };
-                  
+
                   if (!errRem && remRes.length > 0) {
                     insertTLNotif(remRes[0].id);
                   } else {
@@ -702,8 +641,31 @@ const DeleteTask = (req, res) => {
 };
 // Route to fetch options for selects filed (Add task)
 const ProjectsList = (req, res) => {
-  const query = 'SELECT * FROM projects';
-  db.query(query, (err, result) => {
+  const { department, created_by } = req.query;
+  let query = `
+    SELECT p.*, 
+           COALESCE(p.created_by_name, u.full_name) AS creator_name,
+           u.role AS creator_role,
+           u.designation AS creator_designation
+    FROM projects p
+    LEFT JOIN task_users u ON p.created_by = u.id
+  `;
+  const conditions = [];
+  const params = [];
+  if (department && department.trim() !== "" && department !== "All") {
+    conditions.push(`(p.department IS NULL OR p.department = '' OR LOWER(p.department) LIKE CONCAT('%', LOWER(?), '%'))`);
+    params.push(department.trim());
+  }
+  if (created_by && created_by !== "All") {
+    conditions.push(`p.created_by = ?`);
+    params.push(created_by);
+  }
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY p.id DESC';
+
+  db.query(query, params, (err, result) => {
     if (err) {
       console.error('Error fetching projects:', err);
       res.status(500).json({ error: 'Error fetching projects', details: err.message });
@@ -743,9 +705,6 @@ const SubCategoryList = (req, res) => {
   });
 };
 
-// // Route to add new option(project name category subcat) by Admin side 
-
-
 
 // route for user only show user data 
 const myTask = (req, res) => {
@@ -768,9 +727,9 @@ const myTask = (req, res) => {
 
 // Add new project
 const AddProject = (req, res) => {
-  const { name, department } = req.body;
-  const query = 'INSERT INTO projects (name, department) VALUES (?, ?)';
-  db.query(query, [name, department || null], (err, results) => {
+  const { name, department, created_by, created_by_name } = req.body;
+  const query = 'INSERT INTO projects (name, department, created_by, created_by_name) VALUES (?, ?, ?, ?)';
+  db.query(query, [name, department || null, created_by || null, created_by_name || null], (err, results) => {
     if (err) {
       return res.status(500).send(err);
     }
@@ -802,17 +761,6 @@ const AddSubcategory = (req, res) => {
   });
 };
 
-
-// New endpoint to get all users
-// const UserData = (req, res) => {
-//   const sql = 'SELECT * FROM task_users';
-//   db.query(sql, (err, results) => {
-//     if (err) {
-//       return res.status(500).send({ error: 'Database error', details: err });
-//     }
-//     res.send(results);
-//   });
-// };
 
 const UserData = (req, res) => {
   try {
@@ -990,17 +938,6 @@ const projectFromAssign = (req, res) => {
   });
 }
 
-// const assignProject = (req, res) => {
-//   const { projectId, categoryId, userId } = req.body;
-//   const assignCategoryQuery = 'INSERT INTO assigned_projects (project_id, category_id, user_id) VALUES (?, ?, ?)';
-//   db.query(assignCategoryQuery, [projectId, categoryId, userId], (err, assignResults) => {
-//     if (err) {
-//       return res.status(500).send(err);
-//     }
-//     res.status(201).json({ message: 'Project added and assigned to category successfully', projectId });
-//   });
-// };
-
 
 const assignProject = (req, res) => {
   const { projectId, categoryId, userId, assigned_by } = req.body;
@@ -1048,7 +985,7 @@ const assignProject = (req, res) => {
             const today = new Date();
             const month = today.getMonth() + 1;
             const year = today.getFullYear();
-            
+
             if (dept === 'Digital Marketing' || dept === 'SEO') {
               const tgtQuery = `INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by) VALUES (?, ?, ?, ?, 0, 0, 0, ?)`;
               db.query(tgtQuery, [userId, pid, month, year, assigned_by || 'Admin']);
@@ -1113,13 +1050,6 @@ const getUserTasks = (req, res) => {
   const { userId } = req.params;
   const { month, startDate, endDate, year } = req.query; // Add month and year to the query parameters
 
-  // Build the base query
-  //   let query = `
-  //     SELECT user_id, name, ProjectOrClientName, Category, SubCategory, TaskDescription, ConsumingTimeInMin, task_date
-  //     FROM tasks
-  //     WHERE user_id = ?
-  //   `;
-
   let query = `
     SELECT *
     FROM tasks
@@ -1152,155 +1082,6 @@ const getUserTasks = (req, res) => {
   });
 };
 
-
-
-// Define the route to download user tasks as an Excel file
-// const DownloadUserTaskReport = (req, res) => {
-//   const { userId } = req.params;
-//   const { startDate, endDate } = req.query;  // Query parameters for date filtering
-
-//   let query = `
-//     SELECT user_id, name, ProjectOrClientName, Category, SubCategory, TaskDescription, ConsumingTimeInMin, task_date
-//     FROM tasks
-//     WHERE user_id = ?
-//   `;
-
-//   const params = [userId];
-
-//   if (startDate && endDate) {
-//     query += ` AND task_date BETWEEN ? AND ?`;
-//     params.push(startDate, endDate);
-//   }
-
-//   db.query(query, params, (err, results) => {
-//     if (err) {
-//       return res.status(500).send(err);
-//     }
-
-//     const workbook = new excel.Workbook();
-//     const worksheet = workbook.addWorksheet('User Tasks');
-
-//     worksheet.columns = [
-//       { header: 'User ID', key: 'user_id', width: 10 },
-//       { header: 'User Name', key: 'name', width: 20 },
-//       { header: 'Project or Client Name', key: 'ProjectOrClientName', width: 30 },
-//       { header: 'Category', key: 'Category', width: 20 },
-//       { header: 'SubCategory', key: 'SubCategory', width: 20 },
-//       { header: 'Task Description', key: 'TaskDescription', width: 30 },
-//       { header: 'Consuming Time (Min)', key: 'ConsumingTimeInMin', width: 20 },
-//       { header: 'Task Date', key: 'task_date', width: 15 }
-//     ];
-
-//     worksheet.addRows(results);
-
-//     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-//     res.setHeader('Content-Disposition', `attachment; filename=user_${userId}_tasksReport.xlsx`);
-
-//     workbook.xlsx.write(res)
-//       .then(() => {
-//         res.end();
-//       })
-//       .catch(err => {
-//         res.status(500).send(err);
-//       });
-//   });
-// };
-// const DownloadUserTaskReport = (req, res) => {
-//   const { userId } = req.params;
-//   const { startDate, endDate } = req.query;  // Query parameters for date filtering
-
-//   let query = `
-//     SELECT 
-//       user_id, 
-//       name, 
-//       ProjectOrClientName, 
-//       Category, 
-//       SubCategory, 
-//       TaskDescription,
-//       postCount,
-//       videoCount,
-//       ConsumingTimeInMin,
-//       TotalConsumingTime,
-//       DATE_FORMAT(task_date, '%Y-%m-%d') as task_date,
-//       post_creative_status,
-//       video_status,
-//       other_graphics_name,
-//       other_graphics_count,
-//       other_graphics_status
-//     FROM tasks
-//     WHERE user_id = ?
-//   `;
-
-//   const params = [userId];
-
-//   if (startDate && endDate) {
-//     query += ` AND task_date BETWEEN ? AND ?`;
-//     params.push(startDate, endDate);
-//   }
-
-//   db.query(query, params, (err, results) => {
-//     if (err) {
-//       return res.status(500).send(err);
-//     }
-
-//     const workbook = new excel.Workbook();
-//     const worksheet = workbook.addWorksheet('User Tasks');
-
-//     // Format the data before adding to worksheet
-//     const formattedResults = results.map(task => ({
-//       'User ID': task.user_id,
-//       'User Name': task.name,
-//       'Project/Client Name': task.ProjectOrClientName || '',
-//       'Task Category': task.Category || '',
-//       'Sub Category': task.SubCategory || '',
-//       'Task Description': task.TaskDescription || '',
-//       'Post Count': task.postCount || 0,
-//       'Video Count': task.videoCount || 0,
-//       'Time Spent (Min)': task.ConsumingTimeInMin || 0,
-//       'Total Consuming Time': task.TotalConsumingTime || 0,
-//       'Task Date': task.task_date || '',
-//       'Post Creative Status': task.post_creative_status || 'Not Started',
-//       'Video Status': task.video_status || 'Not Started',
-//       'Other Graphics Name': task.other_graphics_name || 'N/A',
-//       'Other Graphics Count': task.other_graphics_count || 0,
-//       'Other Graphics Status': task.other_graphics_status || 'Not Started'
-//     }));
-
-//     // Define worksheet columns with proper headers and widths
-//     worksheet.columns = [
-//       { header: 'User ID', key: 'User ID', width: 10 },
-//       { header: 'User Name', key: 'User Name', width: 20 },
-//       { header: 'Project/Client Name', key: 'Project/Client Name', width: 25 },
-//       { header: 'Task Category', key: 'Task Category', width: 20 },
-//       { header: 'Sub Category', key: 'Sub Category', width: 20 },
-//       { header: 'Task Description', key: 'Task Description', width: 40 },
-//       { header: 'Post Count', key: 'Post Count', width: 12 },
-//       { header: 'Video Count', key: 'Video Count', width: 12 },
-//       { header: 'Time Spent (Min)', key: 'Time Spent (Min)', width: 15 },
-//       { header: 'Total Consuming Time', key: 'Total Consuming Time', width: 18 },
-//       { header: 'Task Date', key: 'Task Date', width: 15 },
-//       { header: 'Post Creative Status', key: 'Post Creative Status', width: 20 },
-//       { header: 'Video Status', key: 'Video Status', width: 15 },
-//       { header: 'Other Graphics Name', key: 'Other Graphics Name', width: 20 },
-//       { header: 'Other Graphics Count', key: 'Other Graphics Count', width: 18 },
-//       { header: 'Other Graphics Status', key: 'Other Graphics Status', width: 20 }
-//     ];
-
-//     // Add the formatted data to the worksheet
-//     worksheet.addRows(formattedResults);
-
-//     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-//     res.setHeader('Content-Disposition', `attachment; filename=user_${userId}_tasksReport.xlsx`);
-
-//     workbook.xlsx.write(res)
-//       .then(() => {
-//         res.end();
-//       })
-//       .catch(err => {
-//         res.status(500).send(err);
-//       });
-//   });
-// };
 
 const DownloadUserTaskReport = (req, res) => {
   const { userId } = req.params;
@@ -1441,52 +1222,6 @@ const DownloadUserTaskReport = (req, res) => {
   });
 };
 
-// const checkInAttend = (req, res) => {
-//   const { user_id, latitude, longitude } = req.body;
-//   const selfie = req.file;
-//   const selfiePicture = `selfiePicture/${selfie?.filename}`;
-//   const currentDate = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
-//   const currentTime = moment().tz("Asia/Kolkata").format("HH:mm:ss");
-//   const dateTime = moment().tz("Asia/Kolkata").format("DD-MM-YYYY HH:mm:ss");
-
-//   try {
-//     const checkQuery = `
-//       SELECT * FROM attendance
-//       WHERE user_id = ? AND attend_date = ?
-//     `;
-//     db.query(checkQuery, [user_id, currentDate], (err, result) => {
-//       if (err) {
-//         return res.status(500).json({ success: false, message: err.message });
-//       }
-
-//       if (result.length > 0) {
-//         return res.status(409).json({ success: false, message: "User already checked in for today." });
-//       }
-
-//       const insertQuery = `
-//         INSERT INTO attendance (user_id, login_time, login_selfie_url, login_latitude, login_longitude, attend_date, record_created_at)
-//         VALUES (?, ?, ?, ?, ?, ?, ?)
-//       `;
-//       const insertParams = [
-//         user_id,
-//         currentTime,
-//         selfiePicture,
-//         latitude,
-//         longitude,
-//         currentDate,
-//         dateTime,
-//       ];
-//       db.query(insertQuery, insertParams, (err, result) => {
-//         if (err) {
-//           return res.status(400).json({ success: false, message: err.message });
-//         }
-//         res.status(200).json({ success: true, message: "Check-in saved." });
-//       });
-//     });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: "Internal server error" });
-//   }
-// };
 
 const checkInAttend = (req, res) => {
   const { user_id, latitude, longitude } = req.body;
@@ -1668,13 +1403,15 @@ const checkOutAttend = (req, res) => {
 const getCheckInByUser = (req, res) => {
   try {
     const userId = req.params.userId;
-    const currentDate = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
-    const selectQuery = `SELECT * FROM attendance WHERE user_id = ? AND attend_date = ? ORDER BY attend_id DESC LIMIT 1`;
-    db.query(selectQuery, [userId, currentDate], (err, result) => {
+    const currentDateDD = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
+    const currentDateYY = moment().tz("Asia/Kolkata").format("YYYY-MM-DD");
+    const selectQuery = `SELECT * FROM attendance WHERE user_id = ? AND (attend_date = ? OR attend_date = ?) ORDER BY attend_id DESC LIMIT 1`;
+    db.query(selectQuery, [userId, currentDateDD, currentDateYY], (err, result) => {
       if (err) {
         res.status(400).json({ success: false, message: err.message });
+      } else {
+        res.status(200).send(result);
       }
-      res.status(200).send(result);
     });
   } catch (error) {
     res.status(500).json({ success: false, message: "internal server error" });
@@ -1688,8 +1425,8 @@ const getCheckInByUserIdOnly = (req, res) => {
       SELECT * FROM task_users 
       LEFT JOIN attendance 
         ON attendance.user_id = task_users.id 
-        AND MONTH(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y')) = ? 
-        AND YEAR(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y')) = ?
+        AND MONTH(COALESCE(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y'), STR_TO_DATE(attendance.attend_date, '%Y-%m-%d'))) = ? 
+        AND YEAR(COALESCE(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y'), STR_TO_DATE(attendance.attend_date, '%Y-%m-%d'))) = ?
       WHERE task_users.id = ? ORDER BY attendance.attend_date ASC`;
     db.query(selectQuery, [month, year, userId], (err, result) => {
       if (err) {
@@ -1709,22 +1446,13 @@ const getMonthlyAttendance = (req, res) => {
   const year = req.params.year;
 
   try {
-    //     const selectQuery = `
-    //   SELECT * 
-    //   FROM task_users 
-    //   LEFT JOIN attendance 
-    //     ON task_users.id = attendance.user_id
-    //     AND MONTH(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y')) = ?
-    //     AND YEAR(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y')) = ?
-    // `;
-
     const selectQuery = `
   SELECT * 
   FROM task_users 
   LEFT JOIN attendance 
     ON task_users.id = attendance.user_id
-    AND MONTH(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y')) = ?
-    AND YEAR(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y')) = ?
+    AND MONTH(COALESCE(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y'), STR_TO_DATE(attendance.attend_date, '%Y-%m-%d'))) = ?
+    AND YEAR(COALESCE(STR_TO_DATE(attendance.attend_date, '%d-%m-%Y'), STR_TO_DATE(attendance.attend_date, '%Y-%m-%d'))) = ?
   WHERE task_users.employment_status = 'active'
 `;
 
@@ -2500,9 +2228,6 @@ const SalaryCalculatorsByUser = (req, res) => {
         return date.isSameOrAfter(startMoment, 'day') && date.isSameOrBefore(endMoment, 'day');
       });
 
-      // --------------------------------
-      // 2️⃣ Fetch Paid Holidays of Range
-      // --------------------------------
       const holidayQuery = `
         SELECT holiday_title, holiday_date 
         FROM paid_holidays
@@ -2528,9 +2253,6 @@ const SalaryCalculatorsByUser = (req, res) => {
           moment(h.holiday_date).tz(timezone).format("YYYY-MM-DD")
         );
 
-        // -------------------------
-        // 3️⃣ Sunday Calculation
-        // -------------------------
         let totalSundays = 0;
         let curr = moment(startMoment);
         while (curr.isSameOrBefore(endMoment, 'day')) {
@@ -2578,14 +2300,9 @@ const SalaryCalculatorsByUser = (req, res) => {
           }
         });
 
-        // ----------------------------------------
-        // 5️⃣ Paid Holidays Salary (Full day pay)
-        // ----------------------------------------
         const paidHolidayPay = holidayResult.length * dailySalary;
 
-        // ----------------------------------------
-        // 6️⃣ Salary Components & Comp-off logic
-        // ----------------------------------------
+
         const basePay = (fullDays * dailySalary) + (halfDays * (dailySalary / 2));
         const sundayFixedPay = totalSundays * dailySalary;
         const paidLeaveAmount = paidLeaves * dailySalary;
@@ -2675,12 +2392,6 @@ const SalaryCalculatorsByUser = (req, res) => {
     return res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
-
-
-
-
-
-
 
 const getAllHolidaysCurrentYear = (req, res) => {
   try {
@@ -2954,7 +2665,7 @@ const sendTargetUpdateNotifications = (targetId, updatedFields) => {
                 message_body: msg
               };
               socketUtil.getIO().emit("new-scheduler-notification", socketNotifAdmin);
-              
+
               addAdminNotification(target.employeeId, target.employee_name, "task", msg);
             }
           });
@@ -2989,7 +2700,9 @@ const sendDevTaskUpdateNotifications = (taskId, updatedFields) => {
     if (err || res.length === 0) return;
     const task = res[0];
 
-    const msg = `Employee ${task.employee_name} updated development task for project ${task.project_or_client_name} to: Status: ${updatedFields.status || task.status}.`;
+    const noteText = updatedFields.status_note !== undefined ? updatedFields.status_note : (task.status_note || task.note);
+    const noteStr = noteText ? ` - Note: ${noteText}` : '';
+    const msg = `Employee ${task.employee_name} updated development task for project ${task.project_or_client_name} to: Status: ${updatedFields.status || task.status}${noteStr}.`;
 
     const findRecipientsQuery = `
       SELECT id, role, full_name, department 
@@ -3029,7 +2742,7 @@ const sendDevTaskUpdateNotifications = (taskId, updatedFields) => {
                 message_body: msg
               };
               socketUtil.getIO().emit("new-scheduler-notification", socketNotifAdmin);
-              
+
               addAdminNotification(task.user_id, task.employee_name, "task", msg);
             }
           });
@@ -3192,7 +2905,7 @@ const bulkAssignProjectTarget = (req, res) => {
       }
 
       const inserted = result.affectedRows;
-      
+
       // Send notifications to each employee
       targets.forEach((target) => {
         sendAdminAssignmentNotification(target.employeeId, `Project target (bulk)`);
@@ -3266,17 +2979,17 @@ const getAssignDevelopmentTask = (req, res) => {
 const updateAssignDevelopmentTask = (req, res) => {
   const { id } = req.params;
   console.log("Task ID :", id);
-  const { status, deadline_date } = req.body;
+  const { status, deadline_date, status_note, note } = req.body;
 
-  if (!status || !deadline_date) {
-    return res.status(400).send('Required fields are missing');
+  if (!status) {
+    return res.status(400).send('Status is required');
   }
-  const query = `UPDATE assign_development_tasks SET status = ?, deadline_date = ? WHERE id = ?`;
-  db.query(query, [
-    status,
-    deadline_date,
-    id
-  ], (err, result) => {
+
+  const updatedNote = status_note !== undefined ? status_note : (note !== undefined ? note : null);
+  const updatedDeadline = deadline_date || null;
+
+  const query = `UPDATE assign_development_tasks SET status = ?, deadline_date = COALESCE(?, deadline_date, task_date), status_note = COALESCE(?, status_note), note = COALESCE(?, note) WHERE id = ?`;
+  db.query(query, [status, updatedDeadline, updatedNote, updatedNote, id], (err, result) => {
     if (err) {
       console.error("Database error:", err);
       return res.status(500).json({ error: err.message });
@@ -3284,7 +2997,7 @@ const updateAssignDevelopmentTask = (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
-    sendDevTaskUpdateNotifications(id, { status });
+    sendDevTaskUpdateNotifications(id, { status, status_note: updatedNote });
     res.status(200).json({ message: 'Development task updated successfully' });
   });
 };
@@ -3425,7 +3138,6 @@ const getAllAssignedDevelopmentTasks = (req, res) => {
 };
 
 module.exports = {
-  test,
   addLead,
   updateLead,
   createFollowUpReport,

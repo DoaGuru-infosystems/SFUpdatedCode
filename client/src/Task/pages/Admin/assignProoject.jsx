@@ -29,9 +29,9 @@ const ProjectAssignmentForm = () => {
   const fetchInitialData = async () => {
     try {
       const [userRes, projRes, catRes] = await Promise.all([
-        axios.get('http://localhost:3000/api/users'),
-        axios.get('http://localhost:3000/api/projects'),
-        axios.get('http://localhost:3000/api/category-list')
+        axios.get(window.API_BASE + '/api/users'),
+        axios.get(window.API_BASE + '/api/projects'),
+        axios.get(window.API_BASE + '/api/category-list')
       ]);
       setUsers(userRes.data);
       setProjects(projRes.data);
@@ -44,7 +44,7 @@ const ProjectAssignmentForm = () => {
 
   const fetchAssignments = async () => {
     try {
-      const { data } = await axios.get('http://localhost:3000/api/getAllAssignments');
+      const { data } = await axios.get(window.API_BASE + '/api/getAllAssignments');
       setAssignments(data);
     } catch (error) {
       console.error('Fetch Error:', error);
@@ -64,7 +64,7 @@ const ProjectAssignmentForm = () => {
       const loggedInUser = userStr ? JSON.parse(userStr) : null;
       const assignedBy = loggedInUser ? (loggedInUser.full_name || 'Admin') : 'Admin';
 
-      const { data } = await axios.post('http://localhost:3000/api/assignProject', {
+      const { data } = await axios.post(window.API_BASE + '/api/assignProject', {
         userId: selectedUser,
         projectId: selectedProject,
         categoryId: selectedCategory,
@@ -85,7 +85,7 @@ const ProjectAssignmentForm = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to terminate this assignment?")) return;
     try {
-      await axios.delete(`http://localhost:3000/api/deleteAssignment/${id}`);
+      await axios.delete(`${window.API_BASE}/api/deleteAssignment/${id}`);
       toast.success("Assignment terminated");
       fetchAssignments();
     } catch (error) {

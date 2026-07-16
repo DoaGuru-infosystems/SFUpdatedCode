@@ -8,11 +8,12 @@ const AdminAssignTaskDevlopment = () => {
   const [selectedUser, setSelectedUser] = useState('');
   const [status, setStatus] = useState('Pending');
   const [taskDate, setTaskDate] = useState(new Date().toISOString().split('T')[0]);
+  const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [assignedTasks, setAssignedTasks] = useState([]);
 
   const fetchUsers = () => {
-    axios.get('http://localhost:3000/api/users')
+    axios.get(window.API_BASE + '/api/users')
       .then(response => {
         setUsers(response.data);
       })
@@ -23,7 +24,7 @@ const AdminAssignTaskDevlopment = () => {
   };
 
   const fetchAssignedTasks = () => {
-    axios.get('http://localhost:3000/api/get-all-assigned-development-tasks')
+    axios.get(window.API_BASE + '/api/get-all-assigned-development-tasks')
       .then(response => {
         setAssignedTasks(response.data || []);
       })
@@ -48,14 +49,15 @@ const AdminAssignTaskDevlopment = () => {
     setLoading(true);
 
     try {
-      await axios.post('http://localhost:3000/api/assign-project-target-development-team', {
+      await axios.post(window.API_BASE + '/api/assign-project-target-development-team', {
         user_id: selectedUser,
         user_full_name: users.find(u => u.id == selectedUser)?.full_name || '',
         ProjectOrClientName: 'Development Task',
         Category: 'Development',
         subCategory: 'Task Assignment',
         TaskDescription: taskDescription,
-        task_date: taskDate
+        task_date: taskDate,
+        note: note
       });
 
       toast.success('Task assigned successfully!');
@@ -66,6 +68,7 @@ const AdminAssignTaskDevlopment = () => {
       setSelectedUser('');
       setStatus('Pending');
       setTaskDate(new Date().toISOString().split('T')[0]);
+      setNote('');
     } catch (error) {
       console.error('Error assigning task:', error);
       toast.error('Failed to assign task');

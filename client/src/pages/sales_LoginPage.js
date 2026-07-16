@@ -13,7 +13,7 @@ function Sales_LoginPage({ Login }) {
     e.preventDefault();
     // console.log('in handle submit ');
     console.log(user);
-    axios.post("http://localhost:3000/login", user)
+    axios.post(window.API_BASE + "/login", user)
       .then((responce) => {
         let save = responce.data.user.result[0];
         save = JSON.stringify(save);

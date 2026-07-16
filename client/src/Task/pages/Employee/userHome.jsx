@@ -66,7 +66,7 @@ function UserHome() {
 
   const getLeaveDetails = async () => {
     try {
-      const { data } = await axios.get(`http://localhost:3000/api/getEmployeeTodaysLeavesByUserId/${user?.id}`);
+      const { data } = await axios.get(`${window.API_BASE}/api/getEmployeeTodaysLeavesByUserId/${user?.id}`);
       setLeaveCheck(data);
     } catch (error) { console.error(error); }
   };
@@ -92,7 +92,7 @@ function UserHome() {
     const selectedSubCat = subCategorys.find((sub) => sub.name === submitData.subCategory);
     submitData.shootCount = selectedSubCat && selectedSubCat.id == 32 ? 1 : 0;
 
-    axios.post("http://localhost:3000/api/add-data", { user_id: user.id, user_full_name: user.full_name, ...submitData, task_date: submitData.task_date })
+    axios.post(window.API_BASE + "/api/add-data", { user_id: user.id, user_full_name: user.full_name, ...submitData, task_date: submitData.task_date })
       .then(() => {
         const selectedDate = submitData.task_date;
         setFormData({ ...defaultTaskData, task_date: selectedDate });
@@ -105,7 +105,7 @@ function UserHome() {
 
   const fetchTasks = (selectedDate) => {
     const formattedDate = selectedDate.toISOString().split("T")[0];
-    axios.get("http://localhost:3000/api/fetch-data", { params: { date: formattedDate } })
+    axios.get(window.API_BASE + "/api/fetch-data", { params: { date: formattedDate } })
       .then((response) => {
         let currentUser = response.data.filter((iteam) => iteam.user_id === user.id);
         setTaskData(currentUser);
@@ -121,14 +121,14 @@ function UserHome() {
     setSelectedProjects(task.ProjectOrClientName);
     setSelectedCategory(task.Category);
     if (task.ProjectOrClientName) {
-      axios.get(`http://localhost:3000/api/category-list?projects_id=${encodeURIComponent(task.ProjectOrClientName)}`)
+      axios.get(`${window.API_BASE}/api/category-list?projects_id=${encodeURIComponent(task.ProjectOrClientName)}`)
         .then((response) => {
           setAllCategory(response.data);
-          particularCategory();
+          setCategory(response.data);
           if (task.Category) {
             const selectedCategoryObj = response.data.find((cat) => cat.name === task.Category);
             if (selectedCategoryObj) {
-              axios.get(`http://localhost:3000/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((subResponse) => setSubCategory(subResponse.data));
+              axios.get(`${window.API_BASE}/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((subResponse) => setSubCategory(subResponse.data));
             }
           }
         });
@@ -146,7 +146,7 @@ function UserHome() {
     updateData.shootCount = selectedSubCatUpdate && selectedSubCatUpdate.id == 32 ? 1 : 0;
     if (!updateData.task_date) updateData.task_date = new Date().toISOString().split("T")[0];
 
-    axios.post("http://localhost:3000/api/update-task", updateData)
+    axios.post(window.API_BASE + "/api/update-task", updateData)
       .then(() => {
         const taskDate = new Date(updateData.task_date);
         setDate(taskDate);
@@ -165,7 +165,7 @@ function UserHome() {
 
   const handleDeleteTask = (id) => {
     if (window.confirm("Are You Sure Remove Today Task !")) {
-      axios.post("http://localhost:3000/api/delete-task", { id })
+      axios.post(window.API_BASE + "/api/delete-task", { id })
         .then(() => {
           toast.success("Task Removed");
           fetchTasks(date);
@@ -173,20 +173,18 @@ function UserHome() {
     }
   };
 
-  const fetchProjectListData = () => { axios.get("http://localhost:3000/api/projects").then((res) => setAllProject(res.data)); };
+  const fetchProjectListData = () => { axios.get(window.API_BASE + "/api/projects").then((res) => setAllProject(res.data)); };
   const particularProject = () => {
-    axios.get(`http://localhost:3000/api/getProject/${user.id}`).then((res) => {
+    axios.get(`${window.API_BASE}/api/getProject/${user.id}`).then((res) => {
       const particular_project = res.data;
       setUserProject(particular_project);
-      const matchedProjects = particular_project.map(p => allProject.find(ap => ap.id == p.project_id)).filter(Boolean);
-      setProjects(matchedProjects);
+      setProjects(allProject);
       handleProjectsChange();
     });
   };
 
   const particularCategory = () => {
-    const matchedCate = userProject.map(p => allCategory.find(ac => ac.id == p.category_id)).filter(Boolean);
-    setCategory(matchedCate);
+    setCategory(allCategory);
   };
 
   const handleProjectsChange = (e) => {
@@ -194,10 +192,10 @@ function UserHome() {
     if (!projectId) return;
     setSelectedProjects(projectId);
     setFormData((prev) => ({ ...prev, ProjectOrClientName: projectId }));
-    axios.get(`http://localhost:3000/api/category-list?projects_id=${projectId}`).then((res) => {
+    axios.get(`${window.API_BASE}/api/category-list?projects_id=${projectId}`).then((res) => {
       setAllCategory(res.data);
-      const matchedCate = userProject.map(p => res.data.find(c => c.id == p.category_id)).filter(Boolean);
-      setCategory(matchedCate);
+      setCategory(res.data);
+
       if (!isUpdate) { setSubCategory([]); setSelectedCategory(""); }
     });
   };
@@ -208,7 +206,7 @@ function UserHome() {
     if (!selectedCategoryObj) return;
     setSelectedCategory(categoryId);
     setFormData((prev) => ({ ...prev, Category: categoryId, CategoryName: selectedCategoryObj.name, subCategory: "" }));
-    axios.get(`http://localhost:3000/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((res) => setSubCategory(res.data));
+    axios.get(`${window.API_BASE}/api/sub-category-list?category_id=${selectedCategoryObj.id}`).then((res) => setSubCategory(res.data));
   };
 
   useEffect(() => { fetchProjectListData(); fetchTasks(date); }, [date]);
@@ -253,7 +251,7 @@ function UserHome() {
       const fd = new FormData();
       fd.append("user_id", user?.id); fd.append("latitude", loc.latitude); fd.append("longitude", loc.longitude); fd.append("selfie", checkInSelfieBlob, "in.webp");
       try {
-        const res = await axios.post("http://localhost:3000/api/checkInAttend", fd);
+        const res = await axios.post(window.API_BASE + "/api/checkInAttend", fd);
         if (res.data.success) { getCheckInData(); toast.success("Identity Verified: Check-in OK"); }
       } catch (e) { console.error(e); } finally { setLoading(false); }
     })();
@@ -268,13 +266,20 @@ function UserHome() {
       const fd = new FormData();
       fd.append("user_id", user?.id); fd.append("latitude", loc.latitude); fd.append("longitude", loc.longitude); fd.append("selfie", checkOutSelfieBlob, "out.webp");
       try {
-        const res = await axios.put("http://localhost:3000/api/checkOutAttend", fd);
+        const res = await axios.put(window.API_BASE + "/api/checkOutAttend", fd);
         if (res.data.success) { getCheckInData(); toast.success(`Check-out OK: ${res.data.work_minutes} min`); }
       } catch (e) { console.error(e); } finally { setLoading(false); }
     })();
   }, [checkOutSelfieBlob]);
 
-  const getCheckInData = () => axios.get(`http://localhost:3000/api/getCheckInByUser/${user?.id}`).then(res => setCheckInData(res.data));
+  const getCheckInData = () => {
+    const stored = localStorage.getItem("user");
+    const parsed = stored ? JSON.parse(stored) : user;
+    const userId = parsed?.id || parsed?.user_id || parsed?._id;
+    if (userId) {
+      axios.get(`${window.API_BASE}/api/getCheckInByUser/${userId}`).then(res => setCheckInData(res.data)).catch(e => console.error(e));
+    }
+  };
   useEffect(() => { getCheckInData(); }, []);
 
   // ═══ Metrics Calculation ═══
@@ -328,20 +333,42 @@ function UserHome() {
 
         {/* ═══ Metrics Monitor Grid ═══ */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><FaSignInAlt size={14} /></div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Login Time</p>
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><FaSignInAlt size={14} /></div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Login Time</p>
+              </div>
+              <p className="text-xl font-black text-slate-800 tracking-tight">{checkInData[0]?.login_time ? moment(checkInData[0].login_time, "HH:mm:ss").format("hh:mm A") : "--:--"}</p>
             </div>
-            <p className="text-xl font-black text-slate-800 tracking-tight">{checkInData[0]?.login_time ? moment(checkInData[0].login_time, "HH:mm:ss").format("hh:mm A") : "--:--"}</p>
+            {checkInData[0]?.login_selfie_url && (
+              <img
+                src={`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${checkInData[0].login_selfie_url}`}
+                alt="Login Selfie"
+                className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-100 shadow-md cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => window.open(`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${checkInData[0].login_selfie_url}`, '_blank')}
+                title="Click to view full selfie"
+              />
+            )}
           </div>
 
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-rose-50 text-rose-600 rounded-lg"><FaSignOutAlt size={14} /></div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logout Time</p>
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-rose-50 text-rose-600 rounded-lg"><FaSignOutAlt size={14} /></div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logout Time</p>
+              </div>
+              <p className="text-xl font-black text-slate-800 tracking-tight">{checkInData[0]?.logout_time ? moment(checkInData[0].logout_time, "HH:mm:ss").format("hh:mm A") : "--:--"}</p>
             </div>
-            <p className="text-xl font-black text-slate-800 tracking-tight">{checkInData[0]?.logout_time ? moment(checkInData[0].logout_time, "HH:mm:ss").format("hh:mm A") : "--:--"}</p>
+            {checkInData[0]?.logout_selfie_url && (
+              <img
+                src={`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${checkInData[0].logout_selfie_url}`}
+                alt="Logout Selfie"
+                className="w-12 h-12 rounded-xl object-cover border-2 border-rose-100 shadow-md cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => window.open(`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${checkInData[0].logout_selfie_url}`, '_blank')}
+                title="Click to view full selfie"
+              />
+            )}
           </div>
 
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm overflow-hidden relative">

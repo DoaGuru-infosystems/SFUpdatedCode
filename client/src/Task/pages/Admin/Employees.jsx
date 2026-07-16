@@ -49,7 +49,7 @@ const EmployeePage = ({ userRole }) => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get("http://localhost:3000/api/users");
+      const { data } = await axios.get(window.API_BASE + "/api/users");
       setUsers(data);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -72,7 +72,7 @@ const EmployeePage = ({ userRole }) => {
         salary_amount: selectedEmployee.salary_amount,
       };
 
-      await axios.put(`http://localhost:3000/api/Update-Employee-Details`, updatedData);
+      await axios.put(`${window.API_BASE}/api/Update-Employee-Details`, updatedData);
       setUsers(users.map(u => u.id === selectedEmployee.id ? { ...u, ...updatedData } : u));
       setIsModalOpen(false);
       alert("Employee details updated successfully.");
@@ -87,7 +87,7 @@ const EmployeePage = ({ userRole }) => {
     if (window.confirm("Are you sure? This action cannot be undone.")) {
       setDeletingId(id);
       try {
-        await axios.delete(`http://localhost:3000/api/delete-employee/${id}`);
+        await axios.delete(`${window.API_BASE}/api/delete-employee/${id}`);
         setUsers(users.filter(u => u.id !== id));
       } catch (error) {
         alert("Failed to delete the employee.");

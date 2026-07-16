@@ -25,7 +25,7 @@ function LoginPage({ setRender }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
+    const API_BASE = window.location.hostname === "localhost" ? window.API_BASE : "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/login`, { emailId, password })
 
@@ -64,7 +64,7 @@ function LoginPage({ setRender }) {
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
-    const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
+    const API_BASE = window.location.hostname === "localhost" ? window.API_BASE : "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/admin-login`, { emailId, password })
       .then((response) => {

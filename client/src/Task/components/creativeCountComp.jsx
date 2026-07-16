@@ -17,7 +17,7 @@ const CreativeCountComp = ({ userId }) => {
     e.preventDefault();
     // Add validation if needed
     try {
-      await axios.post("http://localhost:3000/api/add-creative-count", {
+      await axios.post(window.API_BASE + "/api/add-creative-count", {
         user_id: userId,
         ...counts,
       });

@@ -87,7 +87,7 @@ const UpdateEmployeeModal = ({
       }
 
       const response = await axios.put(
-        `http://localhost:3000/api/updateEmployeeKyc/${empId}`,
+        `${window.API_BASE}/api/updateEmployeeKyc/${empId}`,
         fd,
         {
           headers: {
@@ -140,7 +140,7 @@ const UpdateEmployeeModal = ({
                 </label>
                 {employee?.profileIMG && (
                   <img
-                    src={employee.profileIMG?.replace("http://localhost:3000", "http://localhost:3000")}
+                    src={employee.profileIMG?.replace(window.API_BASE, window.API_BASE)}
                     alt="Current Profile"
                     className="w-16 h-16 rounded-full object-cover mb-2 border"
                   />

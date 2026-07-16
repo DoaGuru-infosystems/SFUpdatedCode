@@ -21,7 +21,7 @@ const AdminPasswordReset = () => {
     if (!email) return setMessage("Please enter a valid email.");
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:3000/api/sendOtp", {
+      const res = await axios.post(window.API_BASE + "/api/sendOtp", {
         email,
       });
       setStep(2);
@@ -37,7 +37,7 @@ const AdminPasswordReset = () => {
     if (!otp) return setMessage("Enter the OTP received.");
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:3000/api/verifyOtp", {
+      const res = await axios.post(window.API_BASE + "/api/verifyOtp", {
         email,
         otp,
       });
@@ -57,7 +57,7 @@ const AdminPasswordReset = () => {
     setLoading(true);
     try {
       const res = await axios.put(
-        "http://localhost:3000/api/adminResetPassword",
+        window.API_BASE + "/api/adminResetPassword",
         {
           email,
           password,

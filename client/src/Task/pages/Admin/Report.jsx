@@ -93,7 +93,7 @@ const TaskReportDownload = () => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:3000/api/users")
+      .get(window.API_BASE + "/api/users")
       .then((response) => setUsers(response.data))
       .catch((error) => console.error("Error fetching users:", error));
   }, []);
@@ -101,7 +101,7 @@ const TaskReportDownload = () => {
   useEffect(() => {
     if (selectedUserId) {
       setIsLoading(true);
-      let url = `http://localhost:3000/api/getUserTasks/${selectedUserId}`;
+      let url = `${window.API_BASE}/api/getUserTasks/${selectedUserId}`;
       const params = new URLSearchParams();
       if (month) params.append("month", month);
       if (year) params.append("year", year);
@@ -173,7 +173,7 @@ const TaskReportDownload = () => {
 
   const handleDownload = () => {
     if (!selectedUserId) return alert('Select a user first');
-    let downloadUrl = `http://localhost:3000/api/downloadUserTasks/${selectedUserId}`;
+    let downloadUrl = `${window.API_BASE}/api/downloadUserTasks/${selectedUserId}`;
     const params = new URLSearchParams();
     if (month) params.append("month", month);
     if (year) params.append("year", year);
@@ -199,7 +199,7 @@ const TaskReportDownload = () => {
 
   const currentFormattedDate = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
   useEffect(() => {
-    axios.get(`http://localhost:3000/api/checkNoTaskEmployee/${currentFormattedDate}`)
+    axios.get(`${window.API_BASE}/api/checkNoTaskEmployee/${currentFormattedDate}`)
       .then(res => setDefaulter(res.data))
       .catch(e => console.log(e));
   }, []);

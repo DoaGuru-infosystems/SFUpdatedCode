@@ -20,7 +20,7 @@ const CommitmentManagement = ({ employeeId, readOnly = false }) => {
 
     const fetchUniqueRoles = async () => {
         try {
-            const { data } = await axios.get('http://localhost:3000/api/commitments/roles');
+            const { data } = await axios.get(window.API_BASE + '/api/commitments/roles');
             if (data.success && data.data.length > 0) {
                 // Merge default roles with DB roles, keeping them unique
                 const defaults = ['Collaborator', 'Team Lead', 'Manager', 'Executor', 'Support'];
@@ -34,7 +34,7 @@ const CommitmentManagement = ({ employeeId, readOnly = false }) => {
 
     const fetchCommitments = async () => {
         try {
-            const { data } = await axios.get(`http://localhost:3000/api/commitments/history/${employeeId}`);
+            const { data } = await axios.get(`${window.API_BASE}/api/commitments/history/${employeeId}`);
             if (data.success) {
                 setCommitments(data.data);
             }
@@ -55,7 +55,7 @@ const CommitmentManagement = ({ employeeId, readOnly = false }) => {
 
         try {
             if (editModeId) {
-                const { data } = await axios.put(`http://localhost:3000/api/commitments/update/${editModeId}`, {
+                const { data } = await axios.put(`${window.API_BASE}/api/commitments/update/${editModeId}`, {
                     commitment_text: commitmentText,
                     role: role
                 });
@@ -66,7 +66,7 @@ const CommitmentManagement = ({ employeeId, readOnly = false }) => {
                     fetchUniqueRoles();
                 }
             } else {
-                const { data } = await axios.post('http://localhost:3000/api/commitments/add', {
+                const { data } = await axios.post(window.API_BASE + '/api/commitments/add', {
                     commitment_text: commitmentText,
                     role: role,
                     employee_id: employeeId
@@ -93,7 +93,7 @@ const CommitmentManagement = ({ employeeId, readOnly = false }) => {
     const deleteRecord = async (id) => {
         if (!window.confirm('Are you sure you want to delete this commitment?')) return;
         try {
-            await axios.delete(`http://localhost:3000/api/commitments/delete/${id}`);
+            await axios.delete(`${window.API_BASE}/api/commitments/delete/${id}`);
             toast.success('Commitment deleted');
             fetchCommitments();
         } catch (error) {

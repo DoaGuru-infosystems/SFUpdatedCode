@@ -25,7 +25,7 @@ const EmployeeLeaveReport = () => {
   const getUserAttendanceById = async () => {
     try {
       const { data } = await axios.get(
-        `http://localhost:3000/api/getMonthlyEmployeeLeavesByUserId/${user?.id}/${month}/${year}`
+        `${window.API_BASE}/api/getMonthlyEmployeeLeavesByUserId/${user?.id}/${month}/${year}`
       );
       setAttendData(data);
     } catch (error) {

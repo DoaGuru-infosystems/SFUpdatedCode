@@ -19,7 +19,7 @@ const AddHolidayModal = ({ isOpen, onClose, fetchLeaveData }) => {
       );
 
       const promises = formattedDates.map((date) =>
-        axios.post("http://localhost:3000/api/addHolidayManually", {
+        axios.post(window.API_BASE + "/api/addHolidayManually", {
           title,
           date,
           status,

@@ -1363,6 +1363,135 @@ const markNotificationAsRead = (req, res) => {
   });
 };
 
+const isSameDepartment = (leadDept, empDept) => {
+  if (!leadDept || !empDept) return false;
+  const lead = String(leadDept).trim().toLowerCase();
+  const emp = String(empDept).trim().toLowerCase();
+  if (lead === emp) return true;
+  if ((emp.includes('dev') || emp === 'it' || emp.includes('web')) && (lead.includes('dev') || lead === 'it' || lead.includes('web'))) return true;
+  if ((emp.includes('market') || emp.includes('seo') || emp.includes('social') || emp.includes('video') || emp.includes('graphic')) && 
+      (lead.includes('market') || lead.includes('seo') || lead.includes('social') || lead.includes('video') || lead.includes('graphic'))) return true;
+  return false;
+};
+
+const notifyAllAssignment = ({ employeeId, assignedBy = 'Admin', details, title = 'System Task Assignment' }) => {
+  const sql = `SELECT id, role, designation, full_name, department FROM task_users WHERE role IN ('admin', 'team_lead') OR LOWER(designation) LIKE '%lead%' OR id = ?`;
+  db.query(sql, [employeeId || 0], (err, users) => {
+    if (err || !users || users.length === 0) return;
+
+    const targetEmp = users.find(u => u.id === parseInt(employeeId));
+    const empName = targetEmp ? targetEmp.full_name : `Employee ID ${employeeId}`;
+    const empDept = (targetEmp && targetEmp.department) ? targetEmp.department.trim().toLowerCase() : '';
+
+    const recipients = users.filter(u => {
+      if (u.id === parseInt(employeeId)) return true; // Target employee gets notified
+      if (u.role === 'admin') return true; // Admin gets notified
+      const isLead = u.role === 'team_lead' || (u.designation && u.designation.toLowerCase().includes('lead'));
+      if (isLead && empDept && isSameDepartment(u.department, empDept)) return true;
+      return false;
+    });
+
+    const empMsg = `${assignedBy} has assigned you a new task: ${details}`;
+    const leadMsg = `${assignedBy} assigned a new task to ${empName}: ${details}`;
+
+    db.query(`SELECT id FROM scheduler_reminders WHERE title = ? LIMIT 1`, [title], (errRem, reminders) => {
+      const proceedInsert = (rId) => {
+        const processedIds = new Set();
+        recipients.forEach(u => {
+          if (processedIds.has(u.id)) return;
+          processedIds.add(u.id);
+
+          const isTargetEmp = u.id === parseInt(employeeId);
+          const msg = isTargetEmp ? empMsg : leadMsg;
+          const notifSql = `
+            INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status)
+            VALUES (?, ?, 'inapp', ?, 'sent')
+          `;
+          db.query(notifSql, [rId, u.id, msg], (errInsert, result) => {
+            if (!errInsert && result && result.insertId) {
+              try {
+                socketUtil.getIO().emit("new-scheduler-notification", {
+                  id: result.insertId,
+                  employee_id: u.id,
+                  message_body: msg
+                });
+              } catch (e) {}
+            }
+          });
+        });
+      };
+
+      if (!errRem && reminders.length > 0) {
+        proceedInsert(reminders[0].id);
+      } else {
+        db.query(`INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type) VALUES (?, CURDATE(), '00:00:00', 'single')`, [title], (errCreate, resCreate) => {
+          if (!errCreate && resCreate && resCreate.insertId) {
+            proceedInsert(resCreate.insertId);
+          }
+        });
+      }
+    });
+
+    addAdminNotification(employeeId || 0, empName, "Task Assignment", leadMsg);
+  });
+};
+
+const notifyAllUpdate = ({ employeeId, employeeName, details, title = 'System Task Update' }) => {
+  const sql = `SELECT id, role, designation, full_name, department FROM task_users WHERE role IN ('admin', 'team_lead') OR LOWER(designation) LIKE '%lead%' OR id = ?`;
+  db.query(sql, [employeeId || 0], (err, users) => {
+    if (err || !users || users.length === 0) return;
+
+    const targetEmp = users.find(u => u.id === parseInt(employeeId));
+    const empDept = (targetEmp && targetEmp.department) ? targetEmp.department.trim().toLowerCase() : '';
+
+    const recipients = users.filter(u => {
+      if (u.id === parseInt(employeeId)) return false; // Employee updating their own task does NOT get notified
+      if (u.role === 'admin') return true; // Admin gets notified
+      const isLead = u.role === 'team_lead' || (u.designation && u.designation.toLowerCase().includes('lead'));
+      if (isLead && empDept && isSameDepartment(u.department, empDept)) return true;
+      return false;
+    });
+
+    db.query(`SELECT id FROM scheduler_reminders WHERE title = ? LIMIT 1`, [title], (errRem, reminders) => {
+      const proceedInsert = (rId) => {
+        const processedIds = new Set();
+        recipients.forEach(u => {
+          if (processedIds.has(u.id)) return;
+          processedIds.add(u.id);
+
+          const notifSql = `
+            INSERT INTO scheduler_notifications (reminder_id, employee_id, channel_type, message_body, delivery_status)
+            VALUES (?, ?, 'inapp', ?, 'sent')
+          `;
+          db.query(notifSql, [rId, u.id, details], (errInsert, result) => {
+            if (!errInsert && result && result.insertId) {
+              try {
+                socketUtil.getIO().emit("new-scheduler-notification", {
+                  id: result.insertId,
+                  employee_id: u.id,
+                  message_body: details
+                });
+              } catch (e) {}
+            }
+          });
+        });
+      };
+
+      if (!errRem && reminders.length > 0) {
+        proceedInsert(reminders[0].id);
+      } else {
+        db.query(`INSERT INTO scheduler_reminders (title, reminder_date, reminder_time, assignment_type) VALUES (?, CURDATE(), '00:00:00', 'single')`, [title], (errCreate, resCreate) => {
+          if (!errCreate && resCreate && resCreate.insertId) {
+            proceedInsert(resCreate.insertId);
+          }
+        });
+      }
+    });
+
+    addAdminNotification(employeeId || 0, employeeName || 'Employee', "task", details);
+  });
+};
+
 module.exports = {
   loginReminder,
   scheduleLoginReminder,
@@ -1380,5 +1509,7 @@ module.exports = {
   addAdminNotification,
   getAdminNotifications,
   markNotificationAsRead,
-  saveSubscription
+  saveSubscription,
+  notifyAllAssignment,
+  notifyAllUpdate
 }

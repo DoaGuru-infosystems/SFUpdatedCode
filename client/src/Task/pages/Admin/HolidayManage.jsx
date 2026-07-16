@@ -32,7 +32,7 @@ const HolidayManage = () => {
     setLoading(true);
     try {
       const { data } = await axios.get(
-        `http://localhost:3000/api/getAllHolidaysCurrentYear?year=${selectedYear}`
+        `${window.API_BASE}/api/getAllHolidaysCurrentYear?year=${selectedYear}`
       );
       setHolidayData(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -46,7 +46,7 @@ const HolidayManage = () => {
   const updateHolidayStatus = async (id, status) => {
     if (!window.confirm(`Do you want to update status to ${status.toUpperCase()}?`)) return;
     try {
-      await axios.put(`http://localhost:3000/api/updateHolidayStatus/${id}`, { status });
+      await axios.put(`${window.API_BASE}/api/updateHolidayStatus/${id}`, { status });
       toast.success(`Holiday is now ${status}`);
       fetchHolidayData();
     } catch (error) {
@@ -57,7 +57,7 @@ const HolidayManage = () => {
   const deleteHolidays = async (id) => {
     if (!window.confirm(`Confirm permanent deletion of this holiday?`)) return;
     try {
-      await axios.delete(`http://localhost:3000/api/deleteHoliday/${id}`);
+      await axios.delete(`${window.API_BASE}/api/deleteHoliday/${id}`);
       toast.success(`Holiday removed successfully`);
       fetchHolidayData();
     } catch (error) {

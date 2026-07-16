@@ -13,14 +13,14 @@ const getNotifications = async (req, res, next) => {
       let countSql = `
         SELECT COUNT(DISTINCT n.id) as total
         FROM scheduler_notifications n
-        JOIN task_users u ON n.employee_id = u.id
-        JOIN scheduler_reminders r ON n.reminder_id = r.id
+        LEFT JOIN task_users u ON n.employee_id = u.id
+        LEFT JOIN scheduler_reminders r ON n.reminder_id = r.id
       `;
       let sql = `
-        SELECT n.*, u.full_name AS employee_name, r.title AS reminder_title
+        SELECT n.*, COALESCE(u.full_name, 'System User') AS employee_name, COALESCE(r.title, 'Task Notification') AS reminder_title
         FROM scheduler_notifications n
-        JOIN task_users u ON n.employee_id = u.id
-        JOIN scheduler_reminders r ON n.reminder_id = r.id
+        LEFT JOIN task_users u ON n.employee_id = u.id
+        LEFT JOIN scheduler_reminders r ON n.reminder_id = r.id
       `;
       const params = [], conditions = [];
       if (employee_id) {
@@ -103,15 +103,15 @@ const getUnreadNotifications = async (req, res, next) => {
       let countSql = `
         SELECT COUNT(DISTINCT n.id) as total
         FROM scheduler_notifications n
-        JOIN task_users u ON n.employee_id = u.id
-        JOIN scheduler_reminders r ON n.reminder_id = r.id
+        LEFT JOIN task_users u ON n.employee_id = u.id
+        LEFT JOIN scheduler_reminders r ON n.reminder_id = r.id
         WHERE n.is_read = 0
       `;
       let sql = `
-        SELECT n.*, u.full_name AS employee_name, r.title AS reminder_title
+        SELECT n.*, COALESCE(u.full_name, 'System User') AS employee_name, COALESCE(r.title, 'Task Notification') AS reminder_title
         FROM scheduler_notifications n
-        JOIN task_users u ON n.employee_id = u.id
-        JOIN scheduler_reminders r ON n.reminder_id = r.id
+        LEFT JOIN task_users u ON n.employee_id = u.id
+        LEFT JOIN scheduler_reminders r ON n.reminder_id = r.id
         WHERE n.is_read = 0
       `;
       const params = [];
@@ -186,14 +186,14 @@ const getNotificationHistory = async (req, res, next) => {
       let countSql = `
         SELECT COUNT(DISTINCT n.id) as total
         FROM scheduler_notifications n
-        JOIN task_users u ON n.employee_id = u.id
-        JOIN scheduler_reminders r ON n.reminder_id = r.id
+        LEFT JOIN task_users u ON n.employee_id = u.id
+        LEFT JOIN scheduler_reminders r ON n.reminder_id = r.id
       `;
       let sql = `
-        SELECT n.*, u.full_name AS employee_name, r.title AS reminder_title
+        SELECT n.*, COALESCE(u.full_name, 'System User') AS employee_name, COALESCE(r.title, 'Task Notification') AS reminder_title
         FROM scheduler_notifications n
-        JOIN task_users u ON n.employee_id = u.id
-        JOIN scheduler_reminders r ON n.reminder_id = r.id
+        LEFT JOIN task_users u ON n.employee_id = u.id
+        LEFT JOIN scheduler_reminders r ON n.reminder_id = r.id
       `;
       const params = [], conditions = [];
       if (employee_id) {

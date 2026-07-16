@@ -106,8 +106,8 @@ export default function ReminderForm() {
       const fetchReminder = async () => {
         try {
           const apiUrl = window.location.hostname === 'localhost'
-            ? 'http://localhost:8080'
-            : (process.env.REACT_APP_API_URL || 'http://localhost:3000');
+            ? window.API_BASE
+            : (process.env.REACT_APP_API_URL || 'https://sf.doaguru.com');
           const res = await axios.get(`${apiUrl}/api/scheduler/reminders/${id}`);
           const data = res.data;
 

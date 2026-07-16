@@ -7,8 +7,20 @@ const nodemailer = require("nodemailer");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
+const fs = require("fs");
 const http = require("http");
 const socketUtil = require("./utils/socket");
+
+// Ensure upload directories exist on startup
+const uploadDirs = ["uploads", "uploads/employees", "selfiePicture"];
+uploadDirs.forEach((dir) => {
+  const fullPath = path.join(__dirname, dir);
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true });
+    console.log(`📁 Created upload directory: ${fullPath}`);
+  }
+});
+
 const app = express();
 app.set("trust proxy", true);
 const server = http.createServer(app);

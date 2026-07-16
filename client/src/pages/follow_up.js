@@ -25,7 +25,7 @@ function FollowUpPage() {
     e.preventDefault();
     console.log(leadReport);
     setLeadReport(defaultData);
-    axios.post('http://localhost:3000/insertfollowup', { u_Id: user.u_Id, lead_Id, ...leadReport })
+    axios.post(window.API_BASE + '/insertfollowup', { u_Id: user.u_Id, lead_Id, ...leadReport })
       .then((res) => {
         console.log(res.data);
         alert("Successfully added follow up report.");
@@ -53,7 +53,7 @@ function FollowUpPage() {
     } else {
       console.log('Modal header not found');
     }
-    axios.put(`http://localhost:3000/updateFollowReport`, { report_id: followUp[index].report_id, ...leadReport })
+    axios.put(`${window.API_BASE}/updateFollowReport`, { report_id: followUp[index].report_id, ...leadReport })
       .then((res) => {
         console.log(res.data);
         setNowEffect(!nowEffect);
@@ -64,7 +64,7 @@ function FollowUpPage() {
   }
 
   useEffect(() => {
-    axios.get(`http://localhost:3000/getlead/${user.u_Id}`)
+    axios.get(`${window.API_BASE}/getlead/${user.u_Id}`)
       .then((res) => {
         let followUpArr = [...res.data.followUp];
         let leadArr = [...res.data.lead];

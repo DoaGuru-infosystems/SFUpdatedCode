@@ -9,7 +9,7 @@ import {
 import moment from "moment";
 import toast from "react-hot-toast";
 
-const API_BASE_URL = "http://localhost:3000/api";
+const API_BASE_URL = window.API_BASE + "/api";
 
 const BackdateAttendRequest = () => {
   const [requestData, setRequestData] = useState([]);

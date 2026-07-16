@@ -18,7 +18,7 @@ import {
 import * as XLSX from "xlsx";
 import BackdatedAttendModal from "./BackdatedAttendModal";
 
-const API_BASE_URL = "http://localhost:3000/api";
+const getApiBase = () => (window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")) + "/api";
 
 /* ─────────────────── helpers ─────────────────── */
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -35,7 +35,7 @@ const STATUS_CONFIG = {
 
 const EmployeeAttendReport = () => {
   const storedUser = localStorage.getItem("user");
-  const user = JSON.parse(storedUser);
+  const user = storedUser ? JSON.parse(storedUser) : null;
 
   const [attendData, setAttendData] = useState([]);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -47,23 +47,31 @@ const EmployeeAttendReport = () => {
   const [openModal, setOpenModal] = useState(false);
 
   const fetchData = async () => {
+    const stored = localStorage.getItem("user");
+    const parsedUser = stored ? JSON.parse(stored) : user;
+    const userId = parsedUser?.id || parsedUser?.user_id || parsedUser?._id;
+    if (!userId) return;
     try {
+      const apiBase = getApiBase();
       const [a, h, l] = await Promise.all([
-        axios.get(`${API_BASE_URL}/getCheckInByUserIdOnly/${user?.id}/${month}/${year}`),
-        axios.get(`${API_BASE_URL}/getHolidaysByMonthYear/${month}/${year}`),
-        axios.get(`${API_BASE_URL}/getMonthlyEmployeeLeavesByUserId/${user?.id}/${month}/${year}`)
+        axios.get(`${apiBase}/getCheckInByUserIdOnly/${userId}/${month}/${year}`),
+        axios.get(`${apiBase}/getHolidaysByMonthYear/${month}/${year}`),
+        axios.get(`${apiBase}/getMonthlyEmployeeLeavesByUserId/${userId}/${month}/${year}`)
       ]);
       setAttendData(Array.isArray(a.data) ? a.data : []);
       setHolidays(h.data?.data || []);
       setLeavesData(Array.isArray(l.data) ? l.data : []);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("fetchData error:", e); }
   };
 
   const getAllBackDateReq = async () => {
-    if (!user?.id) return;
+    const stored = localStorage.getItem("user");
+    const parsedUser = stored ? JSON.parse(stored) : user;
+    const userId = parsedUser?.id || parsedUser?.user_id || parsedUser?._id;
+    if (!userId) return;
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/getAllBackDateRequestBYId/${user?.id}`);
-      // Sort by request_id or date to show latest first
+      const apiBase = getApiBase();
+      const { data } = await axios.get(`${apiBase}/getAllBackDateRequestBYId/${userId}`);
       const sortedData = Array.isArray(data) ? data.sort((a, b) => b.request_id - a.request_id) : [];
       setRequestData(sortedData);
     } catch (e) { console.error("Error fetching backdate requests:", e); }
@@ -81,16 +89,37 @@ const EmployeeAttendReport = () => {
     const daysInMonth = new Date(year, month, 0).getDate();
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const attendMap = {};
-    attendData.forEach(r => attendMap[moment(r.attend_date, ["DD-MM-YYYY", "YYYY-MM-DD"]).format("YYYY-MM-DD")] = r);
+    attendData.forEach(r => {
+      if (r && r.attend_date) {
+        const formattedDate = moment(r.attend_date, ["DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"]).format("YYYY-MM-DD");
+        if (formattedDate !== "Invalid date") {
+          attendMap[formattedDate] = r;
+        }
+      }
+    });
     const holidayMap = {};
-    holidays.forEach(h => holidayMap[moment(h.holiday_date, ["DD-MM-YYYY", "YYYY-MM-DD"]).format("YYYY-MM-DD")] = h);
+    holidays.forEach(h => {
+      if (h && h.holiday_date) {
+        const formattedDate = moment(h.holiday_date, ["DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"]).format("YYYY-MM-DD");
+        if (formattedDate !== "Invalid date") {
+          holidayMap[formattedDate] = h;
+        }
+      }
+    });
     const leaveMap = {};
-    leavesData.forEach(l => { if (l.leave_status === "approved") leaveMap[moment(l.leave_date, ["DD-MM-YYYY", "YYYY-MM-DD"]).format("YYYY-MM-DD")] = l; });
+    leavesData.forEach(l => {
+      if (l && l.leave_status === "approved" && l.leave_date) {
+        const formattedDate = moment(l.leave_date, ["DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"]).format("YYYY-MM-DD");
+        if (formattedDate !== "Invalid date") {
+          leaveMap[formattedDate] = l;
+        }
+      }
+    });
 
     const days = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateObj = new Date(year, month - 1, d);
-      const dateStr = moment(dateObj).format("YYYY-MM-DD");
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const isSunday = dateObj.getDay() === 0;
       const attend = attendMap[dateStr]; const holiday = holidayMap[dateStr]; const leave = leaveMap[dateStr];
       let status = dateObj > today ? "future" : isSunday ? "sunday" : holiday ? "holiday" : leave ? "leave" : (attend?.login_time ? (attend.day_status === "half" ? "half" : "full") : "absent");
@@ -116,7 +145,7 @@ const EmployeeAttendReport = () => {
 
   const deleteBackDateRequest = async (id) => {
     if (window.confirm("Delete request?")) {
-      try { await axios.delete(`${API_BASE_URL}/deleteBackDateRequest/${id}`); alert("Deleted"); getAllBackDateReq(); }
+      try { await axios.delete(`${getApiBase()}/deleteBackDateRequest/${id}`); alert("Deleted"); getAllBackDateReq(); }
       catch (e) { alert("Error"); }
     }
   };
@@ -211,10 +240,18 @@ const EmployeeAttendReport = () => {
                       <td className="px-3 py-2.5">
                         {d.attend?.login_time ? (
                           <div className="flex items-center gap-2">
-                            <img src={`http://localhost:3000/${d.attend.login_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
+                            {d.attend.login_selfie_url && (
+                              <img
+                                src={`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.login_selfie_url}`}
+                                className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                                alt="Login Selfie"
+                                onClick={() => window.open(`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.login_selfie_url}`, '_blank')}
+                                title="Click to view full selfie"
+                              />
+                            )}
                             <div className="flex flex-col">
                               <span className="text-slate-700 font-black text-[11px]">{d.attend.login_time.slice(0, 5)}</span>
-                              <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LAT: {d.attend.login_latitude}</span>
+                              {d.attend.login_latitude && <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LAT: {d.attend.login_latitude}</span>}
                             </div>
                           </div>
                         ) : <span className="text-slate-200 italic font-medium px-2">No check-in</span>}
@@ -222,10 +259,18 @@ const EmployeeAttendReport = () => {
                       <td className="px-3 py-2.5">
                         {d.attend?.logout_time ? (
                           <div className="flex items-center gap-2">
-                            <img src={`http://localhost:3000/${d.attend.logout_selfie_url}`} className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm" alt="" />
+                            {d.attend.logout_selfie_url && (
+                              <img
+                                src={`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.logout_selfie_url}`}
+                                className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                                alt="Logout Selfie"
+                                onClick={() => window.open(`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.logout_selfie_url}`, '_blank')}
+                                title="Click to view full selfie"
+                              />
+                            )}
                             <div className="flex flex-col">
                               <span className="text-slate-700 font-black text-[11px]">{d.attend.logout_time.slice(0, 5)}</span>
-                              <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LNG: {d.attend.logout_longitude}</span>
+                              {d.attend.logout_longitude && <span className="text-[8px] text-slate-400 font-bold uppercase leading-none mt-1">LNG: {d.attend.logout_longitude}</span>}
                             </div>
                           </div>
                         ) : <span className="text-slate-200 italic font-medium px-2">No check-out</span>}

@@ -5,6 +5,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import io from "socket.io-client";
+const API_BASE = window.location.hostname === "localhost" ? (window.API_BASE || "http://localhost:8080") : "https://sf.doaguru.com";
 
 const baseNavigation = [
   { name: "Dashboard", href: "/task/UserHome" },
@@ -43,7 +44,6 @@ export default function Navbar({ Logout, render }) {
   useEffect(() => {
     const fetchEmployeeData = async () => {
       try {
-        const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
         const response = await axios.get(
           `${API_BASE}/api/getEmployee/${employeeId.id}`
         );
@@ -62,7 +62,7 @@ export default function Navbar({ Logout, render }) {
         if (!userStr) return;
         const loggedInUser = JSON.parse(userStr);
         const response = await axios.get(
-          `http://localhost:3000/api/scheduler/notifications/unread?employee_id=${loggedInUser.id}`
+          `${API_BASE}/api/scheduler/notifications/unread?employee_id=${loggedInUser.id}`
         );
         setUnreadCount(response.data.length);
       } catch (err) {
@@ -82,7 +82,7 @@ export default function Navbar({ Logout, render }) {
   }, []);
 
   useEffect(() => {
-    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:3000" : "/", {
+    const socket = io(window.location.hostname === 'localhost' ? window.API_BASE : "https://sf.doaguru.com", {
       transports: ["polling", "websocket"],
       withCredentials: true
     });
@@ -99,9 +99,11 @@ export default function Navbar({ Logout, render }) {
         // Play sound
         try {
           const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-          audio.play();
+          audio.play().catch(err => {
+            console.log("Autoplay blocked by browser policy:", err.message);
+          });
         } catch (e) {
-          console.error(e);
+          console.error("Audio playback error:", e);
         }
 
         // Show Native Notification
@@ -194,7 +196,7 @@ export default function Navbar({ Logout, render }) {
 
   // Use optional chaining to avoid accessing properties on null
   const profileImageSrc = profile?.profileIMG
-    ? profile.profileIMG.replace("http://localhost:3000", "http://localhost:3000")
+    ? profile.profileIMG.replace(window.API_BASE, window.API_BASE)
     : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSt9ISaBFDC88ejiGrYACSt81CFq21QsZ6bow&s";
 
   return (

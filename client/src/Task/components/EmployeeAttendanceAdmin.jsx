@@ -74,9 +74,9 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
   const fetchData = async () => {
     try {
       const [h, l, a] = await Promise.all([
-        axios.get(`http://localhost:3000/api/getHolidaysByMonthYear/${month}/${year}`),
-        axios.get(`http://localhost:3000/api/getMonthlyEmployeeLeavesByUserId/${uid}/${month}/${year}`),
-        axios.get(`http://localhost:3000/api/getCheckInByUserIdOnly/${uid}/${month}/${year}`)
+        axios.get(`${window.API_BASE}/api/getHolidaysByMonthYear/${month}/${year}`),
+        axios.get(`${window.API_BASE}/api/getMonthlyEmployeeLeavesByUserId/${uid}/${month}/${year}`),
+        axios.get(`${window.API_BASE}/api/getCheckInByUserIdOnly/${uid}/${month}/${year}`)
       ]);
       setHolidays(h.data?.data || []);
       setLeavesData(Array.isArray(l.data) ? l.data : []);
@@ -86,8 +86,8 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
 
   useEffect(() => { fetchData(); }, [month, year]);
   useEffect(() => {
-    axios.get(`http://localhost:3000/api/getEmployeeSalary/${uid}`).then(res => setSalaryData(res.data));
-    axios.get(`http://localhost:3000/api/UserDataById/${uid}`).then(res => setEmpDetails(res.data[0]));
+    axios.get(`${window.API_BASE}/api/getEmployeeSalary/${uid}`).then(res => setSalaryData(res.data));
+    axios.get(`${window.API_BASE}/api/UserDataById/${uid}`).then(res => setEmpDetails(res.data[0]));
   }, [uid]);
 
   const handleMonthChange = (offset) => {
@@ -150,7 +150,7 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
       }
 
       // Pointed back to local server to check with local database
-      const { data } = await axios.post(`http://localhost:3000/api/SalaryCalculatorsByUser/${uid}`, payload);
+      const { data } = await axios.post(`${window.API_BASE}/api/SalaryCalculatorsByUser/${uid}`, payload);
       setResult(data);
     } catch (e) {
       console.log(e);
@@ -301,10 +301,10 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                               <div className="flex items-center gap-2">
                                 {row.attend.login_selfie_url && (
                                   <img
-                                    src={`http://localhost:3000/${row.attend.login_selfie_url}`}
+                                    src={`${window.API_BASE}/${row.attend.login_selfie_url}`}
                                     className="w-8 h-8 rounded object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                                     alt="Login Selfie"
-                                    onClick={() => window.open(`http://localhost:3000/${row.attend.login_selfie_url}`, '_blank')}
+                                    onClick={() => window.open(`${window.API_BASE}/${row.attend.login_selfie_url}`, '_blank')}
                                     title="Click to view full selfie"
                                   />
                                 )}
@@ -317,10 +317,10 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                               <div className="flex items-center gap-2">
                                 {row.attend.logout_selfie_url && (
                                   <img
-                                    src={`http://localhost:3000/${row.attend.logout_selfie_url}`}
+                                    src={`${window.API_BASE}/${row.attend.logout_selfie_url}`}
                                     className="w-8 h-8 rounded object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                                     alt="Logout Selfie"
-                                    onClick={() => window.open(`http://localhost:3000/${row.attend.logout_selfie_url}`, '_blank')}
+                                    onClick={() => window.open(`${window.API_BASE}/${row.attend.logout_selfie_url}`, '_blank')}
                                     title="Click to view full selfie"
                                   />
                                 )}
@@ -542,7 +542,7 @@ const EmployeeAttendanceAdmin = ({ userRole }) => {
                       </p>
                       <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 inline-block shadow-inner group transition-all hover:scale-105">
                         <img
-                          src={`http://localhost:3000/${empDetails.bank_barcode}`}
+                          src={`${window.API_BASE}/${empDetails.bank_barcode}`}
                           alt="Payment QR"
                           className="w-32 h-32 object-contain contrast-125 mix-blend-multiply"
                         />

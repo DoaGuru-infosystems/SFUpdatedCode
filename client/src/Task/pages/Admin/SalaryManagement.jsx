@@ -30,7 +30,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
 
     const fetchHistory = async () => {
         try {
-            const { data } = await axios.get(`http://localhost:3000/api/salary/history/${employeeId}`);
+            const { data } = await axios.get(`${window.API_BASE}/api/salary/history/${employeeId}`);
             if (data.success) {
                 setHistory(data.data);
             }
@@ -60,7 +60,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
 
         try {
             if (editModeId) {
-                const { data } = await axios.put(`http://localhost:3000/api/salary/update/${editModeId}`, {
+                const { data } = await axios.put(`${window.API_BASE}/api/salary/update/${editModeId}`, {
                     ...formData,
                     payment_duration: formattedDuration
                 });
@@ -71,7 +71,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
                     fetchHistory();
                 }
             } else {
-                const { data } = await axios.post('http://localhost:3000/api/salary/pay', {
+                const { data } = await axios.post(window.API_BASE + '/api/salary/pay', {
                     ...formData,
                     payment_duration: formattedDuration,
                     employee_id: employeeId
@@ -107,7 +107,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
 
     const clearBalance = async (paymentId, total, currentPaid) => {
         try {
-            const { data } = await axios.put(`http://localhost:3000/api/salary/update/${paymentId}`, {
+            const { data } = await axios.put(`${window.API_BASE}/api/salary/update/${paymentId}`, {
                 amount_paid: total,
                 remaining_paid_date: getTodayLocal()
             });
@@ -123,7 +123,7 @@ const SalaryManagement = ({ employeeId, baseSalary }) => {
     const deleteRecord = async (id) => {
         if (!window.confirm('Are you sure you want to delete this record?')) return;
         try {
-            await axios.delete(`http://localhost:3000/api/salary/delete/${id}`);
+            await axios.delete(`${window.API_BASE}/api/salary/delete/${id}`);
             toast.success('Record deleted');
             fetchHistory();
         } catch (error) {

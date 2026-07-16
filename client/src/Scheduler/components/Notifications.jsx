@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import '../scheduler.css';
 
-const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8080' : '';
+const API_BASE = window.location.hostname === 'localhost' ? (window.API_BASE || 'http://localhost:8080') : 'https://sf.doaguru.com';
 
 const parseNotificationBody = (messageBody) => {
   if (!messageBody) return null;
@@ -464,7 +464,7 @@ export default function Notifications() {
   }, [fetchUnreadNotifications]);
 
   useEffect(() => {
-    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:8080" : "/", {
+    const socket = io(window.location.host === 'localhost:3000' ? window.API_BASE : "/", {
       transports: ["polling", "websocket"],
       withCredentials: true
     });

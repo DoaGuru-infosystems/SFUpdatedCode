@@ -24,7 +24,7 @@ const AssignProjectTarget = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await axios.get('http://localhost:3000/api/getAllProjectTarget');
+            const res = await axios.get(window.API_BASE + '/api/getAllProjectTarget');
             setTargets(res.data.data || []);
         } catch (err) {
             setError('Failed to fetch assigned targets.');
@@ -41,7 +41,7 @@ const AssignProjectTarget = () => {
         await Promise.all(targets.map(async (tgt) => {
             try {
                 const userId = tgt.employeeId;
-                const url = `http://localhost:3000/api/getUserTasks/${userId}`;
+                const url = `${window.API_BASE}/api/getUserTasks/${userId}`;
                 const res = await axios.get(url);
 
                 // Filter tasks for selected date
@@ -88,7 +88,7 @@ const AssignProjectTarget = () => {
     // Handle Update Target
     const handleUpdateTarget = async (targetId) => {
         try {
-            const response = await axios.put(`http://localhost:3000/api/updateProjectTarget/${targetId}`, editFormData);
+            const response = await axios.put(`${window.API_BASE}/api/updateProjectTarget/${targetId}`, editFormData);
             if (response.data.success) {
                 setEditingTarget(null);
                 setEditFormData({ targetPost: '', targetVideo: '', targetShoot: '' });
@@ -108,7 +108,7 @@ const AssignProjectTarget = () => {
         }
 
         try {
-            const response = await axios.delete(`http://localhost:3000/api/deleteProjectTarget/${targetId}`);
+            const response = await axios.delete(`${window.API_BASE}/api/deleteProjectTarget/${targetId}`);
             if (response.data.success) {
                 fetchTargets(); // Refresh the list
                 toast.success('Target deleted successfully!');
@@ -214,7 +214,7 @@ const AssignProjectTarget = () => {
                 const loggedInUser = userStr ? JSON.parse(userStr) : null;
                 const assignedBy = loggedInUser ? (loggedInUser.full_name || 'Admin') : 'Admin';
 
-                const response = await axios.post('http://localhost:3000/api/bulkAssignProjectTarget', {
+                const response = await axios.post(window.API_BASE + '/api/bulkAssignProjectTarget', {
                     targets: validatedData,
                     assigned_by: assignedBy
                 });

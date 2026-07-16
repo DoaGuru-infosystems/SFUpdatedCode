@@ -7,22 +7,9 @@ import reportWebVitals from './reportWebVitals';
 import { BrowserRouter } from 'react-router-dom';
 import axios from 'axios';
 
-// Redirect all Axios requests to local server when running in development (on localhost)
-axios.interceptors.request.use(
-  (config) => {
-    if (window.location.hostname === "localhost" && config.url) {
-      if (config.url.includes("http://localhost:3000")) {
-        config.url = config.url.replace("http://localhost:3000", "http://localhost:8080");
-      } else if (config.url.includes("http://localhost:3000")) {
-        config.url = config.url.replace("http://localhost:3000", "http://localhost:8080");
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+window.API_BASE = window.location.hostname === "localhost"
+  ? "http://localhost:8080"
+  : (process.env.REACT_APP_API_URL || "https://sf.doaguru.com");
 
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

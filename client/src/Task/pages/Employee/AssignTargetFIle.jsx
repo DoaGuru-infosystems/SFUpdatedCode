@@ -1,31 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 
 function AssignDailyTarget() {
-  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
+  const API_BASE = window.location.hostname === "localhost" ? window.API_BASE : "https://sf.doaguru.com";
   const [targets, setTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingTarget, setEditingTarget] = useState(null);
   const [editData, setEditData] = useState({ status: "Pending", status_note: "" });
   const [actionLoading, setActionLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
-  useEffect(() => {
-    fetchTargets();
-    // eslint-disable-next-line
+  const user = useMemo(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (e) {
+      return null;
+    }
   }, []);
 
-  let user = localStorage.getItem('user');
-  user = JSON.parse(user);
-
-  if (!user || !user.id) {
-    console.error('User ID not found');
-    return null;
-  }
-  const employeeId = user.id;
+  const employeeId = user?.id;
 
   const fetchTargets = async () => {
+    if (!employeeId) return;
     setLoading(true);
     setError("");
     try {
@@ -37,6 +37,21 @@ function AssignDailyTarget() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTargets();
+    // eslint-disable-next-line
+  }, [employeeId]);
+
+  const paginatedTargets = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return targets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [targets, currentPage]);
+
+  if (!user || !user.id) {
+    console.error('User ID not found');
+    return null;
+  }
 
   const startEdit = (tgt) => {
     setEditingTarget(tgt.id);
@@ -109,7 +124,7 @@ function AssignDailyTarget() {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {targets.map((tgt, idx) => (
+                  {paginatedTargets.map((tgt, idx) => (
                     <tr key={idx} className="text-black hover:bg-gray-50 transition-colors">
                       <td className="py-3 px-3 border-b border-black text-center font-bold text-slate-800">{tgt.projectName}</td>
                       <td className="py-3 px-3 border-b border-black text-center font-bold text-slate-600">{tgt.assigned_by || 'Admin'}</td>
@@ -189,6 +204,48 @@ function AssignDailyTarget() {
                   ))}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              {targets.length > ITEMS_PER_PAGE && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-black bg-slate-50 mt-4 rounded font-sans">
+                  <div className="text-xs text-slate-700 font-bold">
+                    Showing <span className="text-indigo-600">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                    <span className="text-indigo-600">
+                      {Math.min(currentPage * ITEMS_PER_PAGE, targets.length)}
+                    </span> of{' '}
+                    <span className="text-indigo-600">{targets.length}</span> targets
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 rounded text-xs font-bold border border-black bg-white text-black hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      Prev
+                    </button>
+                    {Array.from({ length: Math.ceil(targets.length / ITEMS_PER_PAGE) }, (_, idx) => idx + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`w-8 h-8 rounded text-xs font-bold transition-all duration-200 ${
+                          currentPage === p
+                            ? 'bg-black text-white shadow'
+                            : 'border border-black bg-white text-black hover:bg-slate-100'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(targets.length / ITEMS_PER_PAGE)))}
+                      disabled={currentPage === Math.ceil(targets.length / ITEMS_PER_PAGE)}
+                      className="px-3 py-1.5 rounded text-xs font-bold border border-black bg-white text-black hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

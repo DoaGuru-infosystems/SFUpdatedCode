@@ -182,7 +182,7 @@ const getTeamFulfillment = (req, res) => {
       }
 
       const getTargetsQuery = `
-        SELECT at.id, at.employeeId, at.projectId, at.targetPost, at.targetVideo, at.targetShoot, at.month, at.year, at.assigned_by, 
+        SELECT at.id, at.employeeId, at.projectId, at.targetPost, at.targetVideo, at.targetShoot, at.month, at.year, at.assigned_by, at.task_date,
                u.full_name AS employeeName, p.name AS projectName 
         FROM assigntarget at 
         JOIN task_users u ON at.employeeId = u.id 
@@ -234,6 +234,7 @@ const getTeamFulfillment = (req, res) => {
               projectName: tgt.projectName,
               month: tgt.month,
               year: tgt.year,
+              task_date: tgt.task_date,
               assigned_by: tgt.assigned_by,
               target: {
                 post: tgt.targetPost || 0,
@@ -316,7 +317,7 @@ const assignTeamTask = (req, res) => {
             if (err) {
               return res.status(500).json({ success: false, message: err.message });
             }
-            
+
             autoSyncProject(projectId, categoryId);
 
             sendAssignmentNotifications(
@@ -328,17 +329,17 @@ const assignTeamTask = (req, res) => {
           });
 
         } else if (department.toLowerCase() === "digital marketing" || department.toLowerCase() === "seo") {
-          const { month, year, targetPost, targetVideo, targetShoot, note } = req.body;
+          const { month, year, targetPost, targetVideo, targetShoot, note, task_date } = req.body;
           if (!projectId || !month || !year) {
             return res.status(400).json({ success: false, message: "Project, month and year are required" });
           }
 
           const query = `
-            INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by, note)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by, note, task_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `;
 
-          db.query(query, [employeeId, projectId, month, year, targetPost || 0, targetVideo || 0, targetShoot || 0, leaderName, note || null], (err, result) => {
+          db.query(query, [employeeId, projectId, month, year, targetPost || 0, targetVideo || 0, targetShoot || 0, leaderName, note || null, task_date || null], (err, result) => {
             if (err) {
               return res.status(500).json({ success: false, message: err.message });
             }
@@ -353,8 +354,6 @@ const assignTeamTask = (req, res) => {
 
             return res.status(200).json({ success: true, message: "Project target assigned successfully", id: result.insertId });
           });
-        } else {
-          return res.status(400).json({ success: false, message: "Unsupported department for assignment" });
         }
       });
     });

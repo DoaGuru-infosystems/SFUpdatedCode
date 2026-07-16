@@ -34,7 +34,7 @@ const AdminAddAttendanceModal = ({
     setLoading(true);
     try {
       const res = await axios.post(
-        "http://localhost:3000/api/adminAddAttendance",
+        window.API_BASE + "/api/adminAddAttendance",
         {
           user_id,
           login_time,

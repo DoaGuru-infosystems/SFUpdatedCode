@@ -27,11 +27,13 @@ import {
   FaCheckCircle,
   FaFolder,
   FaPlus,
-  FaUser
+  FaUser,
+  FaProjectDiagram,
+  FaTimes
 } from "react-icons/fa";
 
 const LeaderDashboard = () => {
-  const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8080" : "http://localhost:3000";
+  const API_BASE = window.location.hostname === "localhost" ? window.API_BASE : "https://sf.doaguru.com";
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -58,21 +60,59 @@ const LeaderDashboard = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [memberFilter, setMemberFilter] = useState("All");
   const [assignedTaskMemberFilter, setAssignedTaskMemberFilter] = useState("All");
+  const [devTasksPage, setDevTasksPage] = useState(1);
+  const [targetTasksPage, setTargetTasksPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Assignment Form State
   const [assignForm, setAssignForm] = useState({
     employeeId: "",
     projectId: "",
     taskDescription: "",
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
     targetPost: "",
     targetVideo: "",
     targetShoot: "",
     taskDate: new Date().toISOString().split("T")[0],
-    note: ""
+    note: "",
+    assignMode: "auto"
   });
   const [assignLoading, setAssignLoading] = useState(false);
+
+  // Projects Modal State & Handlers
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [newProjectForm, setNewProjectForm] = useState({ name: "", department: "" });
+  const [projectSubmitLoading, setProjectSubmitLoading] = useState(false);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/projects`);
+      setProjects(res.data || []);
+    } catch (e) {
+      console.error("Error loading projects:", e);
+    }
+  };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    if (!newProjectForm.name.trim()) return toast.error("Please enter project name.");
+    setProjectSubmitLoading(true);
+    try {
+      await axios.post(`${API_BASE}/api/projects`, {
+        name: newProjectForm.name.trim(),
+        department: newProjectForm.department || leader?.department || null,
+        created_by: leader?.id,
+        created_by_name: leader?.full_name
+      });
+      toast.success("Project added successfully!");
+      setNewProjectForm({ name: "", department: leader?.department || "" });
+      fetchProjects();
+    } catch (error) {
+      console.error("Error adding project:", error);
+      toast.error("Failed to add project.");
+    } finally {
+      setProjectSubmitLoading(false);
+    }
+  };
 
   // Load Leader Session
   useEffect(() => {
@@ -126,11 +166,16 @@ const LeaderDashboard = () => {
     }
   }, [leader, selectedDate]);
 
+  useEffect(() => {
+    setDevTasksPage(1);
+    setTargetTasksPage(1);
+  }, [assignedTaskMemberFilter]);
+
   // Real-time socket listeners
   useEffect(() => {
     if (!leader) return;
 
-    const socket = io(window.location.host === 'localhost:3000' ? "http://localhost:8080" : "/", {
+    const socket = io(window.location.hostname === 'localhost' ? window.API_BASE : "https://sf.doaguru.com", {
       transports: ["polling", "websocket"],
       withCredentials: true
     });
@@ -299,6 +344,16 @@ const LeaderDashboard = () => {
     return assignedTasks.targetTasks.filter(t => String(t.employeeId) === String(assignedTaskMemberFilter));
   }, [assignedTasks.targetTasks, assignedTaskMemberFilter]);
 
+  const paginatedDevTasks = useMemo(() => {
+    const startIndex = (devTasksPage - 1) * ITEMS_PER_PAGE;
+    return filteredAssignedDevTasks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAssignedDevTasks, devTasksPage]);
+
+  const paginatedTargetTasks = useMemo(() => {
+    const startIndex = (targetTasksPage - 1) * ITEMS_PER_PAGE;
+    return filteredAssignedTargetTasks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAssignedTargetTasks, targetTasksPage]);
+
   // Calculate task completion details for Team tab
   const membersWithTaskStats = useMemo(() => {
     return teamMembers.map((m) => {
@@ -353,10 +408,22 @@ const LeaderDashboard = () => {
   };
 
   const handleFormChange = (e) => {
-    setAssignForm({
-      ...assignForm,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    if (name === "employeeId") {
+      const selectedEmp = teamMembers.find(m => String(m.id) === String(value));
+      const empIsDev = selectedEmp?.department?.toLowerCase().includes("dev") || selectedEmp?.department?.toLowerCase() === "it";
+      const leaderIsDev = leader?.department?.toLowerCase().includes("dev") || leader?.department?.toLowerCase() === "it";
+      setAssignForm({
+        ...assignForm,
+        employeeId: value,
+        assignMode: (empIsDev || leaderIsDev) ? "dev" : "target"
+      });
+    } else {
+      setAssignForm({
+        ...assignForm,
+        [name]: value
+      });
+    }
   };
 
   const handleAssignSubmit = async (e) => {
@@ -365,14 +432,23 @@ const LeaderDashboard = () => {
     setAssignLoading(true);
 
     try {
-      const isDev = leader.department?.toLowerCase() === "development";
+      const selectedEmp = teamMembers.find(m => String(m.id) === String(assignForm.employeeId));
+      const isDev = assignForm.assignMode === "dev" || 
+                    (assignForm.assignMode === "auto" && (
+                      leader.department?.toLowerCase().includes("dev") ||
+                      leader.department?.toLowerCase() === "it" ||
+                      selectedEmp?.department?.toLowerCase().includes("dev") ||
+                      selectedEmp?.department?.toLowerCase() === "it"
+                    ));
+
       const payload = {
         leaderId: leader.id,
         employeeId: assignForm.employeeId,
-        department: leader.department,
+        department: isDev ? "Development" : (selectedEmp?.department || leader.department),
         projectId: assignForm.projectId,
         ProjectOrClientName: projects.find((p) => p.id == assignForm.projectId)?.name || "Task Assignment",
-        note: assignForm.note
+        note: assignForm.note,
+        assignMode: isDev ? "dev" : "target"
       };
 
       if (isDev) {
@@ -381,8 +457,10 @@ const LeaderDashboard = () => {
         payload.Category = "Development";
         payload.subCategory = "Task Assignment";
       } else {
-        payload.month = assignForm.month;
-        payload.year = assignForm.year;
+        const selectedDate = new Date(assignForm.taskDate);
+        payload.month = selectedDate.getMonth() + 1;
+        payload.year = selectedDate.getFullYear();
+        payload.task_date = assignForm.taskDate;
         payload.targetPost = assignForm.targetPost || 0;
         payload.targetVideo = assignForm.targetVideo || 0;
         payload.targetShoot = assignForm.targetShoot || 0;
@@ -395,15 +473,15 @@ const LeaderDashboard = () => {
         employeeId: "",
         projectId: "",
         taskDescription: "",
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
         targetPost: "",
         targetVideo: "",
         targetShoot: "",
         taskDate: new Date().toISOString().split("T")[0],
-        note: ""
+        note: "",
+        assignMode: "auto"
       });
       fetchDailyTasks();
+      fetchAssignedTasks();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to assign task.");
     } finally {
@@ -434,7 +512,10 @@ const LeaderDashboard = () => {
     );
   }
 
-  const isDevLeader = leader.department?.toLowerCase() === "development";
+  const isDevLeader = leader.department?.toLowerCase().includes("dev") || leader.department?.toLowerCase() === "it";
+  const selectedEmpObj = teamMembers.find(m => String(m.id) === String(assignForm.employeeId));
+  const isDevMember = selectedEmpObj?.department?.toLowerCase().includes("dev") || selectedEmpObj?.department?.toLowerCase() === "it";
+  const showDevForm = isDevLeader || isDevMember;
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-6 lg:p-10 font-sans text-slate-800">
@@ -466,6 +547,16 @@ const LeaderDashboard = () => {
                 className="bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
               />
             </div>
+
+            <button
+              onClick={() => {
+                setNewProjectForm({ name: "", department: leader?.department || "" });
+                setShowProjectModal(true);
+              }}
+              className="bg-white hover:bg-slate-100 text-indigo-600 border border-slate-200 text-xs font-black px-4 py-3 rounded-xl flex items-center gap-2 shadow-sm transition-all duration-200"
+            >
+              <FaProjectDiagram size={12} /> Department Projects
+            </button>
 
             <button
               onClick={() => setActiveTab("assign")}
@@ -760,14 +851,14 @@ const LeaderDashboard = () => {
 
                               {/* Metrics */}
                               <td className="p-4 text-center">
-                                {(t.postCount !== undefined || t.videoCount !== undefined || t.shootCount !== undefined) ? (
+                                {(!isDevLeader && !t.Category?.toLowerCase().includes("dev") && !t.department?.toLowerCase().includes("dev") && (t.postCount !== undefined || t.videoCount !== undefined || t.shootCount !== undefined)) ? (
                                   <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-slate-500">
                                     <span title="Posts">P: <strong className="text-slate-700">{t.postCount || 0}</strong></span>
                                     <span title="Videos">V: <strong className="text-slate-700">{t.videoCount || 0}</strong></span>
                                     <span title="Shoots">S: <strong className="text-slate-700">{t.shootCount || 0}</strong></span>
                                   </div>
                                 ) : (
-                                  <span className="text-[10px] text-slate-400">-</span>
+                                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">Dev Task</span>
                                 )}
                               </td>
 
@@ -957,9 +1048,21 @@ const LeaderDashboard = () => {
 
                   {/* Select Project */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Choose Project / Client
-                    </label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Choose Project / Client
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewProjectForm({ name: "", department: leader?.department || "" });
+                          setShowProjectModal(true);
+                        }}
+                        className="text-[11px] font-black text-indigo-600 hover:text-indigo-800 underline flex items-center gap-1"
+                      >
+                        + Add New Project
+                      </button>
+                    </div>
                     <select
                       name="projectId"
                       value={assignForm.projectId}
@@ -977,7 +1080,7 @@ const LeaderDashboard = () => {
                   </div>
 
                   {/* Dynamic Fields */}
-                  {isDevLeader ? (
+                  {showDevForm ? (
                     <>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -1010,44 +1113,18 @@ const LeaderDashboard = () => {
                     </>
                   ) : (
                     <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                            Target Month
-                          </label>
-                          <select
-                            name="month"
-                            value={assignForm.month}
-                            onChange={handleFormChange}
-                            required
-                            className="w-full bg-slate-50 border border-slate-250 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 shadow-sm appearance-none cursor-pointer"
-                          >
-                            {[...Array(12)].map((_, i) => (
-                              <option key={i + 1} value={i + 1}>
-                                {new Date(0, i).toLocaleString("default", { month: "long" })}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                            Target Year
-                          </label>
-                          <select
-                            name="year"
-                            value={assignForm.year}
-                            onChange={handleFormChange}
-                            required
-                            className="w-full bg-slate-50 border border-slate-250 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 shadow-sm appearance-none cursor-pointer"
-                          >
-                            {[new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
-                              <option key={y} value={y}>
-                                {y}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                          Target Date
+                        </label>
+                        <input
+                          type="date"
+                          name="taskDate"
+                          value={assignForm.taskDate}
+                          onChange={handleFormChange}
+                          required
+                          className="w-full bg-slate-50 border border-slate-250 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 shadow-sm cursor-pointer"
+                        />
                       </div>
 
                       <div className="grid grid-cols-3 gap-4">
@@ -1096,21 +1173,22 @@ const LeaderDashboard = () => {
                           />
                         </div>
                       </div>
-                      <div className="space-y-1.5 mt-4">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                          Remarks / Assignment Guidelines
-                        </label>
-                        <textarea
-                          name="note"
-                          value={assignForm.note}
-                          onChange={handleFormChange}
-                          rows="3"
-                          placeholder="Provide guidelines, expectations, or note..."
-                          className="w-full bg-slate-50 border border-slate-250 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 shadow-sm placeholder:text-slate-400"
-                        />
-                      </div>
                     </>
                   )}
+
+                  <div className="space-y-1.5 mt-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      Remarks / Assignment Guidelines
+                    </label>
+                    <textarea
+                      name="note"
+                      value={assignForm.note}
+                      onChange={handleFormChange}
+                      rows="3"
+                      placeholder="Provide guidelines, expectations, or note..."
+                      className="w-full bg-slate-50 border border-slate-250 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 shadow-sm placeholder:text-slate-400"
+                    />
+                  </div>
 
                   <button
                     type="submit"
@@ -1171,7 +1249,7 @@ const LeaderDashboard = () => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {filteredAssignedDevTasks.map((t, idx) => (
+                            {paginatedDevTasks.map((t, idx) => (
                               <tr key={`dev-${t.id}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
                                 <td className="px-4 py-3 text-xs font-bold text-slate-800">{t.employeeName}</td>
                                 <td className="px-4 py-3">
@@ -1182,10 +1260,9 @@ const LeaderDashboard = () => {
                                   {new Date(t.task_date).toLocaleDateString()}
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                    t.status?.toLowerCase() === 'completed' || t.status === 'Done' ? 'bg-emerald-100 text-emerald-700' : 
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${t.status?.toLowerCase() === 'completed' || t.status === 'Done' ? 'bg-emerald-100 text-emerald-700' :
                                     t.status?.toLowerCase() === 'in progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                                  }`}>
+                                    }`}>
                                     {t.status || 'Pending'}
                                   </span>
                                 </td>
@@ -1197,6 +1274,47 @@ const LeaderDashboard = () => {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Pagination Controls */}
+                      {filteredAssignedDevTasks.length > ITEMS_PER_PAGE && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50 mt-4 rounded-xl shadow-sm">
+                          <div className="text-[11px] text-slate-500 font-bold">
+                            Showing <span className="text-indigo-600">{(devTasksPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                            <span className="text-indigo-600">
+                              {Math.min(devTasksPage * ITEMS_PER_PAGE, filteredAssignedDevTasks.length)}
+                            </span> of{' '}
+                            <span className="text-indigo-600">{filteredAssignedDevTasks.length}</span> tasks
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setDevTasksPage(prev => Math.max(prev - 1, 1))}
+                              disabled={devTasksPage === 1}
+                              className="px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase border border-slate-250 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                            >
+                              Prev
+                            </button>
+                            {Array.from({ length: Math.ceil(filteredAssignedDevTasks.length / ITEMS_PER_PAGE) }, (_, idx) => idx + 1).map((p) => (
+                              <button
+                                key={p}
+                                onClick={() => setDevTasksPage(p)}
+                                className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all duration-200 ${devTasksPage === p
+                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                    : 'border border-slate-250 bg-white text-slate-600 hover:bg-slate-50 shadow-sm'
+                                  }`}
+                              >
+                                {p}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setDevTasksPage(prev => Math.min(prev + 1, Math.ceil(filteredAssignedDevTasks.length / ITEMS_PER_PAGE)))}
+                              disabled={devTasksPage === Math.ceil(filteredAssignedDevTasks.length / ITEMS_PER_PAGE)}
+                              className="px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase border border-slate-250 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1210,30 +1328,29 @@ const LeaderDashboard = () => {
                             <tr className="bg-slate-50 border-b border-slate-200">
                               <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Employee</th>
                               <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project</th>
-                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Month/Year</th>
+                              <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Date</th>
                               <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Targets (P/V/S)</th>
                               <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
                               <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Update Note</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {filteredAssignedTargetTasks.map((t, idx) => (
+                            {paginatedTargetTasks.map((t, idx) => (
                               <tr key={`tgt-${t.id}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
                                 <td className="px-4 py-3 text-xs font-bold text-slate-800">{t.employeeName}</td>
                                 <td className="px-4 py-3 text-xs font-bold text-slate-800">{t.projectName || 'Marketing Project'}</td>
                                 <td className="px-4 py-3 text-xs text-slate-600 font-medium">
-                                  {t.month}/{t.year}
+                                  {t.task_date ? new Date(t.task_date).toLocaleDateString() : `${t.month}/${t.year}`}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-600">
-                                  Post: <span className="font-bold">{t.targetPost || 0}</span> | 
-                                  Video: <span className="font-bold">{t.targetVideo || 0}</span> | 
+                                  Post: <span className="font-bold">{t.targetPost || 0}</span> |
+                                  Video: <span className="font-bold">{t.targetVideo || 0}</span> |
                                   Shoot: <span className="font-bold">{t.targetShoot || 0}</span>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                    t.status?.toLowerCase() === 'completed' || t.status === 'Done' ? 'bg-emerald-100 text-emerald-700' : 
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${t.status?.toLowerCase() === 'completed' || t.status === 'Done' ? 'bg-emerald-100 text-emerald-700' :
                                     t.status?.toLowerCase() === 'in progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                                  }`}>
+                                    }`}>
                                     {t.status || 'Pending'}
                                   </span>
                                 </td>
@@ -1245,6 +1362,47 @@ const LeaderDashboard = () => {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Pagination Controls */}
+                      {filteredAssignedTargetTasks.length > ITEMS_PER_PAGE && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50 mt-4 rounded-xl shadow-sm">
+                          <div className="text-[11px] text-slate-500 font-bold">
+                            Showing <span className="text-indigo-600">{(targetTasksPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                            <span className="text-indigo-600">
+                              {Math.min(targetTasksPage * ITEMS_PER_PAGE, filteredAssignedTargetTasks.length)}
+                            </span> of{' '}
+                            <span className="text-indigo-600">{filteredAssignedTargetTasks.length}</span> tasks
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setTargetTasksPage(prev => Math.max(prev - 1, 1))}
+                              disabled={targetTasksPage === 1}
+                              className="px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase border border-slate-250 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                            >
+                              Prev
+                            </button>
+                            {Array.from({ length: Math.ceil(filteredAssignedTargetTasks.length / ITEMS_PER_PAGE) }, (_, idx) => idx + 1).map((p) => (
+                              <button
+                                key={p}
+                                onClick={() => setTargetTasksPage(p)}
+                                className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all duration-200 ${targetTasksPage === p
+                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                    : 'border border-slate-250 bg-white text-slate-600 hover:bg-slate-50 shadow-sm'
+                                  }`}
+                              >
+                                {p}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setTargetTasksPage(prev => Math.min(prev + 1, Math.ceil(filteredAssignedTargetTasks.length / ITEMS_PER_PAGE)))}
+                              disabled={targetTasksPage === Math.ceil(filteredAssignedTargetTasks.length / ITEMS_PER_PAGE)}
+                              className="px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase border border-slate-250 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1258,6 +1416,139 @@ const LeaderDashboard = () => {
             </motion.div>
           )}
 
+        </AnimatePresence>
+
+        {/* Modal: Department Projects & Creator History */}
+        <AnimatePresence>
+          {showProjectModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 15 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 15 }}
+                className="bg-white rounded-3xl p-6 lg:p-8 max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden"
+              >
+                <div className="flex items-center justify-between pb-5 border-b border-slate-100 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shadow-sm">
+                      <FaProjectDiagram />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-800">Department Projects & Creator History</h3>
+                      <p className="text-xs text-slate-500 font-medium">Add new projects department-wise and monitor who created each project.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowProjectModal(false)}
+                    className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+
+                {/* Form to Add New Project */}
+                <form onSubmit={handleCreateProject} className="py-5 border-b border-slate-100 space-y-4 shrink-0 bg-indigo-50/30 -mx-6 px-6 lg:-mx-8 lg:px-8">
+                  <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <FaPlus className="text-indigo-600" size={10} /> Add New Department Project
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Project Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. AI Voice Assistant, E-Commerce Portal..."
+                        value={newProjectForm.name}
+                        onChange={(e) => setNewProjectForm({ ...newProjectForm, name: e.target.value })}
+                        required
+                        className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none shadow-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Department</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Development, SEO, Digital Marketing..."
+                        value={newProjectForm.department}
+                        onChange={(e) => setNewProjectForm({ ...newProjectForm, department: e.target.value })}
+                        className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none shadow-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={projectSubmitLoading}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2"
+                    >
+                      {projectSubmitLoading ? "Saving..." : "Add Project to Database"}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Table of Existing Projects */}
+                <div className="flex-1 overflow-y-auto mt-4 space-y-3 pr-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                      All Projects Directory ({projects.length})
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">Shows creator name and timestamp</span>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                          <th className="py-3 px-4">#</th>
+                          <th className="py-3 px-4">Project / Client Name</th>
+                          <th className="py-3 px-4">Department</th>
+                          <th className="py-3 px-4">Added By (Creator)</th>
+                          <th className="py-3 px-4 text-right">Created Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {projects.length === 0 ? (
+                          <tr>
+                            <td colSpan="5" className="py-8 text-center text-slate-400 italic">No projects found in database.</td>
+                          </tr>
+                        ) : (
+                          projects.map((p, idx) => (
+                            <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 px-4 text-slate-400 font-bold">{idx + 1}</td>
+                              <td className="py-3 px-4 font-black text-slate-800">{p.name}</td>
+                              <td className="py-3 px-4">
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                  {p.department || "Global / All"}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-2 h-2 rounded-full ${p.creator_name || p.created_by_name ? "bg-emerald-500" : "bg-slate-300"}`}></span>
+                                  <span className="font-bold text-slate-700">
+                                    {p.creator_name || p.created_by_name || "System / Admin"}
+                                  </span>
+                                  {p.creator_role && (
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase">({p.creator_role.replace("_", " ")})</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-right text-slate-500 font-bold">
+                                {p.created_at ? new Date(p.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>

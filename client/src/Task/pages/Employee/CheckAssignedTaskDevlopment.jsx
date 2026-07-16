@@ -20,7 +20,7 @@ const CheckAssignedTaskDevlopment = () => {
       return;
     }
     try {
-      const response = await axios.get(`http://localhost:3000/api/get-assigned-development-tasks/${userId}`);
+      const response = await axios.get(`${window.API_BASE}/api/get-assigned-development-tasks/${userId}`);
       setTasks(response.data);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -31,8 +31,9 @@ const CheckAssignedTaskDevlopment = () => {
   const startEdit = (task) => {
     setEditingTask(task.id);
     setEditData({
-      status: task.status,
-      deadline_date: task.deadline_date
+      status: task.status || 'Pending',
+      deadline_date: task.deadline_date ? task.deadline_date.split('T')[0] : '',
+      status_note: task.status_note || task.note || ''
     });
   };
 
@@ -46,7 +47,12 @@ const CheckAssignedTaskDevlopment = () => {
     console.log("Editing Task ID:", editingTask);
     console.log("Edit Data:", editData);
     try {
-      await axios.put(`http://localhost:3000/api/update-assigned-development-task/${editingTask}`, editData);
+      await axios.put(`${window.API_BASE}/api/update-assigned-development-task/${editingTask}`, {
+        status: editData.status,
+        deadline_date: editData.deadline_date || null,
+        status_note: editData.status_note,
+        note: editData.status_note
+      });
       toast.success("Task updated successfully");
       fetchTasks(); // Refresh tasks
       cancelEdit();
@@ -84,6 +90,9 @@ const CheckAssignedTaskDevlopment = () => {
                 Status
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Note
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -91,7 +100,7 @@ const CheckAssignedTaskDevlopment = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {tasks.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
                   No tasks assigned yet.
                 </td>
               </tr>
@@ -99,7 +108,8 @@ const CheckAssignedTaskDevlopment = () => {
               tasks.map((task) => (
                 <tr key={task.id}>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {task.task_description}
+                    {task.project_or_client_name && <div className="font-semibold text-gray-800">{task.project_or_client_name}</div>}
+                    <div>{task.task_description}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {task.assigned_at ? new Date(task.assigned_at).toLocaleString() : ''}
@@ -108,7 +118,7 @@ const CheckAssignedTaskDevlopment = () => {
                     {editingTask === task.id ? (
                       <input
                         type="date"
-                        value={editData.deadline_date}
+                        value={editData.deadline_date || ''}
                         onChange={(e) => setEditData({ ...editData, deadline_date: e.target.value })}
                         className="w-full border border-gray-300 rounded-md p-2"
                       />
@@ -119,7 +129,7 @@ const CheckAssignedTaskDevlopment = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {editingTask === task.id ? (
                       <select
-                        value={editData.status}
+                        value={editData.status || 'Pending'}
                         onChange={(e) => setEditData({ ...editData, status: e.target.value })}
                         className="w-full border border-gray-300 rounded-md p-2"
                       >
@@ -138,6 +148,21 @@ const CheckAssignedTaskDevlopment = () => {
                         }`}>
                         {task.status}
                       </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 min-w-[180px] max-w-xs">
+                    {editingTask === task.id ? (
+                      <textarea
+                        rows="2"
+                        placeholder="Write update note..."
+                        value={editData.status_note || ''}
+                        onChange={(e) => setEditData({ ...editData, status_note: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md p-2 text-xs focus:ring-1 focus:ring-indigo-500 outline-none placeholder:text-gray-400"
+                      />
+                    ) : (
+                      <div className="text-gray-700 italic text-xs break-words">
+                        {task.status_note || task.note || <span className="text-gray-400 not-italic">-</span>}
+                      </div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
