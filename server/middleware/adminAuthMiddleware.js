@@ -4,7 +4,8 @@ const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 /**
  * Middleware to verify Admin session activity and JWT validity.
- * If elapsed time exceeds 30 minutes from initial login or expired, returns 401 Unauthorized.
+ * If active within 30 minutes, refreshes token via 'New-Token' response header.
+ * If inactive for more than 30 minutes or expired, returns 401 Unauthorized.
  */
 const verifyAdminSession = (req, res, next) => {
   const authHeader = req.headers.authorization || req.headers['x-access-token'];
@@ -21,7 +22,7 @@ const verifyAdminSession = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // If role is admin, verify strict 30-minute session limit from initial login
+    // If role is admin, verify 30-minute inactivity limit and issue refreshed token if active
     if (decoded.role === "admin") {
       const now = Date.now();
       const loginTimestamp = decoded.loginTime || decoded.iat * 1000;

@@ -55,6 +55,7 @@ const UpdateEmployeeDetails = (req, res) => {
     designation,
     email_id,
     mobile_number,
+    role,
     employment_status,
     salary_amount,
   } = req.body;
@@ -75,13 +76,13 @@ const UpdateEmployeeDetails = (req, res) => {
 
   const UpdateEmployee = `
     UPDATE task_users
-    SET full_name = ?, designation = ?, email_id = ?, mobile_number = ?, employment_status = ?
+    SET full_name = ?, designation = ?, email_id = ?, mobile_number = ?, role = ?, employment_status = ?
     WHERE id = ?;
   `;
 
   db.query(
     UpdateEmployee,
-    [full_name, designation, email_id, mobile_number, employment_status, id],
+    [full_name, designation, email_id, mobile_number, role || "user", employment_status, id],
     (err, result) => {
       if (err) {
         return res.status(500).json({

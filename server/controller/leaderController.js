@@ -190,6 +190,7 @@ const getTeamFulfillment = (req, res) => {
         WHERE LOWER(u.department) = LOWER(?)
           AND at.month = ? 
           AND at.year = ?
+        ORDER BY at.id DESC
       `;
 
       db.query(getTargetsQuery, [department, month.toString(), year.toString()], (err, targets) => {
@@ -388,7 +389,7 @@ const getTeamAssignedTasks = (req, res) => {
         FROM assign_development_tasks a
         JOIN task_users u ON a.user_id = u.id
         WHERE LOWER(u.department) = LOWER(?)
-        ORDER BY a.task_date DESC
+        ORDER BY a.id DESC
       `;
 
       // Query Target Tasks for users in this department

@@ -117,7 +117,7 @@ function UserHome() {
     setIsUpdate(true);
     const taskData = { ...task, task_date: task.task_date || task.date || new Date().toISOString().split("T")[0] };
     setFormData(taskData);
-    particularProject();
+    particularProject(task.ProjectOrClientName);
     setSelectedProjects(task.ProjectOrClientName);
     setSelectedCategory(task.Category);
     if (task.ProjectOrClientName) {
@@ -173,14 +173,69 @@ function UserHome() {
     }
   };
 
-  const fetchProjectListData = () => { axios.get(window.API_BASE + "/api/projects").then((res) => setAllProject(res.data)); };
-  const particularProject = () => {
-    axios.get(`${window.API_BASE}/api/getProject/${user.id}`).then((res) => {
-      const particular_project = res.data;
-      setUserProject(particular_project);
-      setProjects(allProject);
-      handleProjectsChange();
-    });
+  const particularProject = (editProjectName) => {
+    const currentProjectName = typeof editProjectName === "string" ? editProjectName : (formData.ProjectOrClientName || "");
+    Promise.all([
+      axios.get(`${window.API_BASE}/api/getProject/${user?.id}`),
+      axios.get(window.API_BASE + "/api/projects")
+    ])
+      .then(([assignRes, projRes]) => {
+        const particular_project = assignRes.data || [];
+        const all_projects = projRes.data || [];
+        setUserProject(particular_project);
+        setAllProject(all_projects);
+
+        const userDept = (user?.department || "").trim().toLowerCase();
+
+        // 1. Projects assigned explicitly to this employee by Admin (`assigned_projects`)
+        const assignedProjects = particular_project
+          .filter((item) => item.project_name || item.name)
+          .map((item) => ({
+            id: item.project_id || item.id,
+            name: item.project_name || item.name,
+            department: item.department || ""
+          }));
+
+        // 2. Projects assigned/created for the employee's department (`projects.department`)
+        const deptProjects = all_projects.filter((p) => {
+          if (!userDept || !p.department || p.department.trim() === "" || p.department.trim().toLowerCase() === "all") {
+            return false;
+          }
+          const projectDepts = p.department.split(",").map((d) => d.trim().toLowerCase());
+          return projectDepts.includes(userDept) || p.department.toLowerCase().includes(userDept);
+        });
+
+        // Merge keeping unique projects by name
+        const projectMap = new Map();
+        assignedProjects.forEach((p) => {
+          if (p.name) projectMap.set(p.name.trim().toLowerCase(), p);
+        });
+        deptProjects.forEach((p) => {
+          if (p.name && !projectMap.has(p.name.trim().toLowerCase())) {
+            projectMap.set(p.name.trim().toLowerCase(), p);
+          }
+        });
+
+        // Ensure currently selected / editing project is preserved in options
+        if (currentProjectName && currentProjectName.trim() !== "" && !projectMap.has(currentProjectName.trim().toLowerCase())) {
+          const existingFromAll = all_projects.find((p) => p.name && p.name.trim().toLowerCase() === currentProjectName.trim().toLowerCase());
+          if (existingFromAll) {
+            projectMap.set(currentProjectName.trim().toLowerCase(), existingFromAll);
+          } else {
+            projectMap.set(currentProjectName.trim().toLowerCase(), { id: Date.now(), name: currentProjectName });
+          }
+        }
+
+        const filteredList = Array.from(projectMap.values());
+        setProjects(filteredList);
+      })
+      .catch((error) => {
+        console.error("Error loading employee projects:", error);
+      });
+  };
+
+  const fetchProjectListData = () => {
+    particularProject();
   };
 
   const particularCategory = () => {

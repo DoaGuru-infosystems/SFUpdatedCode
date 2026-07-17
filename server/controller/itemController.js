@@ -921,6 +921,8 @@ const projectFromAssign = (req, res) => {
       ap.category_id, 
       ap.user_id,
       p.name as project_name,
+      p.name as name,
+      p.department as department,
       c.name as category_name,
       ap.created_at,
       ap.status,
@@ -930,7 +932,7 @@ const projectFromAssign = (req, res) => {
     LEFT JOIN projects p ON ap.project_id = p.id
     LEFT JOIN category c ON ap.category_id = c.id
     WHERE ap.user_id = ?
-    ORDER BY ap.id ASC
+    ORDER BY ap.id DESC
   `;
   db.query(query, [user_id], (err, result) => {
     if (err) {
@@ -2582,6 +2584,7 @@ const getAllProjectTarget = (req, res) => {
             FROM assigntarget at
             LEFT JOIN task_users tu ON at.employeeId = tu.id
             LEFT JOIN projects p ON at.projectId = p.id
+            ORDER BY at.id DESC
         `;
     db.query(selectQuery, (err, result) => {
       if (err) {
@@ -2605,6 +2608,7 @@ const getEmployeeWiseProjectTarget = (req, res) => {
             FROM assigntarget at
             LEFT JOIN projects p ON at.projectId = p.id
             WHERE at.employeeId = ?
+            ORDER BY at.id DESC
         `;
     db.query(selectQuery, [employeeId], (err, result) => {
       if (err) {
@@ -2969,7 +2973,7 @@ const getAssignDevelopmentTask = (req, res) => {
   const { employeeId } = req.params;
   console.log("Employee ID :", employeeId);
 
-  const query = `SELECT * FROM assign_development_tasks WHERE user_id = ? ORDER BY id ASC`;
+  const query = `SELECT * FROM assign_development_tasks WHERE user_id = ? ORDER BY id DESC`;
   db.query(query, [employeeId], (err, results) => {
     if (err) {
       console.error('Database error:', err);
@@ -3131,7 +3135,7 @@ const updateAssignedProjectStatus = (req, res) => {
 };
 
 const getAllAssignedDevelopmentTasks = (req, res) => {
-  const query = `SELECT * FROM assign_development_tasks ORDER BY id ASC`;
+  const query = `SELECT * FROM assign_development_tasks ORDER BY id DESC`;
   db.query(query, (err, results) => {
     if (err) {
       console.error('Database error:', err);

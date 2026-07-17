@@ -8,6 +8,7 @@ const RegisterUser = () => {
         mobileNumber: '',
         emailId: '',
         designation: '',
+        role: 'user',
         password: '',
         confirmPassword: ''
     });
@@ -41,6 +42,7 @@ const RegisterUser = () => {
                     mobileNumber: '',
                     emailId: '',
                     designation: '',
+                    role: 'user',
                     password: '',
                     confirmPassword: ''
                 });
@@ -60,8 +62,18 @@ const RegisterUser = () => {
                     <input type="number" name="mobileNumber" placeholder="Mobile Number" value={formData.mobileNumber} onChange={handleChange} required className='m-2 p-3 border border-cyan-600 rounded-lg' />
                     <input type="email" name="emailId" placeholder="Email ID" value={formData.emailId} onChange={handleChange} required className='m-2 p-3 border border-cyan-600 rounded-lg' />
                     <input type="text" name="designation" placeholder="Designation" value={formData.designation} onChange={handleChange} required className='m-2 p-3 border border-cyan-600 rounded-lg' />
+                    <select
+                        name="role"
+                        value={formData.role}
+                        onChange={handleChange}
+                        className='m-2 p-3 border border-cyan-600 rounded-lg bg-white text-gray-700'
+                    >
+                        <option value="user">Employee (User)</option>
+                        <option value="team_lead">Team Lead</option>
+                        <option value="admin">Administrator</option>
+                    </select>
                     <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} required className='m-2 p-3 border border-cyan-600 rounded-lg' />
-                    <input type="test" name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required className='m-2 p-3 border border-cyan-600 rounded-lg' />
+                    <input type="password" name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required className='m-2 p-3 border border-cyan-600 rounded-lg' />
                     <button type="submit" className='m-2 p-3 border border-cyan-600 rounded-lg hover:bg-cyan-100 font-bold'>Register</button>
                 </form>
             </div>

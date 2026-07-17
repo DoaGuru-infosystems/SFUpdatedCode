@@ -238,7 +238,7 @@ function ProjectsPage() {
                                   {dept.trim()}
                                 </span>
                               )) : (
-                                <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase bg-emerald-50/50 px-2.5 py-1 rounded-full w-max border border-emerald-100/50 shadow-sm">
+                                <span className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase bg-slate-100 px-2.5 py-1 rounded-full w-max border border-slate-200 shadow-sm">
                                   UNASSIGNED
                                 </span>
                               )}

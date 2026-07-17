@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 
-const API_BASE_URL = window.API_BASE + "/api";
+const getApiBaseUrl = () => (window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")) + "/api";
 
 const AdminUpdateAttendanceModal = ({
   isOpen,
@@ -10,6 +10,7 @@ const AdminUpdateAttendanceModal = ({
   fetchAttendance,
   initialData,
 }) => {
+  const API_BASE_URL = getApiBaseUrl();
   const { uid } = useParams();
 
   const [formData, setFormData] = useState({

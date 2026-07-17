@@ -9,9 +9,10 @@ import {
 import moment from "moment";
 import toast from "react-hot-toast";
 
-const API_BASE_URL = window.API_BASE + "/api";
+const getApiBaseUrl = () => (window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")) + "/api";
 
 const BackdateAttendRequest = () => {
+  const API_BASE_URL = getApiBaseUrl();
   const [requestData, setRequestData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

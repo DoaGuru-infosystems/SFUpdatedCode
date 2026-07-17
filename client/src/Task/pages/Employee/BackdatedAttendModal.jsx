@@ -4,7 +4,7 @@ import axios from "axios";
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 
-const API_BASE_URL = window.API_BASE + "/api";
+const getApiBaseUrl = () => (window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")) + "/api";
 
 const BackdatedAttendModal = ({
   isOpen,
@@ -12,6 +12,7 @@ const BackdatedAttendModal = ({
   userId,
   getAllBackDateReq,
 }) => {
+  const API_BASE_URL = getApiBaseUrl();
   const [category, setCategory] = useState("backdate"); // 'backdate' or 'edit'
   const [selectedDates, setSelectedDates] = useState([]);
   const [loginTime, setLoginTime] = useState("");

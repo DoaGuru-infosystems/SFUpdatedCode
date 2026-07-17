@@ -7,6 +7,11 @@ const CheckAssignedTaskDevlopment = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [editData, setEditData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(tasks.length / rowsPerPage) || 1;
+  const paginatedTasks = tasks.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
 
 
@@ -105,7 +110,7 @@ const CheckAssignedTaskDevlopment = () => {
                 </td>
               </tr>
             ) : (
-              tasks.map((task) => (
+              paginatedTasks.map((task) => (
                 <tr key={task.id}>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {task.project_or_client_name && <div className="font-semibold text-gray-800">{task.project_or_client_name}</div>}
@@ -197,6 +202,66 @@ const CheckAssignedTaskDevlopment = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {tasks.length > 0 && (
+        <div className="mt-4 p-4 border-t border-gray-200 bg-gray-50/60 rounded-b-xl flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-gray-600">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>Rows per page:</span>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-white border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
+            >
+              {[5, 10, 20, 50].map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <span className="text-gray-500">
+              Showing {Math.min((currentPage - 1) * rowsPerPage + 1, tasks.length)} to {Math.min(currentPage * rowsPerPage, tasks.length)} of {tasks.length} tasks
+            </span>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-semibold shadow-sm"
+              >
+                Prev
+              </button>
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-7 h-7 flex items-center justify-center rounded transition-all font-bold ${
+                      currentPage === i + 1
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-semibold shadow-sm"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
