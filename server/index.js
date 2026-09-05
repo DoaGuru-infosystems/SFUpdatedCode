@@ -112,7 +112,7 @@ app.use("/letterRoutes", letterRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use(
   "/selfiePicture",
-  express.static(path.join(__dirname, "selfiePicture"))
+  express.static(path.join(__dirname, "selfiePicture")),
 );
 
 // // Configure Nodemailer SMTP
@@ -153,7 +153,7 @@ app.post("/api/test-whatsapp", async (req, res) => {
 
   try {
     const results = await Promise.all(
-      users.map(({ number, name }) => sendWhatsApp(number, name))
+      users.map(({ number, name }) => sendWhatsApp(number, name)),
     );
     res.json({ success: true, results });
   } catch (error) {
@@ -166,7 +166,7 @@ app.post("/api/test-whatsapp-two", async (req, res) => {
     const result = await sendAdminAbsentCheckReminderWhatsApp(
       toNumber,
       count,
-      today
+      today,
     );
     res.json(result);
   } catch (error) {
@@ -252,7 +252,11 @@ scheduleLoginReminderWhatsapp();
 scheduleCheckNoTaskEmployee();
 
 // ── Scheduler Plugin Cron ─────────────────────────────────────
-try { startSchedulerCron(); } catch (e) { console.warn('[Scheduler] Cron failed to start:', e.message); }
+try {
+  startSchedulerCron();
+} catch (e) {
+  console.warn("[Scheduler] Cron failed to start:", e.message);
+}
 // scheduleAdminAbsentCheckReminderWhatsapp();
 
 // require("./cron/attendanceReminder");
@@ -263,3 +267,5 @@ server.listen(PORT, () => {
   console.log("🚀 Server & Socket.io running on port", PORT);
 });
 // Nodemon trigger change
+
+// Triggering nodemon restart

@@ -16,12 +16,13 @@ const EmployeePasswordReset = () => {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const API_BASE = "https://sf.doaguru.com";
 
   const sendOtp = async () => {
     if (!email) return setMessage("Please enter a valid email.");
     setLoading(true);
     try {
-      const res = await axios.post(window.API_BASE + "/api/sendOtp", {
+      const res = await axios.post(API_BASE + "/api/sendOtp", {
         email,
       });
       setStep(2);
@@ -37,7 +38,7 @@ const EmployeePasswordReset = () => {
     if (!otp) return setMessage("Enter the OTP received.");
     setLoading(true);
     try {
-      const res = await axios.post(window.API_BASE + "/api/verifyOtp", {
+      const res = await axios.post(API_BASE + "/api/verifyOtp", {
         email,
         otp,
       });
@@ -56,13 +57,10 @@ const EmployeePasswordReset = () => {
       return setMessage("Passwords don't match.");
     setLoading(true);
     try {
-      const res = await axios.put(
-        window.API_BASE + "/api/employeeResetPassword",
-        {
-          email,
-          password,
-        }
-      );
+      const res = await axios.put(API_BASE + "/api/employeeResetPassword", {
+        email,
+        password,
+      });
       setMessage("Password reset successful.");
       setTimeout(() => navigate("/task/login"), 2000);
     } catch (err) {

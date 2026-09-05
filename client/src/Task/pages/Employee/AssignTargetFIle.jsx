@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 
 function AssignDailyTarget() {
-  const API_BASE = window.location.hostname === "localhost" ? window.API_BASE : "https://sf.doaguru.com";
+  const API_BASE = "https://sf.doaguru.com";
   const [targets, setTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

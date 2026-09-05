@@ -6,7 +6,7 @@ const ReminderContext = createContext(null);
 const getApiUrl = () => {
   return window.location.hostname === 'localhost'
     ? (window.API_BASE || 'http://localhost:8080')
-    : (process.env.REACT_APP_API_URL || 'https://sf.doaguru.com');
+    : ("https://sf.doaguru.com");
 };
 
 const API_BASE = `${getApiUrl()}/api/scheduler`;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 
-const getApiBaseUrl = () => (window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")) + "/api";
+const getApiBaseUrl = () => ("https://sf.doaguru.com") + "/api";
 
 const AdminUpdateAttendanceModal = ({
   isOpen,

@@ -18,7 +18,7 @@ import {
 import * as XLSX from "xlsx";
 import BackdatedAttendModal from "./BackdatedAttendModal";
 
-const getApiBase = () => (window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")) + "/api";
+const getApiBase = () => ("https://sf.doaguru.com") + "/api";
 
 /* ─────────────────── helpers ─────────────────── */
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -242,10 +242,10 @@ const EmployeeAttendReport = () => {
                           <div className="flex items-center gap-2">
                             {d.attend.login_selfie_url && (
                               <img
-                                src={`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.login_selfie_url}`}
+                                src={`${"https://sf.doaguru.com"}/${d.attend.login_selfie_url}`}
                                 className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                                 alt="Login Selfie"
-                                onClick={() => window.open(`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.login_selfie_url}`, '_blank')}
+                                onClick={() => window.open(`${"https://sf.doaguru.com"}/${d.attend.login_selfie_url}`, '_blank')}
                                 title="Click to view full selfie"
                               />
                             )}
@@ -261,10 +261,10 @@ const EmployeeAttendReport = () => {
                           <div className="flex items-center gap-2">
                             {d.attend.logout_selfie_url && (
                               <img
-                                src={`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.logout_selfie_url}`}
+                                src={`${"https://sf.doaguru.com"}/${d.attend.logout_selfie_url}`}
                                 className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                                 alt="Logout Selfie"
-                                onClick={() => window.open(`${window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")}/${d.attend.logout_selfie_url}`, '_blank')}
+                                onClick={() => window.open(`${"https://sf.doaguru.com"}/${d.attend.logout_selfie_url}`, '_blank')}
                                 title="Click to view full selfie"
                               />
                             )}

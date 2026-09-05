@@ -1,0 +1,25 @@
+{
+  "files": {
+    "main.css": "/static/css/main.86a45b63.css",
+    "main.js": "/static/js/main.0ea5ba14.js",
+    "static/js/453.9f1ef379.chunk.js": "/static/js/453.9f1ef379.chunk.js",
+    "static/media/not-found-cartoon.png": "/static/media/not-found-cartoon.c77ea2a3fab13b0e2278.png",
+    "static/media/NewFotterImage.png": "/static/media/NewFotterImage.482a624925b596fbccf3.png",
+    "static/media/CLogo.png": "/static/media/CLogo.2998beba8efa4b44b067.png",
+    "static/media/brand_logo.png": "/static/media/brand_logo.7bb3729a4e6bf7f27a75.png",
+    "static/media/signature.jpg": "/static/media/signature.acd378328bf4ea3f7030.jpg",
+    "static/media/NewHeaderImage.png": "/static/media/NewHeaderImage.eada4cadfa1a81b5a839.png",
+    "static/media/Shape2.png": "/static/media/Shape2.6a8505eeb823826e41f8.png",
+    "static/media/DG Logo1.png": "/static/media/DG Logo1.2998beba8efa4b44b067.png",
+    "static/media/NewCLogo.png": "/static/media/NewCLogo.2998beba8efa4b44b067.png",
+    "static/media/CEOSignature.png": "/static/media/CEOSignature.cd6805e14d7c08ef2241.png",
+    "index.html": "/index.html",
+    "main.86a45b63.css.map": "/static/css/main.86a45b63.css.map",
+    "main.0ea5ba14.js.map": "/static/js/main.0ea5ba14.js.map",
+    "453.9f1ef379.chunk.js.map": "/static/js/453.9f1ef379.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.86a45b63.css",
+    "static/js/main.0ea5ba14.js"
+  ]
+}

@@ -46,7 +46,7 @@ const sendWhatsApp = async (toNumber, userName) => {
   } catch (error) {
     console.error(
       `❌ WhatsApp failed to ${toNumber}:`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error.response?.data || error;
   }
@@ -58,7 +58,7 @@ const sendAdminOtpWhatsApp = async (otp) => {
     const url = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
     // Hardcoded destination number per requirements
-    const toNumber = "917047490032"; 
+    const toNumber = "917047490032";
     // Note: Assuming the API requires country code like 91.
 
     const data = {
@@ -93,7 +93,7 @@ const sendAdminOtpWhatsApp = async (otp) => {
   } catch (error) {
     console.error(
       `❌ WhatsApp OTP failed to Admin:`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error.response?.data || error;
   }
@@ -116,27 +116,27 @@ const sendAdminOtpEmail = async (otp) => {
 
       console.log(`📧 Sending OTP ${otp} to Admin emails:`, emails);
 
-//       let transporter = nodemailer.createTransport({
-//   host: 'doaguru.com',
-//   port: 465,
-//   secure: true,
-//   auth: {
-//     // user: 'info@doaguru.com',
-//     // pass: 'abhi@doaguru123',
-//     user: 'inquiry@doaguru.com',
-//     pass: 'inquiry@123',
-//   }
-// });
+      //       let transporter = nodemailer.createTransport({
+      //   host: 'doaguru.com',
+      //   port: 465,
+      //   secure: true,
+      //   auth: {
+      //     // user: 'info@doaguru.com',
+      //     // pass: 'abhi@doaguru123',
+      //     user: 'inquiry@doaguru.com',
+      //     pass: 'inquiry@123',
+      //   }
+      // });
 
-const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
-      secure: true, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+      const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        secure: true, // true for 465, false for other ports
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
       const mailOptions = {
         from: process.env.EMAIL_USER,
         to: emails.join(", "),
@@ -213,7 +213,7 @@ const sendLogoutReminderWhatsApp = async (number, name, today) => {
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp logout reminder to ${name} (${number}):`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { error: error.response?.data || error.message };
   }
@@ -275,7 +275,7 @@ const logoutReminderWhatsApp = () => {
 
         if (holidayRows.length > 0) {
           console.log(
-            `🎉 Today (${today}) is a holiday: ${holidayRows[0].holiday_title}`
+            `🎉 Today (${today}) is a holiday: ${holidayRows[0].holiday_title}`,
           );
           return resolve({
             success: true,
@@ -313,12 +313,12 @@ const logoutReminderWhatsApp = () => {
 
               // Step 4: Exclude users on leave
               const filteredUsers = users.filter(
-                (user) => !leaveUserIds.includes(user.user_id)
+                (user) => !leaveUserIds.includes(user.user_id),
               );
 
               if (filteredUsers.length === 0) {
                 console.log(
-                  "✅ No logout reminders needed (all logged out or on leave)."
+                  "✅ No logout reminders needed (all logged out or on leave).",
                 );
                 return resolve({
                   success: true,
@@ -332,13 +332,13 @@ const logoutReminderWhatsApp = () => {
                     sendLogoutReminderWhatsApp(
                       mobile_number,
                       full_name,
-                      formattedToday
-                    )
-                  )
+                      formattedToday,
+                    ),
+                  ),
                 );
 
                 console.log(
-                  `✅ Sent WhatsApp logout reminders to ${filteredUsers.length} user(s).`
+                  `✅ Sent WhatsApp logout reminders to ${filteredUsers.length} user(s).`,
                 );
                 resolve({
                   success: true,
@@ -348,14 +348,14 @@ const logoutReminderWhatsApp = () => {
               } catch (error) {
                 console.error(
                   "❌ Error sending WhatsApp messages:",
-                  error.message
+                  error.message,
                 );
                 reject("WhatsApp API error");
               }
             });
-          }
+          },
         );
-      }
+      },
     );
   });
 };
@@ -367,7 +367,7 @@ function scheduleLogoutReminderWhatsapp() {
     async () => {
       console.log("🚀 Logout reminder triggered at 9 PM IST");
       await logoutReminderWhatsApp();
-    }
+    },
   );
 }
 
@@ -406,7 +406,7 @@ const sendLoginReminderWhatsApp = async (number, name, today) => {
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp logout reminder to ${name} (${number}):`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { error: error.response?.data || error.message };
   }
@@ -479,7 +479,7 @@ const loginReminderWhatsApp = () => {
 
         if (holidayRows.length > 0) {
           console.log(
-            `🎉 Today (${today}) is a holiday: ${holidayRows[0].holiday_title}`
+            `🎉 Today (${today}) is a holiday: ${holidayRows[0].holiday_title}`,
           );
           return resolve({
             success: true,
@@ -507,7 +507,7 @@ const loginReminderWhatsApp = () => {
                 }
 
                 const loggedInUserIds = attendanceRows.map(
-                  (row) => row.user_id
+                  (row) => row.user_id,
                 );
 
                 // Step 4: Get leave users for today
@@ -518,25 +518,25 @@ const loginReminderWhatsApp = () => {
                     if (leaveErr) {
                       console.error(
                         "❌ Error fetching leave data:",
-                        leaveErr.message
+                        leaveErr.message,
                       );
                       return reject("Leave check failed");
                     }
 
                     const leaveUserIds = leaveRows.map(
-                      (row) => row.leave_user_id
+                      (row) => row.leave_user_id,
                     );
 
                     // Step 5: Filter users who are neither logged in nor on leave
                     const notLoggedInUsers = users.filter(
                       (u) =>
                         !loggedInUserIds.includes(u.id) &&
-                        !leaveUserIds.includes(u.id)
+                        !leaveUserIds.includes(u.id),
                     );
 
                     if (notLoggedInUsers.length === 0) {
                       console.log(
-                        "✅ All users have either logged in or are on leave today."
+                        "✅ All users have either logged in or are on leave today.",
                       );
                       return resolve({
                         success: true,
@@ -550,13 +550,13 @@ const loginReminderWhatsApp = () => {
                           sendLoginReminderWhatsApp(
                             mobile_number,
                             full_name,
-                            formattedToday
-                          )
-                        )
+                            formattedToday,
+                          ),
+                        ),
                       );
 
                       console.log(
-                        `✅ WhatsApp login reminders sent to ${notLoggedInUsers.length} user(s).`
+                        `✅ WhatsApp login reminders sent to ${notLoggedInUsers.length} user(s).`,
                       );
                       resolve({
                         success: true,
@@ -566,17 +566,17 @@ const loginReminderWhatsApp = () => {
                     } catch (error) {
                       console.error(
                         "❌ Error sending WhatsApp messages:",
-                        error.message
+                        error.message,
                       );
                       reject("WhatsApp API error");
                     }
-                  }
+                  },
                 );
-              }
+              },
             );
-          }
+          },
         );
-      }
+      },
     );
   });
 };
@@ -588,7 +588,7 @@ function scheduleLoginReminderWhatsapp() {
     async () => {
       console.log("🚀 Login reminder triggered at 11AM IST");
       await loginReminderWhatsApp();
-    }
+    },
   );
 }
 
@@ -628,7 +628,7 @@ const sendAdminAbsentCheckReminderWhatsApp = async (toNumber, count, today) => {
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp reminder to ${toNumber}:`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { success: false, error: error.response?.data || error.message };
   }
@@ -701,7 +701,7 @@ const adminAbsentCheckReminderWhatsApp = () => {
 
         if (holidayRows.length > 0) {
           console.log(
-            `🎉 Today (${today}) is a holiday: ${holidayRows[0].holiday_title}`
+            `🎉 Today (${today}) is a holiday: ${holidayRows[0].holiday_title}`,
           );
           return resolve({
             success: true,
@@ -732,7 +732,7 @@ const adminAbsentCheckReminderWhatsApp = () => {
               if (leaveErr) {
                 console.error(
                   "❌ Error fetching leave data:",
-                  leaveErr.message
+                  leaveErr.message,
                 );
                 return reject("Leave check failed");
               }
@@ -741,14 +741,14 @@ const adminAbsentCheckReminderWhatsApp = () => {
 
               // Step 4: Filter out leave users
               const finalAbsentUsers = absentUsers.filter(
-                (user) => !leaveUserIds.includes(user.id)
+                (user) => !leaveUserIds.includes(user.id),
               );
 
               const absentCount = finalAbsentUsers.length;
 
               if (absentCount === 0) {
                 console.log(
-                  "✅ No actual absentees (all logged in or on leave)."
+                  "✅ No actual absentees (all logged in or on leave).",
                 );
                 return resolve({
                   success: true,
@@ -771,13 +771,13 @@ const adminAbsentCheckReminderWhatsApp = () => {
                       sendAdminAbsentCheckReminderWhatsApp(
                         admin_number,
                         absentCount,
-                        formattedToday
-                      )
-                    )
+                        formattedToday,
+                      ),
+                    ),
                   );
 
                   console.log(
-                    `✅ WhatsApp absent summary sent to ${admins.length} admin(s).`
+                    `✅ WhatsApp absent summary sent to ${admins.length} admin(s).`,
                   );
                   resolve({
                     success: true,
@@ -790,10 +790,10 @@ const adminAbsentCheckReminderWhatsApp = () => {
                   reject("WhatsApp API error");
                 }
               });
-            }
+            },
           );
         });
-      }
+      },
     );
   });
 };
@@ -805,7 +805,7 @@ function scheduleAdminAbsentCheckReminderWhatsapp() {
     async () => {
       console.log("🚀 Login reminder triggered at 11AM IST");
       await adminAbsentCheckReminderWhatsApp();
-    }
+    },
   );
 }
 
@@ -845,7 +845,7 @@ const sendAdminLeaveCheckReminderWhatsApp = async (toNumber, count, today) => {
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp reminder to ${toNumber}:`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { success: false, error: error.response?.data || error.message };
   }
@@ -889,13 +889,13 @@ const adminLeaveCheckReminderWhatsApp = () => {
               sendAdminLeaveCheckReminderWhatsApp(
                 admin_number,
                 absentCount,
-                today
-              )
-            )
+                today,
+              ),
+            ),
           );
 
           console.log(
-            `✅ WhatsApp reminders sent to ${admins.length} admin(s).`
+            `✅ WhatsApp reminders sent to ${admins.length} admin(s).`,
           );
           resolve({
             success: true,
@@ -919,7 +919,7 @@ function scheduleAdminLeaveCheckReminderWhatsapp() {
     async () => {
       console.log("🚀 Login reminder triggered at 11AM IST");
       await adminLeaveCheckReminderWhatsApp();
-    }
+    },
   );
 }
 
@@ -929,15 +929,15 @@ const sendLeaveStatusReminderWhatsApp = async (
   number,
   name,
   leaveDate,
-  status
+  status,
 ) => {
   try {
     const templateName =
       status === "approved"
         ? "leave_approved_notification"
         : status === "rejected"
-        ? "leave_reject_notification"
-        : null;
+          ? "leave_reject_notification"
+          : null;
 
     if (!templateName) {
       throw new Error("Invalid leave status provided for WhatsApp template.");
@@ -971,13 +971,13 @@ const sendLeaveStatusReminderWhatsApp = async (
 
     const response = await axios.post(url, data, { headers });
     console.log(
-      `✅ WhatsApp ${status} notification sent to ${name} (${number})`
+      `✅ WhatsApp ${status} notification sent to ${name} (${number})`,
     );
     return response.data;
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp ${status} notification to ${name} (${number}):`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { error: error.response?.data || error.message };
   }
@@ -1019,7 +1019,7 @@ const sendAdminNotLogoutWhatsApp = async (toNumber, count, today) => {
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp reminder to ${toNumber}:`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { success: false, error: error.response?.data || error.message };
   }
@@ -1067,12 +1067,12 @@ const adminNotLogoutWhatsApp = () => {
         try {
           const results = await Promise.all(
             admins.map(({ admin_number }) =>
-              sendAdminNotLogoutWhatsApp(admin_number, absentCount, today)
-            )
+              sendAdminNotLogoutWhatsApp(admin_number, absentCount, today),
+            ),
           );
 
           console.log(
-            `✅ WhatsApp reminders sent to ${admins.length} admin(s).`
+            `✅ WhatsApp reminders sent to ${admins.length} admin(s).`,
           );
           resolve({
             success: true,
@@ -1096,7 +1096,7 @@ function scheduleAdminNotLogoutWhatsapp() {
     async () => {
       console.log("🚀 Login reminder triggered at 11AM IST");
       await adminNotLogoutWhatsApp();
-    }
+    },
   );
 }
 
@@ -1136,7 +1136,7 @@ const sendAdminNotLoginLogoutWhatsApp = async (toNumber, count, today) => {
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp reminder to ${toNumber}:`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { success: false, error: error.response?.data || error.message };
   }
@@ -1213,7 +1213,7 @@ const adminNotLoginLogoutWhatsApp = () => {
 
         if (holidayRows.length > 0) {
           console.log(
-            `🎉 Today (${formattedToday}) is a holiday: ${holidayRows[0].holiday_title}`
+            `🎉 Today (${formattedToday}) is a holiday: ${holidayRows[0].holiday_title}`,
           );
           return resolve({
             success: true,
@@ -1235,7 +1235,7 @@ const adminNotLoginLogoutWhatsApp = () => {
           if (err) {
             console.error(
               "❌ Error fetching non-logged-in users:",
-              err.message
+              err.message,
             );
             return reject("Database error");
           }
@@ -1248,7 +1248,7 @@ const adminNotLoginLogoutWhatsApp = () => {
               if (leaveErr) {
                 console.error(
                   "❌ Error fetching leave data:",
-                  leaveErr.message
+                  leaveErr.message,
                 );
                 return reject("Leave check failed");
               }
@@ -1257,14 +1257,14 @@ const adminNotLoginLogoutWhatsApp = () => {
 
               // Step 4: Filter out users who are on leave
               const finalAbsentUsers = absentUsers.filter(
-                (user) => !leaveUserIds.includes(user.id)
+                (user) => !leaveUserIds.includes(user.id),
               );
 
               const absentCount = finalAbsentUsers.length;
 
               if (absentCount === 0) {
                 console.log(
-                  "✅ All users have either logged in or are on leave."
+                  "✅ All users have either logged in or are on leave.",
                 );
                 return resolve({
                   success: true,
@@ -1287,13 +1287,13 @@ const adminNotLoginLogoutWhatsApp = () => {
                       sendAdminNotLoginLogoutWhatsApp(
                         admin_number,
                         absentCount,
-                        formattedToday
-                      )
-                    )
+                        formattedToday,
+                      ),
+                    ),
                   );
 
                   console.log(
-                    `✅ WhatsApp summary sent to ${admins.length} admin(s).`
+                    `✅ WhatsApp summary sent to ${admins.length} admin(s).`,
                   );
                   resolve({
                     success: true,
@@ -1306,10 +1306,10 @@ const adminNotLoginLogoutWhatsApp = () => {
                   reject("WhatsApp API error");
                 }
               });
-            }
+            },
           );
         });
-      }
+      },
     );
   });
 };
@@ -1321,7 +1321,7 @@ function scheduleAdminNotLoginLogoutWhatsapp() {
     async () => {
       console.log("🚀 Login reminder triggered at 11AM IST");
       await adminNotLoginLogoutWhatsApp();
-    }
+    },
   );
 }
 
@@ -1361,14 +1361,21 @@ const sendEmployeeNotLoginLogoutWhatsApp = async (toNumber, fullName, date) => {
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp reminder to ${toNumber}:`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { success: false, error: error.response?.data || error.message };
   }
 };
 
 // Scheduler Reminder WhatsApp
-const sendSchedulerReminderWhatsApp = async (number, name, title, date, time, customMessage) => {
+const sendSchedulerReminderWhatsApp = async (
+  number,
+  name,
+  title,
+  date,
+  time,
+  customMessage,
+) => {
   try {
     const url = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
@@ -1376,43 +1383,50 @@ const sendSchedulerReminderWhatsApp = async (number, name, title, date, time, cu
     let displayTime = time;
 
     try {
-      const parsedDate = moment(date, ['DD/MM/YYYY', 'YYYY-MM-DD']);
+      const parsedDate = moment(date, ["DD/MM/YYYY", "YYYY-MM-DD"]);
       if (parsedDate.isValid()) {
-        displayDate = parsedDate.format('D MMMM YYYY');
+        displayDate = parsedDate.format("D MMMM YYYY");
       }
     } catch (e) {
       console.error("Error formatting date for WhatsApp:", e);
     }
 
     try {
-      const parsedTime = moment(time, ['HH:mm:ss', 'HH:mm', 'hh:mm A']);
+      const parsedTime = moment(time, ["HH:mm:ss", "HH:mm", "hh:mm A"]);
       if (parsedTime.isValid()) {
-        displayTime = parsedTime.format('hh:mm A');
+        displayTime = parsedTime.format("hh:mm A");
       }
     } catch (e) {
       console.error("Error formatting time for WhatsApp:", e);
     }
 
     const sanitizeParam = (text) => {
-      if (!text) return '';
-      let cleaned = String(text).replace(/[\r\n\t]+/g, ' ');
-      cleaned = cleaned.replace(/\s{4,}/g, ' ');
+      if (!text) return "";
+      let cleaned = String(text).replace(/[\r\n\t]+/g, " ");
+      cleaned = cleaned.replace(/\s{4,}/g, " ");
       return cleaned.trim();
     };
 
     const sanitizeMessageParam = (text) => {
-      if (!text) return '';
-      let cleaned = String(text).replace(/[\r\t]+/g, ' ');
-      cleaned = cleaned.replace(/\n\s*\n/g, '\n');
-      cleaned = cleaned.replace(/[ \t]{4,}/g, ' ');
+      if (!text) return "";
+      let cleaned = String(text).replace(/[\r\t]+/g, " ");
+      cleaned = cleaned.replace(/\n\s*\n/g, "\n");
+      cleaned = cleaned.replace(/[ \t]{4,}/g, " ");
       return cleaned.trim();
     };
 
     const cleanName = sanitizeParam(name || "User");
-    const cleanTitle = sanitizeParam((title || "Scheduled Task").substring(0, 60));
+    const cleanTitle = sanitizeParam(
+      (title || "Scheduled Task").substring(0, 60),
+    );
     const cleanDate = sanitizeParam(displayDate);
     const cleanTime = sanitizeParam(displayTime);
-    const cleanMessage = sanitizeParam((customMessage || "Please complete the task as scheduled.").substring(0, 1024));
+    const cleanMessage = sanitizeParam(
+      (customMessage || "Please complete the task as scheduled.").substring(
+        0,
+        1024,
+      ),
+    );
 
     const data = {
       messaging_product: "whatsapp",
@@ -1457,12 +1471,14 @@ const sendSchedulerReminderWhatsApp = async (number, name, title, date, time, cu
     };
 
     const response = await axios.post(url, data, { headers });
-    console.log(`✅ WhatsApp scheduler reminder sent to ${name} (${number}) using template 'sf_work_reminder'`);
+    console.log(
+      `✅ WhatsApp scheduler reminder sent to ${name} (${number}) using template 'sf_work_reminder'`,
+    );
     return response.data;
   } catch (error) {
     console.error(
       `❌ Failed to send WhatsApp scheduler reminder to ${name} (${number}) using template 'sf_work_reminder':`,
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return { error: error.response?.data || error.message };
   }
@@ -1527,7 +1543,7 @@ const employeeNotLoginLogoutWhatsApp = () => {
 
         if (holidayRows.length > 0) {
           console.log(
-            `🎉 Today (${formattedToday}) is a holiday: ${holidayRows[0].holiday_title}`
+            `🎉 Today (${formattedToday}) is a holiday: ${holidayRows[0].holiday_title}`,
           );
           return resolve({
             success: true,
@@ -1549,7 +1565,7 @@ const employeeNotLoginLogoutWhatsApp = () => {
           if (err) {
             console.error(
               "❌ Error fetching non-logged-in users:",
-              err.message
+              err.message,
             );
             return reject("Database error");
           }
@@ -1570,7 +1586,7 @@ const employeeNotLoginLogoutWhatsApp = () => {
               if (leaveErr) {
                 console.error(
                   "❌ Error fetching leave data:",
-                  leaveErr.message
+                  leaveErr.message,
                 );
                 return reject("Leave check failed");
               }
@@ -1579,12 +1595,12 @@ const employeeNotLoginLogoutWhatsApp = () => {
 
               // Step 4: Filter out leave users
               const finalAbsentUsers = absentUsers.filter(
-                (user) => !leaveUserIds.includes(user.id)
+                (user) => !leaveUserIds.includes(user.id),
               );
 
               if (finalAbsentUsers.length === 0) {
                 console.log(
-                  "✅ All absentees are on approved or pending leave."
+                  "✅ All absentees are on approved or pending leave.",
                 );
                 return resolve({
                   success: true,
@@ -1599,13 +1615,13 @@ const employeeNotLoginLogoutWhatsApp = () => {
                     sendEmployeeNotLoginLogoutWhatsApp(
                       user.mobile_number,
                       user.full_name,
-                      formattedToday
-                    )
-                  )
+                      formattedToday,
+                    ),
+                  ),
                 );
 
                 console.log(
-                  `✅ WhatsApp reminders sent to ${finalAbsentUsers.length} absent employee(s).`
+                  `✅ WhatsApp reminders sent to ${finalAbsentUsers.length} absent employee(s).`,
                 );
                 resolve({
                   success: true,
@@ -1615,14 +1631,14 @@ const employeeNotLoginLogoutWhatsApp = () => {
               } catch (error) {
                 console.error(
                   "❌ Error sending WhatsApp to employees:",
-                  error.message
+                  error.message,
                 );
                 reject("WhatsApp API error");
               }
-            }
+            },
           );
         });
-      }
+      },
     );
   });
 };
@@ -1634,7 +1650,7 @@ function scheduleEmployeeNotLoginLogoutWhatsapp() {
     async () => {
       console.log("🚀 Login reminder triggered at 11AM IST");
       await employeeNotLoginLogoutWhatsApp();
-    }
+    },
   );
 }
 
@@ -1659,4 +1675,3 @@ module.exports = {
   sendLoginReminderWhatsApp,
   sendSchedulerReminderWhatsApp,
 };
-

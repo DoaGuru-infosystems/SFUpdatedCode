@@ -155,9 +155,11 @@ export default function AdminNavbar({ Logout, render }) {
     audio.play().catch(e => console.log("Audio playback failed:", e));
   };
 
+  const getApiBase = () => ("https://sf.doaguru.com");
+
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get(`${window.location.origin}/api/admin-notifications`);
+      const response = await axios.get(`${getApiBase()}/api/admin-notifications`);
       if (response.data.success) {
         setNotifications(response.data.notifications);
         setUnreadCount(response.data.notifications.filter(n => !n.is_read).length);
@@ -169,7 +171,7 @@ export default function AdminNavbar({ Logout, render }) {
 
   const markAsRead = async (id, type) => {
     try {
-      await axios.put(`${window.location.origin}/api/admin-notifications/mark-read/${id}`);
+      await axios.put(`${getApiBase()}/api/admin-notifications/mark-read/${id}`);
       fetchNotifications();
 
       // Navigate based on type
@@ -199,7 +201,7 @@ export default function AdminNavbar({ Logout, render }) {
     // ═══ Real-Time Socket Connection ═══
     // In Production (cPanel/Passenger), we MUST prioritize 'polling' and use 
     // the application's own origin to prevent handshake failures.
-    const socket = io(window.location.hostname === 'localhost' ? window.API_BASE : "https://sf.doaguru.com", {
+    const socket = io("https://sf.doaguru.com", {
       transports: ["polling", "websocket"],
       withCredentials: true,
       secure: window.location.protocol === "https:",

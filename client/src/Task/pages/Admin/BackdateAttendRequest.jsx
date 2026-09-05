@@ -9,7 +9,7 @@ import {
 import moment from "moment";
 import toast from "react-hot-toast";
 
-const getApiBaseUrl = () => (window.API_BASE || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com")) + "/api";
+const getApiBaseUrl = () => ("https://sf.doaguru.com") + "/api";
 
 const BackdateAttendRequest = () => {
   const API_BASE_URL = getApiBaseUrl();

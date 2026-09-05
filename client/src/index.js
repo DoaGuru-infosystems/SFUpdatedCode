@@ -7,10 +7,10 @@ import reportWebVitals from './reportWebVitals';
 import { BrowserRouter } from 'react-router-dom';
 import axios from 'axios';
 
-window.API_BASE = window.location.hostname === "localhost"
-  ? "http://localhost:8080"
-  : (process.env.REACT_APP_API_URL || "https://sf.doaguru.com");
+import { API_URL } from './config';
 
+// Sets the global API_BASE from our config file
+window.API_BASE = API_URL;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

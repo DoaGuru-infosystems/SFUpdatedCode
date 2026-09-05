@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, useNavigate, Link, useLocation, Outlet } from "react-router-dom";
+import { Routes, Route, useNavigate, Link, useLocation, Outlet, Navigate } from "react-router-dom";
 import "react-multi-date-picker/styles/colors/green.css";
 // import App from "./App";
 // Sales App
@@ -85,6 +85,14 @@ const LettersLayout = () => {
       <Outlet />
     </div>
   );
+};
+
+const ProtectedRoute = () => {
+  const user = localStorage.getItem("user");
+  if (!user) {
+    return <Navigate to="/task/login" replace />;
+  }
+  return <Outlet />;
 };
 
 const Commonjs = () => {
@@ -214,14 +222,6 @@ const Commonjs = () => {
 
         {/*--------------- Task app ----------------- */}
         {/* <TaskApp /> */}
-        {page === "task" && userRole === "admin" && (
-          <Route path="/task/Admin-Home-page" element={<AdminHomePage />} />
-        )}
-
-        {page === "task" && (userRole === "user" || userRole === "team_lead") && (
-          <Route path="/task/UserHome" element={<UserHome />} />
-        )}
-
         {page === "task" && userRole !== "admin" && userRole !== "user" && userRole !== "team_lead" && (
           <Route
             path="/task/login"
@@ -229,12 +229,30 @@ const Commonjs = () => {
           />
         )}
 
-        {/* <Route path="/task/UserHome" element={<UserHome />} /> */}
-        <Route path="/task/TaskView" element={<TaskView />} />
         <Route
-          path="/task/AssignProjectDetails"
-          element={<AssignProjectDetails />}
+          path="/task/reset-password"
+          element={<EmployeePasswordReset />}
         />
+        <Route
+          path="/task/admin-reset-password"
+          element={<AdminPasswordReset />}
+        />
+
+        <Route element={<ProtectedRoute />}>
+          {page === "task" && userRole === "admin" && (
+            <Route path="/task/Admin-Home-page" element={<AdminHomePage />} />
+          )}
+
+          {page === "task" && (userRole === "user" || userRole === "team_lead") && (
+            <Route path="/task/UserHome" element={<UserHome />} />
+          )}
+
+          {/* <Route path="/task/UserHome" element={<UserHome />} /> */}
+          <Route path="/task/TaskView" element={<TaskView />} />
+          <Route
+            path="/task/AssignProjectDetails"
+            element={<AssignProjectDetails />}
+          />
         <Route
           path="/task/EmployeeTaskReport"
           element={<EmployeeTaskReport />}
@@ -254,10 +272,6 @@ const Commonjs = () => {
           element={<EmployeeLeaveReport />}
         />
         <Route
-          path="/task/reset-password"
-          element={<EmployeePasswordReset />}
-        />
-        <Route
           path="/task/AssignProjectTarget-Details"
           element={<AssignDailyTarget />}
         />
@@ -271,10 +285,6 @@ const Commonjs = () => {
         />
 
         {/* Admin Routes  */}
-        <Route
-          path="/task/admin-reset-password"
-          element={<AdminPasswordReset />}
-        />
         <Route path="/task/Admin-Home-page" element={<AdminHomePage />} />
         <Route
           path="/task/employee-show-register-page"
@@ -369,6 +379,7 @@ const Commonjs = () => {
             </ReminderProvider>
           }
         />
+        </Route>
       </Routes>
       {page == "task" ? <Footer /> : page == "sales" ? <Sales_Footer /> : ""}
     </LettersThemeProvider>

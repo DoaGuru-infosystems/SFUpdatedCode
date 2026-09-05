@@ -86,9 +86,12 @@ const loginController = async (req, res, next) => {
     res.status(500).json({ error: e.message });
   }
 }
+
 const UserRegister = (req, res) => {
-  const { fullName, mobileNumber, emailId, designation, role, password } = req.body;
+  const { fullName, mobileNumber, emailId, designation, role, password, employment_status, department } = req.body;
   const userRole = role || 'user';
+  const status = employment_status || 'active';
+  const userDept = department || null;
 
   // Check if user already exists
   const checkUserQuery = 'SELECT * FROM task_users WHERE email_id = ?';
@@ -103,8 +106,8 @@ const UserRegister = (req, res) => {
     }
 
     // Proceed with registration
-    const sql = 'INSERT INTO task_users (full_name, mobile_number, email_id, designation, role, password) VALUES (?, ?, ?, ?, ?, ?)';
-    db.query(sql, [fullName, mobileNumber, emailId, designation, userRole, password], (err, result) => {
+    const sql = 'INSERT INTO task_users (full_name, mobile_number, email_id, designation, role, password, employment_status, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+    db.query(sql, [fullName, mobileNumber, emailId, designation, userRole, password, status, userDept], (err, result) => {
       if (err) {
         return res.status(500).json({ error: 'Internal server error' });
       }
@@ -112,6 +115,8 @@ const UserRegister = (req, res) => {
     });
   });
 };
+
+
 const UserLogin = async (req, res) => {
   const { emailId, password } = req.body;
 

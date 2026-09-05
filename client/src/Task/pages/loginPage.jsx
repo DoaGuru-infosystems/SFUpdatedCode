@@ -3,6 +3,7 @@ import CLogo from "../assets/images/NewCLogo.png";
 import React, { useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react";
 // import cogoToast from 'cogo-toast';
 
 // eslint-disable-next-line react/prop-types
@@ -10,6 +11,7 @@ function LoginPage({ setRender }) {
   const [showModal, setShowModal] = React.useState(false);
   const [emailId, setEmailId] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -25,7 +27,7 @@ function LoginPage({ setRender }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const API_BASE = window.location.hostname === "localhost" ? window.API_BASE : "https://sf.doaguru.com";
+    const API_BASE = "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/login`, { emailId, password })
 
@@ -67,7 +69,7 @@ function LoginPage({ setRender }) {
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
-    const API_BASE = window.location.hostname === "localhost" ? window.API_BASE : "https://sf.doaguru.com";
+    const API_BASE = "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/admin-login`, { emailId, password })
       .then((response) => {
@@ -164,18 +166,25 @@ function LoginPage({ setRender }) {
                   </Link>
                 </div>
               </div>
-              <div className="mt-2">
+              <div className="mt-2 relative">
                 <input
                   id="password"
                   name="password"
                   value={password}
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
-                  className="block w-full rounded-md border-2 py-1.5 ps-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  className="block w-full rounded-md border-2 py-1.5 ps-3 pe-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
 
@@ -251,19 +260,28 @@ function LoginPage({ setRender }) {
                               {/* Project and Client work task category select  */}
                               <div className="project-task-category">
                                 <label
-                                  htmlFor="password"
+                                  htmlFor="admin-password"
                                   className="block mb-2 text-sm font-medium text-black-900 dark:text-black"
                                 >
                                   Your Password
                                 </label>
-                                <input
-                                  id="password"
-                                  required
-                                  placeholder="Password"
-                                  type="password"
-                                  onChange={(e) => setPassword(e.target.value)}
-                                  className="block border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-60 p-2.5 light:bg-white-700 border-gray-600 placeholder-black-400 text-black focus:ring-black-500 focus:border-blue-500"
-                                />
+                                <div className="relative w-60">
+                                  <input
+                                    id="admin-password"
+                                    required
+                                    placeholder="Password"
+                                    type={showPassword ? "text" : "password"}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="block border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pe-10 light:bg-white-700 border-gray-600 placeholder-black-400 text-black focus:ring-black-500 focus:border-blue-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                                  >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                  </button>
+                                </div>
                               </div>
                               <div className="buttons flex justify-start sm:ms-8  ">
                                 {/* Add Task Button  */}

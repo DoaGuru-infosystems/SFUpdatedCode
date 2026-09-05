@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import '../scheduler.css';
 
-const API_BASE = window.location.hostname === 'localhost' ? (window.API_BASE || 'http://localhost:8080') : 'https://sf.doaguru.com';
+const API_BASE = "https://sf.doaguru.com";
 
 const parseNotificationBody = (messageBody) => {
   if (!messageBody) return null;
