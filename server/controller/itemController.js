@@ -127,6 +127,7 @@ const updateLead = (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
+
 const updateFollowReport = (req, res) => {
   try {
     const { report_id, followUpDate, followUpPhase, followUpReport, status } =
@@ -1421,47 +1422,73 @@ const checkInAttend = (req, res) => {
   //   }
 
   try {
-    const insertQuery = `
-      INSERT INTO attendance 
-        (user_id, login_time, login_selfie_url, login_latitude, login_longitude, attend_date, record_created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    const insertParams = [
-      user_id,
-      currentTime,
-      selfiePicture,
-      latitude,
-      longitude,
-      currentDate,
-      dateTime,
-    ];
-
-    db.query(insertQuery, insertParams, (err) => {
-      if (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-          return res.status(409).json({ success: false, message: err.message });
-        }
-        return res.status(500).json({ success: false, message: err.message });
-      }
-
-      // ═══ Admin Notification Trigger ═══
-      db.query(
-        "SELECT full_name FROM task_users WHERE id = ?",
-        [user_id],
-        (err, userRes) => {
-          if (!err && userRes.length > 0) {
-            addAdminNotification(
-              user_id,
-              userRes[0].full_name,
-              "login",
-              `${userRes[0].full_name} logged in at ${currentTime}`,
-            );
+    const { checkSundayApproval, isTodaySunday } = require("./sundayLoginController");
+    if (isTodaySunday()) {
+      const checkSql = "SELECT * FROM task_users WHERE id = ?";
+      db.query(checkSql, [user_id], async (uErr, uRows) => {
+        if (!uErr && uRows.length > 0 && uRows[0].role !== "admin") {
+          try {
+            const sundayCheck = await checkSundayApproval(uRows[0]);
+            if (!sundayCheck.allowed) {
+              return res.status(403).json({
+                success: false,
+                requireSundayApproval: true,
+                message: "Sunday attendance check-in requires Admin approval.",
+              });
+            }
+          } catch (sErr) {
+            console.error("Sunday check error in checkInAttend:", sErr);
           }
-        },
-      );
+        }
+        executeAttendanceInsert();
+      });
+    } else {
+      executeAttendanceInsert();
+    }
 
-      res.status(200).json({ success: true, message: "Check-in saved" });
-    });
+    function executeAttendanceInsert() {
+      const insertQuery = `
+        INSERT INTO attendance 
+          (user_id, login_time, login_selfie_url, login_latitude, login_longitude, attend_date, record_created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+      const insertParams = [
+        user_id,
+        currentTime,
+        selfiePicture,
+        latitude,
+        longitude,
+        currentDate,
+        dateTime,
+      ];
+
+      db.query(insertQuery, insertParams, (err) => {
+        if (err) {
+          if (err.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({ success: false, message: err.message });
+          }
+          return res.status(500).json({ success: false, message: err.message });
+        }
+
+        // ═══ Admin Notification Trigger ═══
+        db.query(
+          "SELECT full_name FROM task_users WHERE id = ?",
+          [user_id],
+          (err, userRes) => {
+            if (!err && userRes.length > 0) {
+              addAdminNotification(
+                user_id,
+                userRes[0].full_name,
+                "login",
+                `${userRes[0].full_name} logged in at ${currentTime}`,
+              );
+            }
+          },
+        );
+
+        res.status(200).json({ success: true, message: "Check-in saved" });
+      });
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: "Internal server error" });
   }

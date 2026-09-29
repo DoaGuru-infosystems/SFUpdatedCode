@@ -1,6 +1,6 @@
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import CLogo from "../assets/images/NewCLogo.png";
-import React, { useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
@@ -27,10 +27,9 @@ function LoginPage({ setRender }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const API_BASE = "https://sf.doaguru.com";
+    const API_BASE = window.API_BASE || "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/login`, { emailId, password })
-
       .then((response) => {
         if (response.data && response.data.user) {
           let save = response.data.user;
@@ -69,7 +68,7 @@ function LoginPage({ setRender }) {
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
-    const API_BASE = "https://sf.doaguru.com";
+    const API_BASE = window.API_BASE || "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/admin-login`, { emailId, password })
       .then((response) => {

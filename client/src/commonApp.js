@@ -49,6 +49,7 @@ import CheckAssignedTaskDevlopment from "./Task/pages/Employee/CheckAssignedTask
 import EmployeeDetails from "./Task/pages/Admin/EmployeeDetails";
 import LeaderDashboard from "./Task/pages/Leader/LeaderDashboard";
 import WorkforceInsights from "./Task/pages/Admin/WorkforceInsights";
+import SundayApprovalsAdmin from "./Task/pages/Admin/SundayApprovalsAdmin";
 
 // ── Scheduler Plugin ────────────────────────────────────────
 import SchedulerApp from "./Scheduler/SchedulerApp";
@@ -335,6 +336,10 @@ const Commonjs = () => {
         <Route
           path="/task/admin/workforce-insights"
           element={<WorkforceInsights />}
+        />
+        <Route
+          path="/task/admin/sunday-approvals"
+          element={<SundayApprovalsAdmin />}
         />
         <Route path="/task/Page-Not-Found" element={<NotFoundPage />} />
         <Route path="/task/blank" element={<Blank />} />

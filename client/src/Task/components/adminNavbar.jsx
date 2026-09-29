@@ -15,6 +15,7 @@ import { Bars3Icon, BellIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
 import moment from "moment";
 import { io } from "socket.io-client";
+import toast from "react-hot-toast";
 
 const navigation = [
   { name: "Dashboard", href: "task/Admin-Home-page" },
@@ -45,6 +46,7 @@ const navigation = [
     ],
   },
   { name: "Holiday Management", href: "/task/admin/holiday-management" },
+  { name: "Sunday Approvals", href: "/task/admin/sunday-approvals" },
   { name: "Scheduler", href: "/task/scheduler/" },
   { name: "Letters", href: "/task/letters" },
 ];
@@ -155,7 +157,7 @@ export default function AdminNavbar({ Logout, render }) {
     audio.play().catch(e => console.log("Audio playback failed:", e));
   };
 
-  const getApiBase = () => ("https://sf.doaguru.com");
+  const getApiBase = () => window.API_BASE || "https://sf.doaguru.com";
 
   const fetchNotifications = async () => {
     try {
@@ -199,9 +201,7 @@ export default function AdminNavbar({ Logout, render }) {
     const interval = setInterval(fetchNotifications, 60000); // Polling fallback
 
     // ═══ Real-Time Socket Connection ═══
-    // In Production (cPanel/Passenger), we MUST prioritize 'polling' and use 
-    // the application's own origin to prevent handshake failures.
-    const socket = io("https://sf.doaguru.com", {
+    const socket = io(window.API_BASE || "https://sf.doaguru.com", {
       transports: ["polling", "websocket"],
       withCredentials: true,
       secure: window.location.protocol === "https:",
@@ -223,6 +223,32 @@ export default function AdminNavbar({ Logout, render }) {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
+
+    socket.emit("join_admin_room");
+
+    socket.on("sunday_new_login_request", (reqData) => {
+      console.log("☀️ Sunday Login Request received in AdminNavbar:", reqData);
+      playNotificationSound();
+      toast(
+        (t) => (
+          <span className="flex items-center gap-2">
+            <span>
+              ☀️ <b>{reqData.employee_name}</b> requested Sunday login approval.
+            </span>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                navigate("/task/admin/sunday-approvals");
+              }}
+              className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs text-white font-bold hover:bg-amber-600 transition"
+            >
+              Review
+            </button>
+          </span>
+        ),
+        { duration: 8000 }
+      );
+    });
 
     socket.on("new-notification", (notif) => {
       console.log("🔔 New Real-time Notification received:", notif);

@@ -153,6 +153,33 @@ const AdminHomePage = () => {
         </div>
       </div>
 
+      {/* Sunday Login Governance Quick Banner */}
+      <div className="mb-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 p-3.5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-white/20 p-2 backdrop-blur-md">
+            <Clock className="w-5 h-5 text-amber-100" />
+          </div>
+          <div>
+            <h4 className="text-sm font-black tracking-tight flex items-center gap-1.5">
+              <span>Sunday Login Approval System</span>
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-amber-100">
+                {new Date().getDay() === 0 ? "☀️ Today is Sunday" : "Mode 1 & Mode 2"}
+              </span>
+            </h4>
+            <p className="text-xs text-amber-100/90 font-medium">
+              Manage real-time Sunday login approval requests and schedule pre-approved employees with custom time windows.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/task/admin/sunday-approvals"
+          className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-1.5 text-xs font-black text-slate-900 shadow hover:bg-amber-50 transition active:scale-95"
+        >
+          <span>Open Sunday Approvals</span>
+          <ChevronRight className="w-3.5 h-3.5 text-amber-600" />
+        </Link>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {stats.map((stat, index) => (

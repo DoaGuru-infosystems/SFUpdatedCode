@@ -28,6 +28,16 @@ const io = socketUtil.init(server);
 
 io.on("connection", (socket) => {
   console.log("⚡ Admin/Client connected to Socket.io:", socket.id);
+
+  socket.on("join_admin_room", () => {
+    socket.join("admin_room");
+    console.log(`🛡️ Socket ${socket.id} joined admin_room`);
+  });
+
+  socket.on("join_employee_room", (empId) => {
+    socket.join(`employee_${empId}`);
+  });
+
   socket.on("disconnect", () => {
     console.log("❌ Socket disconnected:", socket.id);
   });
@@ -51,6 +61,7 @@ const updateOfferLetter = require("./router/letterRoutes.js");
 const updateInternshipOffer = require("./router/letterRoutes.js");
 require("./utils/fetchGoogleHolidays");
 // const reminderRoute = require("./router/reminderRoute.js");
+const sundayLoginRoute = require("./router/sundayLoginRoute.js");
 
 // ── Scheduler Plugin ──────────────────────────────────────────
 const schedulerRoute = require("./router/schedulerRoute.js");
@@ -91,6 +102,7 @@ app.use("/api", attendanceRotue);
 app.use("/api", salaryRoute);
 app.use(commitmentRoute);
 app.use(leaderRoute);
+app.use(sundayLoginRoute);
 // app.use("/api", reminderRoute);
 
 // Scheduler Plugin Routes

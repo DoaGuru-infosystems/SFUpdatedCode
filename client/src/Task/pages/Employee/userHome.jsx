@@ -23,6 +23,7 @@ import {
   FaChevronDown,
 } from "react-icons/fa";
 import moment from "moment";
+import SundayApprovalModal from "../../components/SundayApprovalModal";
 
 const CustomDropdown = ({ options, value, onChange, placeholder, disabled, name, required }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -148,7 +149,9 @@ function UserHome() {
   const [checkOutSelfieBlob, setCheckOutSelfieBlob] = useState(null);
   const [leaveCheck, setLeaveCheck] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const API_BASE = "https://sf.doaguru.com";
+  const [showSundayModal, setShowSundayModal] = useState(false);
+  const [sundayRequest, setSundayRequest] = useState(null);
+  const API_BASE = window.API_BASE || "https://sf.doaguru.com";
 
   let user = JSON.parse(localStorage.getItem("user"));
 
@@ -534,10 +537,41 @@ function UserHome() {
   const handleCheckIn = async () => {
     setLoading(true);
     try {
+      // ── Sunday Attendance Access Check ──
+      const sundayRes = await axios.post(
+        `${API_BASE}/api/sunday-login/check-attendance-access`,
+        { userId: user?.id }
+      );
+
+      if (sundayRes.data && !sundayRes.data.allowed) {
+        setLoading(false);
+        setSundayRequest(
+          sundayRes.data.request || {
+            employee_id: user?.id,
+            employee_name: user?.full_name,
+            employee_email: user?.email_id,
+            status: "pending",
+            expires_at: sundayRes.data.request?.expires_at,
+            expires_at_timestamp: sundayRes.data.request?.expires_at_timestamp,
+            request_time: sundayRes.data.request?.request_time,
+          }
+        );
+        setShowSundayModal(true);
+        return;
+      }
+
       await openCamera((blob) => setCheckInSelfieBlob(blob));
     } catch (e) {
+      console.error(e);
       setLoading(false);
     }
+  };
+
+  const handleSundayApprovedSuccess = () => {
+    setShowSundayModal(false);
+    toast.success("Sunday access approved! Opening camera for attendance...");
+    setLoading(true);
+    openCamera((blob) => setCheckInSelfieBlob(blob));
   };
 
   useEffect(() => {
@@ -1137,6 +1171,14 @@ function UserHome() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Sunday Login Approval Modal for Attendance */}
+      <SundayApprovalModal
+        isOpen={showSundayModal}
+        onClose={() => setShowSundayModal(false)}
+        requestData={sundayRequest}
+        onApprovedSuccess={handleSundayApprovedSuccess}
+      />
     </div>
   );
 }

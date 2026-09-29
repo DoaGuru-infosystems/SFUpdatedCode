@@ -87,32 +87,44 @@ const loginController = async (req, res, next) => {
   }
 }
 
-const UserRegister = (req, res) => {
+const UserRegister = async (req, res) => {
   const { fullName, mobileNumber, emailId, designation, role, password, employment_status, department } = req.body;
   const userRole = role || 'user';
   const status = employment_status || 'active';
   const userDept = department || null;
 
+  if (!password) {
+    return res.status(400).json({ message: 'Password is required' });
+  }
+
   // Check if user already exists
   const checkUserQuery = 'SELECT * FROM task_users WHERE email_id = ?';
-  db.query(checkUserQuery, [emailId], (checkErr, checkResult) => {
+  db.query(checkUserQuery, [emailId], async (checkErr, checkResult) => {
     if (checkErr) {
       return res.status(500).json({ error: 'Internal server error' });
-
     }
 
     if (checkResult.length > 0) {
       return res.status(400).json({ message: 'User with this email already exists.' });
     }
 
-    // Proceed with registration
-    const sql = 'INSERT INTO task_users (full_name, mobile_number, email_id, designation, role, password, employment_status, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-    db.query(sql, [fullName, mobileNumber, emailId, designation, userRole, password, status, userDept], (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: 'Internal server error' });
-      }
-      res.status(200).json({ message: 'User registered successfully' });
-    });
+    try {
+      // 🔒 Hash password securely before saving
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Proceed with registration
+      const sql = 'INSERT INTO task_users (full_name, mobile_number, email_id, designation, role, password, employment_status, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+      db.query(sql, [fullName, mobileNumber, emailId, designation, userRole, hashedPassword, status, userDept], (err, result) => {
+        if (err) {
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.status(200).json({ message: 'User registered successfully' });
+      });
+    } catch (hashError) {
+      console.error('❌ Error hashing password during registration:', hashError.message);
+      return res.status(500).json({ error: 'Failed to process password hashing' });
+    }
   });
 };
 
@@ -143,38 +155,59 @@ const UserLogin = async (req, res) => {
 
     let isMatch = false;
 
-    // Try bcrypt comparison
+    // 1. Try bcrypt comparison
     try {
       isMatch = await bcrypt.compare(password, user.password);
     } catch (err) {
       console.error("❌ Error comparing password:", err.message);
     }
 
-    // If bcrypt fails, check plain text (legacy support)
-    if (!isMatch) {
-      isMatch = password === user.password;
+    // 2. If bcrypt fails, check plain text (legacy support) & auto-upgrade to bcrypt
+    if (!isMatch && password === user.password) {
+      isMatch = true;
+
+      // 🔒 Auto-upgrade plain-text password to bcrypt hash in database
+      bcrypt.hash(password, 10, (upgradeErr, upgradedHash) => {
+        if (!upgradeErr && upgradedHash) {
+          db.query(
+            "UPDATE task_users SET password = ? WHERE id = ?",
+            [upgradedHash, user.id],
+            (updateErr) => {
+              if (!updateErr) {
+                console.log(`🔒 Auto-upgraded user ${user.id} (${user.email_id}) plain-text password to bcrypt hash.`);
+              }
+            }
+          );
+        }
+      });
     }
 
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email_id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    try {
+      const secretKey = process.env.JWT_SECRET || "Priyanshuisafullstackdeveloper";
+      const token = jwt.sign(
+        { id: user.id, email: user.email_id, role: user.role },
+        secretKey,
+        { expiresIn: "1d" }
+      );
 
-    res.send({
-      message: `सफल लॉगिन
+      return res.send({
+        message: `सफल लॉगिन
 
 आपका लॉगिन सफल रहा है। आपका स्वागत है! 
 
 धन्यवाद!
 `,
-      user,
-      token,
-    });
+        user,
+        token,
+      });
+    } catch (jwtErr) {
+      console.error("❌ JWT Signing error:", jwtErr);
+      return res.status(500).json({ message: "Token generation failed", error: jwtErr.message });
+    }
   });
 };
 
@@ -214,6 +247,7 @@ const AdminLogin = async (req, res) => {
         return res.status(401).json({ message: "invalid credentials" });
       }
 
+      const secretKey = process.env.JWT_SECRET || "Priyanshuisafullstackdeveloper";
       const token = jwt.sign(
         {
           id: user.id,
@@ -221,7 +255,7 @@ const AdminLogin = async (req, res) => {
           email: user.email_id,
           loginTime: Date.now(),
         },
-        process.env.JWT_SECRET,
+        secretKey,
         { expiresIn: "30m" }
       );
 
