@@ -88,16 +88,15 @@ function AssignProjectDetails() {
               <th scope="col" className="px-3 py-2">Assign ID</th>
               <th scope="col" className="px-3 py-2">Project/Client Name</th>
               <th scope="col" className="px-3 py-2">Category</th>
+              <th scope="col" className="px-3 py-2">Daily Deliverables</th>
               <th scope="col" className="px-3 py-2">Assigned By</th>
               <th scope="col" className="px-3 py-2">Assign Date</th>
-
-
             </tr>
           </thead>
           <tbody>
             {taskData.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-3 py-4 text-center text-sm text-gray-500 font-medium">
+                <td colSpan="7" className="px-3 py-4 text-center text-sm text-gray-500 font-medium">
                   No assigned projects found.
                 </td>
               </tr>
@@ -108,6 +107,39 @@ function AssignProjectDetails() {
                   <td className="px-3 py-2">{task.id}</td>
                   <td className="px-3 py-2 font-semibold text-slate-800">{task.project_name || "N/A"}</td>
                   <td className="px-3 py-2 text-slate-600">{task.category_name || "N/A"}</td>
+                  <td className="px-3 py-2">
+                    {((task.daily_post || 0) + (task.daily_video || 0) + (task.daily_carousel || 0) + (task.daily_creative || 0) + (task.daily_shoot || 0)) > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {task.daily_post > 0 && (
+                          <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            📌 {task.daily_post} Post
+                          </span>
+                        )}
+                        {task.daily_video > 0 && (
+                          <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            🎬 {task.daily_video} Video
+                          </span>
+                        )}
+                        {task.daily_carousel > 0 && (
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            📑 {task.daily_carousel} Carousel
+                          </span>
+                        )}
+                        {task.daily_creative > 0 && (
+                          <span className="bg-pink-100 text-pink-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            🎨 {task.daily_creative} Design
+                          </span>
+                        )}
+                        {task.daily_shoot > 0 && (
+                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            📸 {task.daily_shoot} Shoot
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs italic">Standard</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-slate-700 font-bold">{task.assigned_by || "Admin"}</td>
                   <td className="px-3 py-2">{formatDate(task.created_at)}</td>
 

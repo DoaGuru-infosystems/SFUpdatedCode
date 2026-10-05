@@ -1054,7 +1054,12 @@ const projectFromAssign = (req, res) => {
       ap.created_at,
       ap.status,
       ap.status_note,
-      ap.assigned_by
+      ap.assigned_by,
+      ap.daily_post,
+      ap.daily_video,
+      ap.daily_carousel,
+      ap.daily_creative,
+      ap.daily_shoot
     FROM assigned_projects ap
     LEFT JOIN projects p ON ap.project_id = p.id
     LEFT JOIN category c ON ap.category_id = c.id
@@ -1072,7 +1077,17 @@ const projectFromAssign = (req, res) => {
 };
 
 const assignProject = (req, res) => {
-  const { projectId, categoryId, userId, assigned_by } = req.body;
+  const {
+    projectId,
+    categoryId,
+    userId,
+    assigned_by,
+    daily_post,
+    daily_video,
+    daily_carousel,
+    daily_creative,
+    daily_shoot
+  } = req.body;
 
   if (!userId) {
     return res.status(400).json({ message: "User ID is required." });
@@ -1110,10 +1125,20 @@ const assignProject = (req, res) => {
     }
 
     const assignQuery =
-      "INSERT INTO assigned_projects (project_id, category_id, user_id, assigned_by) VALUES (?, ?, ?, ?)";
+      "INSERT INTO assigned_projects (project_id, category_id, user_id, assigned_by, daily_post, daily_video, daily_carousel, daily_creative, daily_shoot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     db.query(
       assignQuery,
-      [pid, cid, userId, assigned_by || "Admin"],
+      [
+        pid,
+        cid,
+        userId,
+        assigned_by || "Admin",
+        parseInt(daily_post, 10) || 0,
+        parseInt(daily_video, 10) || 0,
+        parseInt(daily_carousel, 10) || 0,
+        parseInt(daily_creative, 10) || 0,
+        parseInt(daily_shoot, 10) || 0,
+      ],
       (assignErr, assignResults) => {
         if (assignErr) {
           return res.status(500).send(assignErr);
@@ -1132,12 +1157,18 @@ const assignProject = (req, res) => {
                 const year = today.getFullYear();
 
                 if (dept === "Digital Marketing" || dept === "SEO") {
-                  const tgtQuery = `INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by) VALUES (?, ?, ?, ?, 0, 0, 0, ?)`;
+                  const dPost = (parseInt(daily_post, 10) || 0) + (parseInt(daily_carousel, 10) || 0);
+                  const dVideo = parseInt(daily_video, 10) || 0;
+                  const dShoot = parseInt(daily_shoot, 10) || 0;
+                  const tgtQuery = `INSERT INTO assigntarget (employeeId, projectId, month, year, targetPost, targetVideo, targetShoot, assigned_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
                   db.query(tgtQuery, [
                     userId,
                     pid,
                     month,
                     year,
+                    dPost * 26,
+                    dVideo * 26,
+                    dShoot * 26,
                     assigned_by || "Admin",
                   ]);
                 } else {
@@ -1185,7 +1216,12 @@ const getAllAssignments = (req, res) => {
       ap.created_at,
       ap.status,
       ap.status_note,
-      ap.assigned_by
+      ap.assigned_by,
+      ap.daily_post,
+      ap.daily_video,
+      ap.daily_carousel,
+      ap.daily_creative,
+      ap.daily_shoot
     FROM assigned_projects ap
     LEFT JOIN task_users u ON ap.user_id = u.id
     LEFT JOIN projects p ON ap.project_id = p.id

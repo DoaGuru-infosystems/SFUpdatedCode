@@ -103,7 +103,8 @@ const ProjectTargetAssign = ({ onSuccess }) => {
                         >
                             <option value="">Select Employee</option>
                             {employees
-                                .filter(emp => emp.department === 'Digital Marketing')
+                                .filter(emp => emp.department === 'Digital Marketing' && emp.employment_status?.toLowerCase() === 'active')
+                                .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
                                 .map(emp => (
                                     <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.designation})</option>
                                 ))}

@@ -200,14 +200,14 @@ export default function Navbar({ Logout, render }) {
     : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSt9ISaBFDC88ejiGrYACSt81CFq21QsZ6bow&s";
 
   return (
-    <Disclosure as="nav" className="bg-white-800">
+    <Disclosure as="nav" className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-full lg:mx-5 px-2 lg:px-3 lg:px-1">
             <div className="relative flex h-16 items-center justify-between">
               <div className="absolute inset-y-0 left-0 flex items-center lg:hidden">
                 {!user || (
-                  <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
+                  <Disclosure.Button className="relative inline-flex items-center justify-center rounded-xl p-2 text-slate-700 hover:bg-slate-100 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
                     <span className="absolute -inset-0.5" />
                     <span className="sr-only">Open main menu</span>
                     {open ? (
@@ -228,15 +228,15 @@ export default function Navbar({ Logout, render }) {
                 </div>
                 <div className="hidden lg:ml-6 lg:block">
                   {!user || (
-                    <div className="flex space-x-4">
+                    <div className="flex space-x-2">
                       {navigation.map((item) => {
                         if (item.children) {
                           return (
                             <Menu as="div" key={item.name} className="relative">
                               <div>
                                 <Menu.Button className={classNames(
-                                  "text-gray-300 hover:bg-gray-700 hover:text-white",
-                                  "rounded-md px-3 py-2 text-sm font-medium flex items-center"
+                                  "text-slate-700 hover:bg-slate-100 hover:text-indigo-600",
+                                  "rounded-lg px-3 py-2 text-sm font-semibold flex items-center gap-1 transition-colors"
                                 )}>
                                   {item.name}
                                   <svg className="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
@@ -253,7 +253,7 @@ export default function Navbar({ Logout, render }) {
                                 leaveFrom="transform opacity-100 scale-100"
                                 leaveTo="transform opacity-0 scale-95"
                               >
-                                <Menu.Items className="absolute left-0 z-10 mt-2 w-48 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                <Menu.Items className="absolute left-0 z-50 mt-2 w-52 origin-top-left rounded-xl bg-white shadow-xl ring-1 ring-black/5 focus:outline-none border border-slate-100 py-1">
                                   <div className="py-1">
                                     {item.children.map((childItem) => {
                                       const isChildActive = location.pathname === childItem.href;
@@ -263,9 +263,9 @@ export default function Navbar({ Logout, render }) {
                                             <Link
                                               to={childItem.href}
                                               className={classNames(
-                                                isChildActive ? 'bg-gray-100' : '',
-                                                active ? 'bg-gray-100' : '',
-                                                'block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left'
+                                                isChildActive ? 'bg-indigo-50 text-indigo-700 font-bold' : '',
+                                                active ? 'bg-slate-50 text-indigo-600' : 'text-slate-700',
+                                                'block px-4 py-2.5 text-sm font-medium w-full text-left transition-colors'
                                               )}
                                             >
                                               {childItem.name}
@@ -288,9 +288,9 @@ export default function Navbar({ Logout, render }) {
                             to={item.href}
                             className={classNames(
                               isActive
-                                ? "bg-gray-900 text-white"
-                                : "text-gray-300 hover:bg-gray-700 hover:text-white",
-                              "rounded-md px-3 py-2 text-sm font-medium"
+                                ? "bg-slate-900 text-white font-bold shadow-xs"
+                                : "text-slate-700 hover:bg-slate-100 hover:text-indigo-600 font-semibold",
+                              "rounded-lg px-3 py-2 text-sm transition-colors"
                             )}
                             aria-current={isActive ? "page" : undefined}
                           >
@@ -379,16 +379,16 @@ export default function Navbar({ Logout, render }) {
             </div>
           </div>
 
-          <Disclosure.Panel className="lg:hidden">
-            <div className="space-y-1 px-2 pb-3 pt-2">
+          <Disclosure.Panel className="lg:hidden bg-white border-t border-slate-200/90 shadow-lg">
+            <div className="space-y-3 px-3 pb-5 pt-3">
               {navigation.map((item) => {
                 if (item.children) {
                   return (
-                    <div key={item.name} className="space-y-1">
-                      <Disclosure.Button className="w-full text-left rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
+                    <div key={item.name} className="pt-2 border-t border-slate-100 first:border-t-0 first:pt-0">
+                      <div className="px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-500">
                         {item.name}
-                      </Disclosure.Button>
-                      <div className="ml-4 space-y-1">
+                      </div>
+                      <div className="ml-2 pl-2.5 border-l-2 border-indigo-100 space-y-1 mt-1.5">
                         {item.children.map((childItem) => {
                           const isChildActive = location.pathname === childItem.href;
                           return (
@@ -398,9 +398,9 @@ export default function Navbar({ Logout, render }) {
                               to={childItem.href}
                               className={classNames(
                                 isChildActive
-                                  ? "bg-gray-800 text-white"
-                                  : "text-gray-300 hover:bg-gray-700 hover:text-white",
-                                "block w-full rounded-md px-3 py-2 text-sm font-medium"
+                                  ? "bg-indigo-600 text-white font-bold shadow-xs"
+                                  : "text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 font-semibold",
+                                "block w-full rounded-xl px-3.5 py-2.5 text-sm transition-all text-left"
                               )}
                               aria-current={isChildActive ? "page" : undefined}
                             >
@@ -421,9 +421,9 @@ export default function Navbar({ Logout, render }) {
                     to={item.href}
                     className={classNames(
                       isActive
-                        ? "bg-gray-900 text-white"
-                        : "text-gray-300 hover:bg-gray-700 hover:text-white",
-                      "block rounded-md px-3 py-2 text-base font-medium"
+                        ? "bg-slate-900 text-white font-bold shadow-xs"
+                        : "text-slate-800 hover:bg-slate-100 hover:text-indigo-600 font-bold",
+                      "block w-full rounded-xl px-3.5 py-2.5 text-sm transition-all text-left"
                     )}
                     aria-current={isActive ? "page" : undefined}
                   >

@@ -121,9 +121,12 @@ const AdminAssignTaskDevlopment = () => {
             className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">Select User</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>{user.full_name}</option>
-            ))}
+            {users
+              .filter(user => user.employment_status?.toLowerCase() === 'active')
+              .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+              .map(user => (
+                <option key={user.id} value={user.id}>{user.full_name}</option>
+              ))}
           </select>
         </div>
 
