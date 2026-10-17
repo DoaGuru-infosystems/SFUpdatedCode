@@ -10,6 +10,7 @@ const db = mysql.createPool({
   connectionLimit: 10,
   waitForConnections: true,
   queueLimit: 0,
+  dateStrings: true
 });
 
 // Connect to the databases

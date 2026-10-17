@@ -66,6 +66,31 @@ export default function SundayApprovalsAdmin() {
     return list;
   }, []);
 
+  // Safe date formatters that prevent UTC midnight timezone shift bugs
+  const formatRequestDate = (reqItem) => {
+    if (!reqItem) return "";
+    // If created_at is present, it contains the authentic timestamp of the request
+    if (reqItem.created_at) {
+      return moment(reqItem.created_at).format("DD MMM YYYY");
+    }
+    if (typeof reqItem.request_date === "string") {
+      // If it's an ISO timestamp like '2026-10-03T16:00:00.000Z' (MySQL midnight timezone shift)
+      if (reqItem.request_date.includes("T")) {
+        return moment(reqItem.request_date).add(8, "hours").format("DD MMM YYYY");
+      }
+      return moment(reqItem.request_date).format("DD MMM YYYY");
+    }
+    return moment(reqItem.request_date).format("DD MMM YYYY");
+  };
+
+  const formatApprovedDate = (approvedDate) => {
+    if (!approvedDate) return "";
+    if (typeof approvedDate === "string" && approvedDate.includes("T")) {
+      return moment(approvedDate).add(8, "hours").format("ddd, DD MMM YYYY");
+    }
+    return moment(approvedDate).format("ddd, DD MMM YYYY");
+  };
+
   // Fetch Requests
   const fetchRequests = async () => {
     try {
@@ -581,7 +606,7 @@ export default function SundayApprovalsAdmin() {
 
                             <td className="py-4 px-4 text-slate-600">
                               <span className="block font-medium text-slate-800">
-                                {moment(reqItem.request_date).format("DD MMM YYYY")}
+                                {formatRequestDate(reqItem)}
                               </span>
                               <span className="text-[11px] text-slate-400">
                                 {reqItem.request_time}
@@ -746,7 +771,7 @@ export default function SundayApprovalsAdmin() {
                           <td className="py-4 px-4">
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200/80 px-2.5 py-1 text-xs font-bold text-amber-800">
                               <FaSun className="text-amber-500" />
-                              {moment(item.approved_date).format("ddd, DD MMM YYYY")}
+                              {formatApprovedDate(item.approved_date)}
                             </span>
                           </td>
 

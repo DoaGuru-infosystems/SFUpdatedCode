@@ -267,7 +267,9 @@ const getSundayRequests = (req, res) => {
   const { date, status } = req.query;
 
   let sql = `
-    SELECT r.*, u.designation, u.department, u.mobile_number 
+    SELECT r.*, 
+           DATE_FORMAT(r.request_date, '%Y-%m-%d') AS request_date,
+           u.designation, u.department, u.mobile_number 
     FROM sunday_login_requests r
     LEFT JOIN task_users u ON r.employee_id = u.id
     WHERE 1=1
@@ -390,7 +392,9 @@ const respondToRequest = (req, res) => {
 // 3. Get Pre-Approvals List
 const getPreApprovals = (req, res) => {
   const sql = `
-    SELECT p.*, u.designation, u.department, u.mobile_number 
+    SELECT p.*, 
+           DATE_FORMAT(p.approved_date, '%Y-%m-%d') AS approved_date,
+           u.designation, u.department, u.mobile_number 
     FROM sunday_pre_approvals p
     LEFT JOIN task_users u ON p.employee_id = u.id
     WHERE p.status = 'active'
@@ -488,7 +492,9 @@ const checkRequestStatus = (req, res) => {
   const { requestId } = req.params;
 
   const sql = `
-    SELECT r.*, u.id as user_id, u.full_name, u.email_id, u.role
+    SELECT r.*, 
+           DATE_FORMAT(r.request_date, '%Y-%m-%d') AS request_date,
+           u.id as user_id, u.full_name, u.email_id, u.role
     FROM sunday_login_requests r
     JOIN task_users u ON r.employee_id = u.id
     WHERE r.id = ?
