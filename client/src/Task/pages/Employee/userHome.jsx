@@ -107,8 +107,9 @@ const CustomDropdown = ({ options, value, onChange, placeholder, disabled, name,
 let defaultTaskData = {
   ProjectOrClientName: "",
   Category: "",
-  SubCategory: "",
+  subCategory: "",
   TaskDescription: "",
+  task_image: "",
   ConsumingTimeInMin: "",
   PostCreativeStatus: "",
   VideoStatus: "",
@@ -125,6 +126,7 @@ function UserHome() {
     Category: "",
     subCategory: "",
     TaskDescription: "",
+    task_image: "",
     ConsumingTimeInMin: "",
     PostCreativeStatus: "",
     VideoStatus: "",
@@ -151,6 +153,18 @@ function UserHome() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSundayModal, setShowSundayModal] = useState(false);
   const [sundayRequest, setSundayRequest] = useState(null);
+
+  // ── Task Image Capture & Preview States ──
+  const [taskImageBlob, setTaskImageBlob] = useState(null);
+  const [taskImagePreview, setTaskImagePreview] = useState(null);
+  const [showTaskCamera, setShowTaskCamera] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState("environment");
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+
   const API_BASE = window.API_BASE || "https://sf.doaguru.com";
 
   let user = JSON.parse(localStorage.getItem("user"));
@@ -186,8 +200,129 @@ function UserHome() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const getTaskImageUrl = (imgPath) => {
+    if (!imgPath) return null;
+    if (
+      imgPath.startsWith("http://") ||
+      imgPath.startsWith("https://") ||
+      imgPath.startsWith("blob:") ||
+      imgPath.startsWith("data:")
+    ) {
+      return imgPath;
+    }
+    const clean = imgPath.replace(/^\/+/, "");
+    return `${API_BASE}/${clean}`;
+  };
+
+  const startCamera = async (facing = cameraFacing) => {
+    try {
+      setShowTaskCamera(true);
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        });
+      } catch (err) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+    } catch (err) {
+      console.error("Camera access error:", err);
+      toast.error("Camera access failed or permission denied.");
+      setShowTaskCamera(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+    setShowTaskCamera(false);
+  };
+
+  const switchCameraFacing = () => {
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment";
+    setCameraFacing(nextFacing);
+    startCamera(nextFacing);
+  };
+
+  const captureTaskPhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          setTaskImageBlob(blob);
+          const previewUrl = URL.createObjectURL(blob);
+          setTaskImagePreview(previewUrl);
+          toast.success("Task photo captured successfully!");
+        }
+        stopCamera();
+      },
+      "image/webp",
+      0.9,
+    );
+  };
+
+  const handleImageFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select a valid image file.");
+        return;
+      }
+      setTaskImageBlob(file);
+      setTaskImagePreview(URL.createObjectURL(file));
+      toast.success("Image selected!");
+    }
+  };
+
+  const removeSelectedImage = () => {
+    setTaskImageBlob(null);
+    setTaskImagePreview(null);
+    setFormData((prev) => ({ ...prev, task_image: "" }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  useEffect(() => {
+    if (showTaskCamera && cameraStreamRef.current && videoRef.current) {
+      videoRef.current.srcObject = cameraStreamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [showTaskCamera]);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!formData.TaskDescription?.trim() && !taskImageBlob && !formData.task_image) {
+      toast.error("Please enter a Task Description or click a photo of your task.");
+      return;
+    }
+
     const submitData = { ...formData };
     if (submitData.subCategory === "POST Create ")
       submitData.PostCreativeCount =
@@ -202,22 +337,45 @@ function UserHome() {
     );
     submitData.shootCount = selectedSubCat && selectedSubCat.id == 32 ? 1 : 0;
 
+    const fd = new FormData();
+    fd.append("user_id", user.id);
+    fd.append("user_full_name", user.full_name);
+    Object.keys(submitData).forEach((key) => {
+      if (key !== "task_image") {
+        fd.append(
+          key,
+          submitData[key] !== undefined && submitData[key] !== null
+            ? submitData[key]
+            : "",
+        );
+      }
+    });
+
+    if (taskImageBlob) {
+      fd.append("task_image", taskImageBlob, "task_photo.webp");
+    } else if (submitData.task_image) {
+      fd.append("task_image", submitData.task_image);
+    }
+
     axios
-      .post(API_BASE + "/api/add-data", {
-        user_id: user.id,
-        user_full_name: user.full_name,
-        ...submitData,
-        task_date: submitData.task_date,
-      })
+      .post(API_BASE + "/api/add-data", fd)
       .then(() => {
         const selectedDate = submitData.task_date;
         setFormData({ ...defaultTaskData, task_date: selectedDate });
+        setTaskImageBlob(null);
+        setTaskImagePreview(null);
         setIsOtherProject(false);
         setShowModal(false);
         toast.success("आपका टास्क सफलतापूर्वक जोड़ दिया गया है।");
         fetchTasks(new Date(selectedDate));
       })
-      .catch((error) => toast.error(error.response.data.sqlMessage));
+      .catch((error) =>
+        toast.error(
+          error.response?.data?.sqlMessage ||
+            error.response?.data ||
+            "Error adding task",
+        ),
+      );
   };
 
   const fetchTasks = (selectedDate) => {
@@ -244,6 +402,8 @@ function UserHome() {
         task.task_date || task.date || new Date().toISOString().split("T")[0],
     };
     setFormData(taskData);
+    setTaskImageBlob(null);
+    setTaskImagePreview(task.task_image ? getTaskImageUrl(task.task_image) : null);
     particularProject(task.ProjectOrClientName);
     setSelectedProjects(task.ProjectOrClientName);
     setSelectedCategory(task.Category);
@@ -274,6 +434,10 @@ function UserHome() {
 
   const updateTask = (e) => {
     e.preventDefault();
+    if (!formData.TaskDescription?.trim() && !taskImageBlob && !formData.task_image) {
+      toast.error("Please enter a Task Description or attach an Image.");
+      return;
+    }
     const updateData = { ...formData };
     if (updateData.subCategory === "POST Create ")
       updateData.PostCreativeCount =
@@ -291,8 +455,28 @@ function UserHome() {
     if (!updateData.task_date)
       updateData.task_date = new Date().toISOString().split("T")[0];
 
+    const fd = new FormData();
+    Object.keys(updateData).forEach((key) => {
+      if (key !== "task_image") {
+        fd.append(
+          key,
+          updateData[key] !== undefined && updateData[key] !== null
+            ? updateData[key]
+            : "",
+        );
+      }
+    });
+
+    if (taskImageBlob) {
+      fd.append("task_image", taskImageBlob, "task_photo.webp");
+    } else if (updateData.task_image) {
+      fd.append("task_image", updateData.task_image);
+    } else {
+      fd.append("remove_task_image", "true");
+    }
+
     axios
-      .post(API_BASE + "/api/update-task", updateData)
+      .post(API_BASE + "/api/update-task", fd)
       .then(() => {
         const taskDate = new Date(updateData.task_date);
         setDate(taskDate);
@@ -300,6 +484,8 @@ function UserHome() {
         toast.success("आपका टास्क संपादित हो गया है।");
         setIsUpdate(false);
         setShowModal(false);
+        setTaskImageBlob(null);
+        setTaskImagePreview(null);
         setFormData({
           ...defaultTaskData,
           task_date: new Date().toISOString().split("T")[0],
@@ -894,9 +1080,21 @@ function UserHome() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-xs text-slate-500 font-medium line-clamp-1 max-w-[400px]">
-                        {task.TaskDescription}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs text-slate-500 font-medium line-clamp-1 max-w-[320px]">
+                          {task.TaskDescription || (task.task_image ? "Photo Task Attached" : "--")}
+                        </p>
+                        {task.task_image && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewImageUrl(getTaskImageUrl(task.task_image))}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm flex-shrink-0"
+                            title="Click to view attached photo"
+                          >
+                            <FaCamera size={10} /> View Photo
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 text-xs font-black text-slate-700 whitespace-nowrap">
@@ -981,6 +1179,9 @@ function UserHome() {
                     setShowModal(false);
                     setIsOtherProject(false);
                     setFormData(defaultTaskData);
+                    setTaskImageBlob(null);
+                    setTaskImagePreview(null);
+                    stopCamera();
                   }}
                   className="bg-white p-2 rounded-xl text-slate-400 hover:text-rose-500 shadow-sm transition-all"
                 >
@@ -1072,18 +1273,127 @@ function UserHome() {
                   </div>
 
                   <div className="md:col-span-2 space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1">
-                      Narrative Description
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase tracking-widest ml-1">
+                        Narrative Description
+                      </label>
+                      {(taskImageBlob || taskImagePreview || formData.task_image) && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
+                          <FaCheckCircle size={10} /> Photo Attached (Description Optional)
+                        </span>
+                      )}
+                    </div>
                     <textarea
                       name="TaskDescription"
                       value={formData.TaskDescription}
                       onChange={handleChange}
-                      required
+                      required={!taskImageBlob && !taskImagePreview && !formData.task_image}
                       rows="3"
                       className="w-full bg-slate-50 border-0 rounded-2xl px-4 py-3 text-sm font-bold shadow-inner ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-600 outline-none"
-                      placeholder="Elaborate on objectives achieved..."
+                      placeholder={
+                        taskImageBlob || taskImagePreview || formData.task_image
+                          ? "Optional: Add any notes or leave blank since photo is attached..."
+                          : "Elaborate on objectives achieved or click photo below..."
+                      }
                     />
+                  </div>
+
+                  {/* ═══ Photo Capture / Attachment Section (Under Description) ═══ */}
+                  <div className="md:col-span-2 p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+                          <FaCamera size={13} />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-black text-slate-700 uppercase tracking-tight">
+                            Task Photo Proof / Screenshot
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium">
+                            If you cannot type a description, click or upload a photo to submit your task
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Hidden File Input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleImageFileSelect}
+                        className="hidden"
+                      />
+                    </div>
+
+                    {/* Preview Box or Action Buttons */}
+                    {taskImagePreview ? (
+                      <div className="relative flex flex-col sm:flex-row items-center gap-3.5 p-3 bg-white rounded-xl border border-indigo-100 shadow-sm">
+                        <div
+                          className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 cursor-pointer group flex-shrink-0"
+                          onClick={() => setPreviewImageUrl(taskImagePreview)}
+                          title="Click to view full image"
+                        >
+                          <img
+                            src={taskImagePreview}
+                            alt="Task preview"
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                            View Full
+                          </div>
+                        </div>
+
+                        <div className="flex-1 w-full space-y-1">
+                          <div className="flex items-center gap-1.5 text-emerald-600 font-black text-xs uppercase tracking-tight">
+                            <FaCheckCircle size={12} /> Photo Attached
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium">
+                            Ready to submit. Click thumbnail to zoom, or retake/replace.
+                          </p>
+                          <div className="flex items-center gap-2 pt-1 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => startCamera()}
+                              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                            >
+                              <FaCamera size={11} /> Retake with Camera
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                            >
+                              Change File
+                            </button>
+                            <button
+                              type="button"
+                              onClick={removeSelectedImage}
+                              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                            >
+                              <FaTrash size={10} /> Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => startCamera()}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
+                        >
+                          <FaCamera size={14} /> Click Photo (Camera)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95"
+                        >
+                          📁 Upload / Browse Image
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
@@ -1158,6 +1468,8 @@ function UserHome() {
                       type="button"
                       onClick={() => {
                         setFormData(defaultTaskData);
+                        setTaskImageBlob(null);
+                        setTaskImagePreview(null);
                         setIsOtherProject(false);
                       }}
                       className="bg-slate-100 hover:bg-slate-200 text-slate-400 font-black px-6 rounded-2xl transition-all active:scale-95 text-xs uppercase tracking-widest border border-slate-200"
@@ -1171,6 +1483,107 @@ function UserHome() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ═══ Live Camera Viewfinder Modal ═══ */}
+      {showTaskCamera && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="relative w-full max-w-md bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 p-5 flex flex-col items-center">
+            <div className="w-full flex items-center justify-between pb-3 border-b border-slate-800 text-white">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-200">
+                  Task Camera Viewfinder
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-rose-600/80 text-slate-400 hover:text-white flex items-center justify-center font-bold text-lg transition-all"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="relative w-full aspect-[4/3] bg-black rounded-2xl overflow-hidden my-4 flex items-center justify-center shadow-inner">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+
+            <div className="w-full flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={switchCameraFacing}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                🔄 Flip
+              </button>
+              <button
+                type="button"
+                onClick={captureTaskPhoto}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-sm tracking-wide shadow-lg shadow-indigo-600/30 active:scale-95 transition-all flex items-center gap-2"
+              >
+                <FaCamera size={16} /> Snap Photo
+              </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-rose-600/20 hover:text-rose-400 text-slate-400 rounded-xl text-xs font-bold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Photo Preview Lightbox Modal ═══ */}
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl p-2 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between p-3 border-b border-slate-100">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <FaCamera className="text-indigo-600" /> Attached Task Photo
+              </h4>
+              <button
+                type="button"
+                onClick={() => setPreviewImageUrl(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center font-bold text-lg transition-all"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-2 overflow-auto max-h-[75vh] flex items-center justify-center">
+              <img
+                src={previewImageUrl}
+                alt="Task attachment full preview"
+                className="max-h-[70vh] w-auto max-w-full rounded-2xl object-contain shadow-sm"
+              />
+            </div>
+            <div className="w-full p-3 border-t border-slate-100 flex justify-end gap-2 bg-slate-50/50">
+              <a
+                href={previewImageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+              >
+                Open Original
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sunday Login Approval Modal for Attendance */}
       <SundayApprovalModal

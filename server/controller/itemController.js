@@ -329,16 +329,29 @@ const AddData = (req, res) => {
     task_date,
   } = req.body;
 
+  const taskImage = req.file
+    ? `uploads/tasks/${req.file.filename}`
+    : req.body.task_image || null;
+
+  const finalDescription =
+    TaskDescription && TaskDescription.trim() !== ""
+      ? TaskDescription
+      : taskImage
+        ? "Task Image Attached"
+        : "";
+
   if (
     !user_id ||
     !user_full_name ||
     !ProjectOrClientName ||
     !Category ||
     !subCategory ||
-    !TaskDescription ||
+    (!TaskDescription && !taskImage) ||
     !ConsumingTimeInMin
   ) {
-    return res.status(400).send("All fields are required");
+    return res
+      .status(400)
+      .send("All fields are required (Task Description or Photo is required)");
   }
   // Use the provided task_date or default to current date if not provided
   const taskDate = task_date || new Date().toISOString().split("T")[0];
@@ -369,10 +382,10 @@ const AddData = (req, res) => {
   const safeOtherGraphicsCount = finalOtherGraphicsCount || 0;
 
   const query = `INSERT INTO tasks (
-    user_id, name, ProjectOrClientName, Category, SubCategory, TaskDescription, ConsumingTimeInMin,
+    user_id, name, ProjectOrClientName, Category, SubCategory, TaskDescription, task_image, ConsumingTimeInMin,
     videoCount, postCount, post_creative_status, video_status,
     other_graphics_name, other_graphics_count, other_graphics_status, shootCount, task_date
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   db.query(
     query,
@@ -382,7 +395,8 @@ const AddData = (req, res) => {
       ProjectOrClientName,
       Category,
       subCategory,
-      TaskDescription,
+      finalDescription,
+      taskImage,
       ConsumingTimeInMin,
       safeVideoCount, // Always 0 or 1 based on status
       safePostCreativeCount, // Always 0 or 1 based on status
@@ -407,7 +421,7 @@ const AddData = (req, res) => {
         user_id,
         user_full_name,
         "task",
-        `${user_full_name} added a task: ${TaskDescription.substring(0, 30)}...`,
+        `${user_full_name} added a task: ${(finalDescription || "Photo Task").substring(0, 30)}...`,
       );
 
       // ═══ Team Lead Notification Trigger ═══
@@ -585,12 +599,29 @@ const UpdateTask = (req, res) => {
     const safeVideoCount = finalVideoCount || 0;
     const safeOtherGraphicsCount = finalOtherGraphicsCount || 0;
 
+    let taskImageToUpdate = undefined;
+    if (req.file) {
+      taskImageToUpdate = `uploads/tasks/${req.file.filename}`;
+    } else if (req.body.remove_task_image === "true" || req.body.task_image === "") {
+      taskImageToUpdate = null;
+    } else if (req.body.task_image) {
+      taskImageToUpdate = req.body.task_image;
+    }
+
+    const finalDescription =
+      TaskDescription && TaskDescription.trim() !== ""
+        ? TaskDescription
+        : taskImageToUpdate
+          ? "Task Image Attached"
+          : "";
+
     const updateTask = `
       UPDATE tasks
       SET ProjectOrClientName = ?,
           Category = ?,
           SubCategory = ?,
           TaskDescription = ?,
+          task_image = CASE WHEN ? = 1 THEN ? ELSE task_image END,
           ConsumingTimeInMin = ?,
           task_date = ?,
           videoCount = ?,
@@ -610,7 +641,9 @@ const UpdateTask = (req, res) => {
         ProjectOrClientName,
         Category,
         subCategory,
-        TaskDescription,
+        finalDescription,
+        taskImageToUpdate !== undefined ? 1 : 0,
+        taskImageToUpdate !== undefined ? taskImageToUpdate : null,
         ConsumingTimeInMin,
         taskDate,
         safeVideoCount, // Always 0 or 1 based on status

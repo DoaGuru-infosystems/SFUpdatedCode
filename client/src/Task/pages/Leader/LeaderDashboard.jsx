@@ -826,8 +826,22 @@ const LeaderDashboard = () => {
                                   {t.ProjectOrClientName}
                                 </h3>
                                 <p className="text-slate-500 text-[10px] mt-0.5 line-clamp-2" title={t.TaskDescription}>
-                                  {t.TaskDescription}
+                                  {t.TaskDescription || (t.task_image ? "Photo Task Attached" : "--")}
                                 </p>
+                                {t.task_image && (
+                                  <a
+                                    href={
+                                      t.task_image.startsWith("http")
+                                        ? t.task_image
+                                        : `${API_BASE}/${t.task_image.replace(/^\/+/, "")}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-1.5 py-0.5 rounded"
+                                  >
+                                    📷 View Photo
+                                  </a>
+                                )}
                               </td>
 
                               {/* Tags */}

@@ -84,8 +84,27 @@ router.post("/updateLead", updateLead);
 router.put("/updateMeeting", updateMeeting);
 router.put("/updateFollowReport", updateFollowReport);
 router.get("/mailTest", mailTest);
+const taskImageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(__dirname, "../uploads/tasks/");
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "_" + Math.round(Math.random() * 1e9);
+    cb(null, "task_" + uniqueSuffix + path.extname(file.originalname || ".webp"));
+  },
+});
+
+const uploadTaskImage = multer({
+  storage: taskImageStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 // Route to add data
-router.post("/api/add-data", AddData);
+router.post("/api/add-data", uploadTaskImage.single("task_image"), AddData);
 router.post("/api/add-creative-count", addCreativeCount);
 // Route to fetch data
 router.get("/api/fetch-data", FetchData);
@@ -96,7 +115,7 @@ router.post('/api/updateEmployee', upload.single('profilePicture'), UpdateEmploy
 //fetch all details
 router.get('/api/getEmployee/:id', getEmployeeAPI);
 //  Update Task Details
-router.post("/api/update-task", UpdateTask);
+router.post("/api/update-task", uploadTaskImage.single("task_image"), UpdateTask);
 // Route to delete a task
 router.post("/api/delete-task", DeleteTask);
 

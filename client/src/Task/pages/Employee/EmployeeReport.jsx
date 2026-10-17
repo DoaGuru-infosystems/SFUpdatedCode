@@ -96,7 +96,25 @@ const EmployeeTaskReport = () => {
                     <td className="px-3 py-2">{task.ProjectOrClientName}</td>
                     <td className="px-3 py-2">{task.Category}</td>
                     <td className="px-3 py-2">{task.SubCategory}</td>
-                    <td className="px-3 py-2">{task.TaskDescription}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span>{task.TaskDescription || (task.task_image ? "Photo Attached" : "--")}</span>
+                        {task.task_image && (
+                          <a
+                            href={
+                              task.task_image.startsWith("http")
+                                ? task.task_image
+                                : `${window.API_BASE || "https://sf.doaguru.com"}/${task.task_image.replace(/^\/+/, "")}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs font-bold hover:underline"
+                          >
+                            📷 View
+                          </a>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">{task.ConsumingTimeInMin}</td>
                     <td className="px-3 py-2">{task.task_date}</td>
                   </tr>

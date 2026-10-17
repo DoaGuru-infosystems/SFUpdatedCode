@@ -14,7 +14,8 @@ import {
   FaCheckCircle,
   FaUserCog,
   FaCalendarAlt,
-  FaChevronDown
+  FaChevronDown,
+  FaCamera
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import moment from "moment-timezone";
@@ -90,6 +91,23 @@ const TaskReportDownload = () => {
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
   const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
+  const [selectedTaskImage, setSelectedTaskImage] = useState(null);
+
+  const API_BASE = window.API_BASE || "https://sf.doaguru.com";
+
+  const getTaskImageUrl = (imgPath) => {
+    if (!imgPath) return null;
+    if (
+      imgPath.startsWith("http://") ||
+      imgPath.startsWith("https://") ||
+      imgPath.startsWith("blob:") ||
+      imgPath.startsWith("data:")
+    ) {
+      return imgPath;
+    }
+    const clean = imgPath.replace(/^\/+/, "");
+    return `${API_BASE}/${clean}`;
+  };
 
   useEffect(() => {
     axios
@@ -443,7 +461,24 @@ const TaskReportDownload = () => {
                         <td className="px-3 py-2">
                           <div className="flex flex-col">
                             <span className="text-slate-800 font-black text-[12.5px] tracking-tight truncate max-w-[200px]">{task.ProjectOrClientName}</span>
-                            <span className="text-[9px] text-slate-400 max-w-[250px] truncate">{task.TaskDescription}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[9px] text-slate-400 max-w-[200px] truncate">{task.TaskDescription || (task.task_image ? "Photo Attached" : "--")}</span>
+                              {task.task_image && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTaskImage({
+                                    url: getTaskImageUrl(task.task_image),
+                                    project: task.ProjectOrClientName,
+                                    date: task.task_date,
+                                    desc: task.TaskDescription
+                                  })}
+                                  className="text-indigo-600 hover:text-indigo-800 font-black text-[9px] uppercase px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 rounded flex items-center gap-1 transition-all"
+                                  title="Click to view attached photo"
+                                >
+                                  <FaCamera size={9} /> View Photo
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-3 py-2">
@@ -510,7 +545,24 @@ const TaskReportDownload = () => {
                           </div>
                         </td>
                         <td className="px-3 py-2.5 min-w-[350px] whitespace-normal">
-                          <p className="text-slate-500 text-[11.5px] font-medium leading-relaxed italic">{task.TaskDescription}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-slate-500 text-[11.5px] font-medium leading-relaxed italic">{task.TaskDescription || (task.task_image ? "Photo Proof Attached" : "--")}</p>
+                            {task.task_image && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTaskImage({
+                                  url: getTaskImageUrl(task.task_image),
+                                  project: task.ProjectOrClientName,
+                                  date: task.task_date,
+                                  desc: task.TaskDescription
+                                })}
+                                className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10.5px] font-black uppercase tracking-wider flex-shrink-0 transition-all shadow-sm"
+                                title="Click to view attached photo"
+                              >
+                                <FaCamera size={11} /> View Photo
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2.5 text-center">
                           <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md text-[10px] font-black uppercase">{task.ConsumingTimeInMin}m</span>
@@ -536,6 +588,61 @@ const TaskReportDownload = () => {
           )}
         </div>
       </div>
+
+      {/* ═══ Admin Task Photo Preview Modal ═══ */}
+      {selectedTaskImage && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md"
+          onClick={() => setSelectedTaskImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl p-2 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between p-3.5 border-b border-slate-100 bg-slate-50/50">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <FaCamera className="text-indigo-600" /> Task Attachment: {selectedTaskImage.project}
+                </h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                  Date: {selectedTaskImage.date}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTaskImage(null)}
+                className="w-8 h-8 rounded-full bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center font-bold text-lg shadow-sm transition-all"
+              >
+                &times;
+              </button>
+            </div>
+            {selectedTaskImage.desc && (
+              <div className="w-full px-4 py-2 bg-indigo-50/40 border-b border-indigo-50">
+                <p className="text-xs text-slate-600 font-medium">
+                  <strong>Notes:</strong> {selectedTaskImage.desc}
+                </p>
+              </div>
+            )}
+            <div className="p-3 overflow-auto max-h-[70vh] flex items-center justify-center">
+              <img
+                src={selectedTaskImage.url}
+                alt="Task attachment full preview"
+                className="max-h-[65vh] w-auto max-w-full rounded-2xl object-contain shadow-sm"
+              />
+            </div>
+            <div className="w-full p-3 border-t border-slate-100 flex justify-end gap-2 bg-slate-50/50">
+              <a
+                href={selectedTaskImage.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+              >
+                Open Original Photo
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
