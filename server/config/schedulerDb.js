@@ -1,45 +1,58 @@
-// Scheduler Plugin - DB Pool (mysql2/promise) for SF backend
-// Uses same DB credentials as main SF backend (dilkeris_sf_new)
-const mysql = require('mysql');
-const dotenv = require('dotenv');
-dotenv.config();
+// Scheduler Plugin - DB Helper for SF backend
+// Uses the main database pool from ./db.js (dilkeris_sf)
+const { db } = require('./db');
 
-const schedulerPool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : '',
-  database: process.env.DB_NAME || 'dilkeris_sf',
-  port: parseInt(process.env.DB_PORT) || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  timezone: '+00:00'
-});
-
-// Add execute method to schedulerPool using mysql library wrapper for compatibility with await schedulerPool.execute
-const originalQuery = schedulerPool.query.bind(schedulerPool);
-schedulerPool.execute = (sql, values) => {
+const schedulerQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
-    const callback = (err, results, fields) => {
-      if (err) return reject(err);
-      resolve([results, fields]);
-    };
-    if (values === undefined) {
-      originalQuery(sql, callback);
-    } else {
-      originalQuery(sql, values, callback);
-    }
+    db.query(sql, params, (err, results) => {
+      if (err) {
+        console.error('[Scheduler DB] Query error:', err.message);
+        return reject(err);
+      }
+      resolve(results);
+    });
   });
 };
 
-const schedulerQuery = async (sql, params = []) => {
-  try {
-    const [rows] = await schedulerPool.execute(sql, params);
-    return rows;
-  } catch (error) {
-    console.error('[Scheduler DB] Query error:', error.message);
-    throw error;
+const schedulerPool = {
+  getConnection: () => {
+    return new Promise((resolve, reject) => {
+      db.getConnection((err, connection) => {
+        if (err) return reject(err);
+        
+        const promisifiedConn = {
+          _raw: connection,
+          beginTransaction: () => new Promise((res, rej) => connection.beginTransaction(e => e ? rej(e) : res())),
+          commit: () => new Promise((res, rej) => connection.commit(e => e ? rej(e) : res())),
+          rollback: () => new Promise((res) => connection.rollback(() => res())),
+          release: () => connection.release(),
+          query: (sql, values) => new Promise((res, rej) => {
+            if (values === undefined) {
+              connection.query(sql, (e, r) => e ? rej(e) : res([r]));
+            } else {
+              connection.query(sql, values, (e, r) => e ? rej(e) : res([r]));
+            }
+          })
+        };
+        resolve(promisifiedConn);
+      });
+    });
+  },
+  query: db.query.bind(db),
+  execute: (sql, values) => {
+    return new Promise((resolve, reject) => {
+      const cb = (err, results, fields) => {
+        if (err) return reject(err);
+        resolve([results, fields]);
+      };
+      if (values === undefined) {
+        db.query(sql, cb);
+      } else {
+        db.query(sql, values, cb);
+      }
+    });
   }
 };
 
 module.exports = { schedulerPool, schedulerQuery };
+
