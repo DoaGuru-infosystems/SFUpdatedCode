@@ -4,12 +4,11 @@ import axios from 'axios';
 const ReminderContext = createContext(null);
 
 const getApiUrl = () => {
-  return window.location.hostname === 'localhost'
-    ? (window.API_BASE || 'http://localhost:8080')
-    : ("https://sf.doaguru.com");
+  // By default live URL; change manually to 'http://localhost:8080' when testing locally
+  return "https://sf.doaguru.com";
 };
 
-const API_BASE = `${getApiUrl()}/api/scheduler`;
+export const API_BASE = `${getApiUrl()}/api/scheduler`;
 
 export const ReminderProvider = ({ children }) => {
   const [employees, setEmployees] = useState([]);
@@ -26,7 +25,7 @@ export const ReminderProvider = ({ children }) => {
   const fetchEmployees = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE}/employees`);
-      setEmployees(response.data);
+      setEmployees(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching employees:', err);
       setError('Failed to fetch employees');
@@ -48,15 +47,23 @@ export const ReminderProvider = ({ children }) => {
 
       const response = await axios.get(`${API_BASE}/reminders`, { params });
       if (response.data && response.data.pagination) {
-        setReminders(response.data.data);
+        setReminders(Array.isArray(response.data.data) ? response.data.data : []);
         setRemindersPagination(response.data.pagination);
-      } else {
+      } else if (Array.isArray(response.data)) {
         setReminders(response.data);
         setRemindersPagination({
           totalCount: response.data.length,
           totalPages: 1,
           currentPage: 1,
           limit: response.data.length || 10
+        });
+      } else {
+        setReminders([]);
+        setRemindersPagination({
+          totalCount: 0,
+          totalPages: 1,
+          currentPage: 1,
+          limit: 10
         });
       }
       setError(null);
@@ -97,7 +104,7 @@ export const ReminderProvider = ({ children }) => {
         params.employee_id = user.id;
       }
       const response = await axios.get(`${API_BASE}/notifications/unread`, { params });
-      setUnreadNotifications(response.data);
+      setUnreadNotifications(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching unread notifications:', err);
     }
@@ -119,15 +126,23 @@ export const ReminderProvider = ({ children }) => {
 
       const response = await axios.get(`${API_BASE}/notifications/history`, { params });
       if (response.data && response.data.pagination) {
-        setNotificationHistory(response.data.data);
+        setNotificationHistory(Array.isArray(response.data.data) ? response.data.data : []);
         setNotificationHistoryPagination(response.data.pagination);
-      } else {
+      } else if (Array.isArray(response.data)) {
         setNotificationHistory(response.data);
         setNotificationHistoryPagination({
           totalCount: response.data.length,
           totalPages: 1,
           currentPage: 1,
           limit: response.data.length || 10
+        });
+      } else {
+        setNotificationHistory([]);
+        setNotificationHistoryPagination({
+          totalCount: 0,
+          totalPages: 1,
+          currentPage: 1,
+          limit: 10
         });
       }
     } catch (err) {
