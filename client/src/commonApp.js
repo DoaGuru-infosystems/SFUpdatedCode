@@ -118,8 +118,13 @@ const Commonjs = () => {
   );
 
   const isSchedulerAuthorized = currentUser && (
-    currentUser.role === "admin" ||
-    (currentUser.designation && currentUser.designation.trim().toUpperCase() === "HR")
+    currentUser.role?.toLowerCase() === "admin" ||
+    currentUser.role?.toLowerCase() === "manager" ||
+    currentUser.role?.toLowerCase() === "team_lead" ||
+    (currentUser.designation && currentUser.designation.toUpperCase().includes("HR")) ||
+    (currentUser.designation && currentUser.designation.toUpperCase().includes("LEAD")) ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
   );
 
   const handleLogout = () => {
@@ -345,8 +350,26 @@ const Commonjs = () => {
         <Route path="/task/blank" element={<Blank />} />
 
         {/* Scheduler Plugin Routes */}
-        {isSchedulerAuthorized && (
+        {isSchedulerAuthorized ? (
           <Route path="/task/scheduler/*" element={<SchedulerApp />} />
+        ) : (
+          <Route
+            path="/task/scheduler/*"
+            element={
+              <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+                <div className="w-16 h-16 mb-4 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+                <p className="text-gray-600 mb-6 max-w-md">You do not have permission to access the Scheduler module. Please contact Admin or HR.</p>
+                <Link to="/task/UserHome" className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">
+                  Return to Dashboard
+                </Link>
+              </div>
+            }
+          />
         )}
 
         {/* Letters Plugin Routes */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useReminders } from "../context/ReminderContext";
+import { useReminders, API_BASE } from "../context/ReminderContext";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 
@@ -124,10 +124,8 @@ export default function ReminderForm() {
     if (isEdit) {
       const fetchReminder = async () => {
         try {
-          const apiUrl =
-            "https://sf.doaguru.com";
           const res = await axios.get(
-            `${apiUrl}/api/scheduler/reminders/${id}`,
+            `${API_BASE}/reminders/${id}`,
           );
           const data = res.data;
 
