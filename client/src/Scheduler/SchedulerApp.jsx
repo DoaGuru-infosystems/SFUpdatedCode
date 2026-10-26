@@ -238,10 +238,12 @@ export default function SchedulerApp() {
         <Navigation />
         <Routes>
           <Route index element={<ReminderDashboard />} />
+          <Route path="" element={<ReminderDashboard />} />
           <Route path="create" element={<ReminderForm />} />
           <Route path="edit/:id" element={<ReminderForm />} />
           <Route path="history" element={<NotificationHistory />} />
           <Route path="notifications" element={<Notifications />} />
+          <Route path="*" element={<ReminderDashboard />} />
         </Routes>
       </div>
     </ReminderProvider>

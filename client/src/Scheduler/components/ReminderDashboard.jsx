@@ -131,11 +131,17 @@ export default function ReminderDashboard() {
   const getStatusBadgeClass = (status, date, time) => {
     if (status === 'completed') return 'badge-completed';
     if (status === 'cancelled') return 'badge-cancelled';
+    if (!date) return 'badge-pending';
     
-    // Check if overdue
-    const scheduled = new Date(`${date.split('T')[0]}T${time}`);
-    if (scheduled < new Date()) {
-      return 'badge-overdue';
+    try {
+      const dateStr = typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0];
+      const timeStr = time || '00:00:00';
+      const scheduled = new Date(`${dateStr}T${timeStr}`);
+      if (!isNaN(scheduled.getTime()) && scheduled < new Date()) {
+        return 'badge-overdue';
+      }
+    } catch (e) {
+      console.warn("Date parse error:", e);
     }
     return 'badge-pending';
   };
@@ -143,11 +149,33 @@ export default function ReminderDashboard() {
   const getStatusLabel = (status, date, time) => {
     if (status === 'completed') return 'Completed';
     if (status === 'cancelled') return 'Cancelled';
-    const scheduled = new Date(`${date.split('T')[0]}T${time}`);
-    if (scheduled < new Date()) {
-      return 'Overdue';
+    if (!date) return 'Pending';
+    try {
+      const dateStr = typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0];
+      const timeStr = time || '00:00:00';
+      const scheduled = new Date(`${dateStr}T${timeStr}`);
+      if (!isNaN(scheduled.getTime()) && scheduled < new Date()) {
+        return 'Overdue';
+      }
+    } catch (e) {
+      console.warn("Date parse error:", e);
     }
     return 'Pending';
+  };
+
+  const formatDisplayDate = (dateVal) => {
+    if (!dateVal) return 'No Date';
+    try {
+      const dateStr = typeof dateVal === 'string' ? dateVal.split('T')[0] : new Date(dateVal).toISOString().split('T')[0];
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      return dateStr;
+    } catch (err) {
+      return String(dateVal);
+    }
   };
 
   return (
@@ -551,7 +579,7 @@ export default function ReminderDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {reminders.map((rem) => {
+                {(Array.isArray(reminders) ? reminders : []).map((rem) => {
                   const badgeClass = getStatusBadgeClass(rem.status, rem.reminder_date, rem.reminder_time);
                   const displayStatus = getStatusLabel(rem.status, rem.reminder_date, rem.reminder_time);
                   
@@ -602,10 +630,10 @@ export default function ReminderDashboard() {
                       <td style={{ padding: '18px 20px' }}>
                         <div>
                           <p style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
-                            {new Date(rem.reminder_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {formatDisplayDate(rem.reminder_date)}
                           </p>
                           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '3px', fontWeight: 500 }}>
-                            at {rem.reminder_time.slice(0, 5)}
+                            at {rem.reminder_time ? String(rem.reminder_time).slice(0, 5) : '--:--'}
                           </p>
                         </div>
                       </td>
