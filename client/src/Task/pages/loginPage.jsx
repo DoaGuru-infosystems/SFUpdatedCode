@@ -27,7 +27,7 @@ function LoginPage({ setRender }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const API_BASE = window.API_BASE || "https://sf.doaguru.com";
+    const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/login`, { emailId, password })
       .then((response) => {
@@ -68,7 +68,7 @@ function LoginPage({ setRender }) {
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
-    const API_BASE = window.API_BASE || "https://sf.doaguru.com";
+    const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
     axios
       .post(`${API_BASE}/api/admin-login`, { emailId, password })
       .then((response) => {

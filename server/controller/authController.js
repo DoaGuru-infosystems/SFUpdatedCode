@@ -231,7 +231,7 @@ const UserLogout = (req, res) => {
 }
 
 // Route to login Admin 
-const AdminLogin = async (req, res) => {
+const  AdminLogin = async (req, res) => {
   const { emailId, password } = req.body;
   const sql = "SELECT * FROM admin_users WHERE email_id = ?";
   db.query(sql, [emailId], async (err, result) => {
@@ -265,9 +265,9 @@ const AdminLogin = async (req, res) => {
         token,
       });
     } else {
-      res.status(401).send({ message: "Invalid credentials" });
+      res.status(401).send({ message: "Invalid credentials or somthing went wrong" });
 
-      console.log(message);
+      // console.log(message);
     }
   });
 };

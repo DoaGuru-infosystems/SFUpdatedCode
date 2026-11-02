@@ -4,7 +4,7 @@ import axios from "axios";
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 
-const getApiBaseUrl = () => ("https://sf.doaguru.com") + "/api";
+const getApiBaseUrl = () => (window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com") + "/api";
 
 const BackdatedAttendModal = ({
   isOpen,

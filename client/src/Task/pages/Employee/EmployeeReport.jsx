@@ -104,7 +104,7 @@ const EmployeeTaskReport = () => {
                             href={
                               task.task_image.startsWith("http")
                                 ? task.task_image
-                                : `${window.API_BASE || "https://sf.doaguru.com"}/${task.task_image.replace(/^\/+/, "")}`
+                                : `${window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com"}/${task.task_image.replace(/^\/+/, "")}`
                             }
                             target="_blank"
                             rel="noopener noreferrer"

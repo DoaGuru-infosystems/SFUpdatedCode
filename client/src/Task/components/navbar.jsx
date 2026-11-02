@@ -5,7 +5,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import io from "socket.io-client";
-const API_BASE = "https://sf.doaguru.com";
+const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
 const baseNavigation = [
   { name: "Dashboard", href: "/task/UserHome" },
@@ -82,7 +82,7 @@ export default function Navbar({ Logout, render }) {
   }, []);
 
   useEffect(() => {
-    const socket = io("https://sf.doaguru.com", {
+    const socket = io(API_BASE, {
       transports: ["polling", "websocket"],
       withCredentials: true
     });

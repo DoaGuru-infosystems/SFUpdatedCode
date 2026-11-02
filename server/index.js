@@ -10,6 +10,7 @@ const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const socketUtil = require("./utils/socket");
+const morgan = require("morgan")
 
 
 
@@ -82,6 +83,7 @@ const { fetchAndInsertHolidays } = require("./utils/fetchGoogleHolidays");
 
 app.use(bodyParser.json());
 app.use(cors());
+app.use(morgan('combined'))
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));

@@ -18,7 +18,8 @@ import {
 import * as XLSX from "xlsx";
 import BackdatedAttendModal from "./BackdatedAttendModal";
 
-const getApiBase = () => ("https://sf.doaguru.com") + "/api";
+const BASE_URL = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
+const getApiBase = () => `${BASE_URL}/api`;
 
 /* ─────────────────── helpers ─────────────────── */
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -242,10 +243,10 @@ const EmployeeAttendReport = () => {
                           <div className="flex items-center gap-2">
                             {d.attend.login_selfie_url && (
                               <img
-                                src={`${"https://sf.doaguru.com"}/${d.attend.login_selfie_url}`}
+                                src={`${BASE_URL}/${d.attend.login_selfie_url}`}
                                 className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                                 alt="Login Selfie"
-                                onClick={() => window.open(`${"https://sf.doaguru.com"}/${d.attend.login_selfie_url}`, '_blank')}
+                                onClick={() => window.open(`${BASE_URL}/${d.attend.login_selfie_url}`, '_blank')}
                                 title="Click to view full selfie"
                               />
                             )}
@@ -261,10 +262,10 @@ const EmployeeAttendReport = () => {
                           <div className="flex items-center gap-2">
                             {d.attend.logout_selfie_url && (
                               <img
-                                src={`${"https://sf.doaguru.com"}/${d.attend.logout_selfie_url}`}
+                                src={`${BASE_URL}/${d.attend.logout_selfie_url}`}
                                 className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                                 alt="Logout Selfie"
-                                onClick={() => window.open(`${"https://sf.doaguru.com"}/${d.attend.logout_selfie_url}`, '_blank')}
+                                onClick={() => window.open(`${BASE_URL}/${d.attend.logout_selfie_url}`, '_blank')}
                                 title="Click to view full selfie"
                               />
                             )}

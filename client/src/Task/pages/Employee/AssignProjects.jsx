@@ -4,7 +4,7 @@ import PaginationControls from "../../components/Pagination";
 import { toast } from "react-hot-toast";
 
 function AssignProjectDetails() {
-  const API_BASE = "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
   const [taskData, setTaskData] = useState([]);
   const [loading, setLoading] = useState(false);
   // Pagination state

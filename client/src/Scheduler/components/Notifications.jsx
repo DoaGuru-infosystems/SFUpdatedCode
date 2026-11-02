@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import '../scheduler.css';
 
-const API_BASE = "https://sf.doaguru.com";
+const API_BASE = process.env.REACT_APP_API_URL || window.API_BASE || "https://sf.doaguru.com";
 
 const parseNotificationBody = (messageBody) => {
   if (!messageBody) return null;

@@ -5,7 +5,7 @@ const ReminderContext = createContext(null);
 
 const getApiUrl = () => {
   // By default live URL; change manually to 'http://localhost:8080' when testing locally
-  return "https://sf.doaguru.com";
+  return process.env.REACT_APP_API_URL || window.API_BASE || "https://sf.doaguru.com";
 };
 
 export const API_BASE = `${getApiUrl()}/api/scheduler`;

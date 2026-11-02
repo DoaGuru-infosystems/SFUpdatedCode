@@ -16,7 +16,7 @@ const EmployeePasswordReset = () => {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const API_BASE = "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
   const sendOtp = async () => {
     if (!email) return setMessage("Please enter a valid email.");

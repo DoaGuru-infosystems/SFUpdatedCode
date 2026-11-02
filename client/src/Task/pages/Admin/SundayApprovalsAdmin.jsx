@@ -48,7 +48,7 @@ export default function SundayApprovalsAdmin() {
   const [preReason, setPreReason] = useState("");
 
   const socketRef = useRef(null);
-  const API_BASE = window.API_BASE || "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   // Calculate upcoming Sundays for quick selection

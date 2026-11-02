@@ -165,7 +165,7 @@ function UserHome() {
   const canvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
 
-  const API_BASE = window.API_BASE || "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
   let user = JSON.parse(localStorage.getItem("user"));
 
@@ -929,12 +929,12 @@ function UserHome() {
             </div>
             {checkInData[0]?.login_selfie_url && (
               <img
-                src={`${"https://sf.doaguru.com"}/${checkInData[0].login_selfie_url}`}
+                src={`${API_BASE}/${checkInData[0].login_selfie_url}`}
                 alt="Login Selfie"
                 className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-100 shadow-md cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() =>
                   window.open(
-                    `${"https://sf.doaguru.com"}/${checkInData[0].login_selfie_url}`,
+                    `${API_BASE}/${checkInData[0].login_selfie_url}`,
                     "_blank",
                   )
                 }
@@ -963,12 +963,12 @@ function UserHome() {
             </div>
             {checkInData[0]?.logout_selfie_url && (
               <img
-                src={`${"https://sf.doaguru.com"}/${checkInData[0].logout_selfie_url}`}
+                src={`${API_BASE}/${checkInData[0].logout_selfie_url}`}
                 alt="Logout Selfie"
                 className="w-12 h-12 rounded-xl object-cover border-2 border-rose-100 shadow-md cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() =>
                   window.open(
-                    `${"https://sf.doaguru.com"}/${checkInData[0].logout_selfie_url}`,
+                    `${API_BASE}/${checkInData[0].logout_selfie_url}`,
                     "_blank",
                   )
                 }

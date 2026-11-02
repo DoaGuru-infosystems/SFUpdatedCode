@@ -28,7 +28,7 @@ export default function SundayApprovalModal({
   const [isChecking, setIsChecking] = useState(false);
   const socketRef = useRef(null);
 
-  const API_BASE = window.API_BASE || "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
   // Calculate remaining time until 2 hours expiry
   useEffect(() => {

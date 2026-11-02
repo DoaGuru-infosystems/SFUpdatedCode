@@ -157,7 +157,7 @@ export default function AdminNavbar({ Logout, render }) {
     audio.play().catch(e => console.log("Audio playback failed:", e));
   };
 
-  const getApiBase = () => window.API_BASE || "https://sf.doaguru.com";
+  const getApiBase = () => window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
   const fetchNotifications = async () => {
     try {
@@ -201,7 +201,7 @@ export default function AdminNavbar({ Logout, render }) {
     const interval = setInterval(fetchNotifications, 60000); // Polling fallback
 
     // ═══ Real-Time Socket Connection ═══
-    const socket = io(window.API_BASE || "https://sf.doaguru.com", {
+    const socket = io(window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com", {
       transports: ["polling", "websocket"],
       withCredentials: true,
       secure: window.location.protocol === "https:",

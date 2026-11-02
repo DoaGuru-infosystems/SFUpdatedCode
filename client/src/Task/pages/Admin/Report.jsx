@@ -93,7 +93,7 @@ const TaskReportDownload = () => {
   const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
   const [selectedTaskImage, setSelectedTaskImage] = useState(null);
 
-  const API_BASE = window.API_BASE || "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
   const getTaskImageUrl = (imgPath) => {
     if (!imgPath) return null;

@@ -33,7 +33,7 @@ import {
 } from "react-icons/fa";
 
 const LeaderDashboard = () => {
-  const API_BASE = "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -175,7 +175,7 @@ const LeaderDashboard = () => {
   useEffect(() => {
     if (!leader) return;
 
-    const socket = io("https://sf.doaguru.com", {
+    const socket = io(API_BASE, {
       transports: ["polling", "websocket"],
       withCredentials: true
     });
