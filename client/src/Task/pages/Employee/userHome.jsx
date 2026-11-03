@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import toast from "react-hot-toast";
@@ -106,6 +107,7 @@ const CustomDropdown = ({ options, value, onChange, placeholder, disabled, name,
 
 let defaultTaskData = {
   ProjectOrClientName: "",
+  task_owners_id: null,
   Category: "",
   subCategory: "",
   TaskDescription: "",
@@ -123,6 +125,7 @@ function UserHome() {
   const [isOtherProject, setIsOtherProject] = useState(false);
   const [formData, setFormData] = useState({
     ProjectOrClientName: "",
+    task_owners_id: null,
     Category: "",
     subCategory: "",
     TaskDescription: "",
@@ -158,6 +161,183 @@ function UserHome() {
   const [taskImageBlob, setTaskImageBlob] = useState(null);
   const [taskImagePreview, setTaskImagePreview] = useState(null);
   const [showTaskCamera, setShowTaskCamera] = useState(false);
+
+  // ── Phase 3: Contextual Project Ownership States ──
+  const [ownedProjects, setOwnedProjects] = useState([]);
+  const [departmentUsers, setDepartmentUsers] = useState([]);
+  const [selectedTaskToAssign, setSelectedTaskToAssign] = useState(null);
+  const [assignEmployeeId, setAssignEmployeeId] = useState("");
+  const [assignDeadline, setAssignDeadline] = useState("");
+  const [assignTaskLoading, setAssignTaskLoading] = useState(false);
+
+  // ── Phase 4: Employee Assigned RE Tasks States ──
+  const [myReTasks, setMyReTasks] = useState([]);
+
+  // ── Phase 5: Reassign Task States (PO action) ──
+  const [selectedReassignTaskModal, setSelectedReassignTaskModal] = useState(null);
+  const [reassignTaskEmpId, setReassignTaskEmpId] = useState("");
+  const [reassignTaskReason, setReassignTaskReason] = useState("");
+  const [reassignTaskLoading, setReassignTaskLoading] = useState(false);
+
+  const handleReassignTaskSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedReassignTaskModal || !reassignTaskEmpId) {
+      return toast.error("Please select an employee");
+    }
+    setReassignTaskLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/employee/reassign-task`,
+        {
+          task_owners_id: selectedReassignTaskModal.task_owners_id,
+          new_employee_id: reassignTaskEmpId,
+          reason: reassignTaskReason || null,
+        },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || "Task reassigned successfully!");
+        setSelectedReassignTaskModal(null);
+        setReassignTaskEmpId("");
+        setReassignTaskReason("");
+        fetchOwnedProjects();
+        fetchMyReTasks();
+      } else {
+        toast.error(res.data?.message || "Failed to reassign task");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reassign task");
+    } finally {
+      setReassignTaskLoading(false);
+    }
+  };
+
+  const fetchOwnedProjects = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await axios.get(`${API_BASE}/api/employee/owned-projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data?.success) {
+        setOwnedProjects(res.data.data || []);
+      }
+    } catch (e) {
+      console.error("Error fetching owned projects:", e);
+    }
+  };
+
+  const fetchUsersForPicker = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/users`);
+      if (Array.isArray(res.data)) {
+        setDepartmentUsers(res.data.filter((u) => u.employment_status === "active"));
+      }
+    } catch (e) {}
+  };
+
+  const handleAssignTaskOwnerSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedTaskToAssign || !assignEmployeeId) {
+      return toast.error("Please select an employee");
+    }
+    setAssignTaskLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/employee/assign-task-owner`,
+        {
+          task_owners_id: selectedTaskToAssign.task_owners_id,
+          employee_id: assignEmployeeId,
+          deadline: assignDeadline || null,
+        },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      if (res.data?.success) {
+        toast.success("Task Owner assigned successfully!");
+        setSelectedTaskToAssign(null);
+        setAssignEmployeeId("");
+        setAssignDeadline("");
+        fetchOwnedProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to assign Task Owner");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to assign Task Owner");
+    } finally {
+      setAssignTaskLoading(false);
+    }
+  };
+
+  const fetchMyReTasks = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await axios.get(`${API_BASE}/api/employee/my-re-tasks`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data?.success) {
+        setMyReTasks(res.data.data || []);
+      }
+    } catch (e) {
+      console.error("Error fetching my assigned RE tasks:", e);
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskOwnersId, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.patch(
+        `${API_BASE}/api/employee/task-status/${taskOwnersId}`,
+        { status: newStatus },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success("Task status updated!");
+        fetchMyReTasks();
+        fetchOwnedProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to update status");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update status");
+    }
+  };
+
+  const handleSelectReTask = (e) => {
+    const selectedId = e.target.value;
+    if (!selectedId) {
+      setFormData((prev) => ({
+        ...prev,
+        task_owners_id: null,
+      }));
+      return;
+    }
+    const selectedTask = myReTasks.find((t) => String(t.task_owners_id) === String(selectedId));
+    if (selectedTask) {
+      const combinedName = `${selectedTask.client_name} — ${selectedTask.task_name}`;
+      setIsOtherProject(false);
+      setSelectedProjects(selectedTask.client_name || "RE_Project");
+      setFormData((prev) => ({
+        ...prev,
+        task_owners_id: selectedTask.task_owners_id,
+        ProjectOrClientName: combinedName,
+      }));
+
+      if (categorys.length === 0) {
+        axios
+          .get(`${API_BASE}/api/category-list?projects_id=${encodeURIComponent(selectedTask.client_name || "")}`)
+          .then((res) => {
+            setAllCategory(res.data);
+            setCategory(res.data);
+          })
+          .catch(() => {});
+      }
+    }
+  };
   const [cameraFacing, setCameraFacing] = useState("environment");
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const fileInputRef = useRef(null);
@@ -615,11 +795,11 @@ function UserHome() {
     if (projectId === "new" || projectId === "Other") {
       setIsOtherProject(true);
       setSelectedProjects("Other");
-      setFormData((prev) => ({ ...prev, ProjectOrClientName: "" }));
+      setFormData((prev) => ({ ...prev, ProjectOrClientName: "", task_owners_id: null }));
     } else {
       setIsOtherProject(false);
       setSelectedProjects(projectId);
-      setFormData((prev) => ({ ...prev, ProjectOrClientName: projectId }));
+      setFormData((prev) => ({ ...prev, ProjectOrClientName: projectId, task_owners_id: null }));
     }
 
     axios
@@ -828,6 +1008,63 @@ function UserHome() {
   };
   useEffect(() => {
     getCheckInData();
+    fetchOwnedProjects();
+    fetchUsersForPicker();
+    fetchMyReTasks();
+
+    // ── Phase 5: Socket.io Live Sync for Employee ──
+    const socket = io(API_BASE, {
+      transports: ["polling", "websocket"],
+      withCredentials: true,
+    });
+
+    const joinRoom = () => {
+      if (user?.id) {
+        socket.emit("join_employee_room", user.id);
+        console.log(`📡 Joined employee_${user.id} socket room`);
+      }
+    };
+
+    socket.on("connect", joinRoom);
+    joinRoom();
+
+    // Task unassigned from this employee (disappears live)
+    socket.on("re:task_unassigned", ({ task_owners_id }) => {
+      console.log("⚡ Received re:task_unassigned:", task_owners_id);
+      setMyReTasks((prev) => prev.filter((t) => Number(t.task_owners_id) !== Number(task_owners_id)));
+      toast("An assigned task was reassigned to another colleague", { icon: "ℹ️" });
+    });
+
+    // Task assigned to this employee (appears live)
+    socket.on("re:task_assigned", (newTask) => {
+      console.log("⚡ Received re:task_assigned:", newTask);
+      setMyReTasks((prev) => {
+        const exists = prev.some((t) => Number(t.task_owners_id) === Number(newTask.task_owners_id));
+        if (exists) {
+          return prev.map((t) => (Number(t.task_owners_id) === Number(newTask.task_owners_id) ? newTask : t));
+        }
+        return [newTask, ...prev];
+      });
+      toast.success(`New Task Assigned: ${newTask.task_name}`);
+    });
+
+    // Project Owner assigned to this employee
+    socket.on("re:project_owner_assigned", ({ project_id }) => {
+      console.log("⚡ Received re:project_owner_assigned:", project_id);
+      fetchOwnedProjects();
+      toast.success("You have been assigned as Project Owner!");
+    });
+
+    // Project Owner removed from this employee
+    socket.on("re:project_owner_removed", ({ project_id }) => {
+      console.log("⚡ Received re:project_owner_removed:", project_id);
+      fetchOwnedProjects();
+      toast("You are no longer Project Owner for project #" + project_id, { icon: "ℹ️" });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   // ═══ Metrics Calculation ═══
@@ -1018,6 +1255,240 @@ function UserHome() {
           </div>
         </div>
 
+        {/* ═══ Projects I Own (Contextual Section - Phase 3) ═══ */}
+        {ownedProjects && ownedProjects.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-sm">
+                  ★
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900 tracking-tight">
+                    Projects I Own
+                  </h2>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    Contextual Project Ownership • Manage your department's task assignments
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] font-black uppercase text-purple-600 bg-purple-50 border border-purple-100 px-3 py-1 rounded-full self-start sm:self-auto">
+                {ownedProjects.length} Active {ownedProjects.length === 1 ? 'Project' : 'Projects'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {ownedProjects.map((p) => {
+                const statusColors = {
+                  completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                  in_progress: "bg-amber-50 text-amber-700 border-amber-200",
+                  blocked: "bg-rose-50 text-rose-700 border-rose-200",
+                  assigned: "bg-blue-50 text-blue-700 border-blue-200",
+                };
+                const statusBadgeClass = statusColors[p.overall_status] || "bg-slate-50 text-slate-700 border-slate-200";
+
+                return (
+                  <div key={p.project_id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-black text-slate-900">{p.client_name}</h3>
+                          {p.re_proforma_id && (
+                            <span className="text-[9px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                              RE #{p.re_proforma_id}
+                            </span>
+                          )}
+                        </div>
+                        {(p.start_date || p.end_date) && (
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                            Timeline: {p.start_date || "N/A"} → {p.end_date || "N/A"}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Status:</span>
+                        <span className={`${statusBadgeClass} text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border`}>
+                          {p.overall_status.replace("_", " ")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                      <div className="p-2.5 bg-slate-100/50 flex items-center justify-between text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                        <span>Department Tasks ({p.tasks?.length || 0})</span>
+                        <span>Assignment & Status</span>
+                      </div>
+                      {p.tasks && p.tasks.length > 0 ? (
+                        p.tasks.map((t) => (
+                          <div key={t.task_owners_id} className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-800">{t.task_name}</span>
+                                {t.category && (
+                                  <span className="text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    {t.category}
+                                  </span>
+                                )}
+                              </div>
+                              {t.description && (
+                                <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{t.description}</p>
+                              )}
+                              {t.deadline && (
+                                <p className="text-[10px] text-slate-400 font-bold mt-1">
+                                  Deadline: {t.deadline}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              {t.employee_name ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="text-right">
+                                    <span className="text-[11px] font-black text-slate-800 block">
+                                      👤 {t.employee_name}
+                                    </span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                      Status: {t.status}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedReassignTaskModal({
+                                        ...t,
+                                        project_id: p.project_id,
+                                        client_name: p.client_name,
+                                      });
+                                      setReassignTaskEmpId("");
+                                      setReassignTaskReason("");
+                                    }}
+                                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold transition shadow-sm"
+                                  >
+                                    Reassign
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setSelectedTaskToAssign(t);
+                                    setAssignEmployeeId("");
+                                    setAssignDeadline("");
+                                  }}
+                                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+                                >
+                                  Assign Task Owner
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-xs text-slate-400 font-bold">
+                          No tasks for your department in this project.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ My Assigned Tasks (Phase 4) ═══ */}
+        {myReTasks && myReTasks.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
+                  ✓
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900 tracking-tight">
+                    My Assigned Tasks
+                  </h2>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    Revenue Engine Tasks • Update progress and log daily activities
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full self-start sm:self-auto">
+                {myReTasks.length} Assigned {myReTasks.length === 1 ? 'Task' : 'Tasks'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myReTasks.map((t) => {
+                const statusColors = {
+                  completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                  in_progress: "bg-amber-50 text-amber-700 border-amber-200",
+                  review: "bg-blue-50 text-blue-700 border-blue-200",
+                  pending: "bg-slate-50 text-slate-700 border-slate-200",
+                };
+                const statusBadgeClass = statusColors[t.status] || "bg-slate-50 text-slate-700 border-slate-200";
+
+                return (
+                  <div
+                    key={t.task_owners_id}
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 space-y-3 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            {t.client_name}
+                          </span>
+                          <h3 className="text-sm font-bold text-slate-900 mt-0.5">
+                            {t.task_name}
+                          </h3>
+                        </div>
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${statusBadgeClass}`}>
+                          {t.status ? t.status.replace("_", " ") : "pending"}
+                        </span>
+                      </div>
+
+                      {t.description && (
+                        <p className="text-[11px] text-slate-500 mt-2 line-clamp-2">
+                          {t.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        {t.category && (
+                          <span className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                            {t.category}
+                          </span>
+                        )}
+                        {t.deadline && (
+                          <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                            📅 Due: {t.deadline}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-200/60 flex items-center justify-between gap-3">
+                      <label className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">
+                        Update Status:
+                      </label>
+                      <select
+                        value={t.status || "pending"}
+                        onChange={(e) => handleUpdateTaskStatus(t.task_owners_id, e.target.value)}
+                        className="bg-white border border-slate-200 text-xs font-bold text-slate-800 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="review">Review</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ═══ Activity Ledger ═══ */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -1194,6 +1665,38 @@ function UserHome() {
                   onSubmit={!isUpdate ? handleSubmit : updateTask}
                   className="grid grid-cols-1 md:grid-cols-2 gap-5"
                 >
+                  {/* Optional: Log work against an assigned RE task */}
+                  {myReTasks && myReTasks.length > 0 && (
+                    <div className="md:col-span-2 p-3.5 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                          Log work against an assigned RE task (Optional)
+                        </label>
+                        {formData.task_owners_id && (
+                          <span className="text-[9px] font-black uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">
+                            RE Linked #{formData.task_owners_id}
+                          </span>
+                        )}
+                      </div>
+                      <select
+                        value={formData.task_owners_id || ""}
+                        onChange={handleSelectReTask}
+                        className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none"
+                      >
+                        <option value="">-- None (Standard Project / Custom Work) --</option>
+                        {myReTasks.map((t) => (
+                          <option key={t.task_owners_id} value={t.task_owners_id}>
+                            {t.client_name} — {t.task_name} ({t.status || "pending"})
+                          </option>
+                        ))}
+                      </select>
+                      <input type="hidden" name="task_owners_id" value={formData.task_owners_id || ""} />
+                      <p className="text-[10px] text-indigo-600/70 font-medium">
+                        Selecting an RE task auto-fills Project/Client Name. Category & Process Pillar remain freely selectable below.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="space-y-1.5 focus-within:text-indigo-600 transition-colors">
                     <label className="text-[10px] font-black uppercase tracking-widest ml-1">
                       Project/Client
@@ -1581,6 +2084,169 @@ function UserHome() {
                 Open Original
               </a>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reassign Task Owner Modal (Phase 5) ── */}
+      {selectedReassignTaskModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setSelectedReassignTaskModal(null)}
+        >
+          <div
+            className="relative max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                  Reassign Task Owner
+                </h3>
+                <p className="text-[11px] text-slate-400 font-bold">
+                  Task: {selectedReassignTaskModal.task_name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedReassignTaskModal(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center font-bold text-lg transition-all"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleReassignTaskSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                  Select New Colleague *
+                </label>
+                <select
+                  value={reassignTaskEmpId}
+                  onChange={(e) => setReassignTaskEmpId(e.target.value)}
+                  required
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                >
+                  <option value="">-- Choose New Colleague --</option>
+                  {departmentUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.designation || u.department})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                  Reason for Reassignment (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={reassignTaskReason}
+                  onChange={(e) => setReassignTaskReason(e.target.value)}
+                  placeholder="e.g. Employee absent, sickness, urgent handover"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReassignTaskModal(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={reassignTaskLoading}
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
+                >
+                  {reassignTaskLoading ? "Reassigning..." : "Confirm Reassignment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Assign Task Owner Modal (Phase 3) ── */}
+      {selectedTaskToAssign && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setSelectedTaskToAssign(null)}
+        >
+          <div
+            className="relative max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                  Assign Task Owner
+                </h3>
+                <p className="text-[11px] text-slate-400 font-bold">
+                  Task: {selectedTaskToAssign.task_name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTaskToAssign(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center font-bold text-lg transition-all"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignTaskOwnerSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                  Select Employee *
+                </label>
+                <select
+                  value={assignEmployeeId}
+                  onChange={(e) => setAssignEmployeeId(e.target.value)}
+                  required
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="">-- Choose Colleague --</option>
+                  {departmentUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.designation || u.department})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                  Deadline Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={assignDeadline}
+                  onChange={(e) => setAssignDeadline(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTaskToAssign(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={assignTaskLoading}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
+                >
+                  {assignTaskLoading ? "Assigning..." : "Confirm Assignment"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

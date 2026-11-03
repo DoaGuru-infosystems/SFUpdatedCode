@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 
 const navigation = [
   { name: "Dashboard", href: "task/Admin-Home-page" },
+  { name: "RE Projects", href: "/task/re-projects" },
   { name: "Employee", href: "task/employee-show-register-page" },
   {
     name: "Project Details",
@@ -80,7 +81,7 @@ export default function AdminNavbar({ Logout, render }) {
       let parsedUser = null;
       try { parsedUser = JSON.parse(userStr); } catch (e) { return; }
 
-      if (parsedUser && parsedUser.role === "admin") {
+      if (parsedUser && (parsedUser.role === "admin" || parsedUser.role === "gm")) {
         localStorage.removeItem("user");
         localStorage.removeItem("token");
         localStorage.removeItem("adminLoginTime");
@@ -94,7 +95,7 @@ export default function AdminNavbar({ Logout, render }) {
     let parsedUser = null;
     try { parsedUser = JSON.parse(userStr); } catch (e) { return; }
 
-    if (parsedUser && parsedUser.role === "admin") {
+    if (parsedUser && (parsedUser.role === "admin" || parsedUser.role === "gm")) {
       if (!localStorage.getItem("adminLoginTime")) {
         localStorage.setItem("adminLoginTime", Date.now().toString());
       }
@@ -107,7 +108,7 @@ export default function AdminNavbar({ Logout, render }) {
       let pUser = null;
       try { pUser = JSON.parse(uStr); } catch (e) { return; }
 
-      if (pUser && pUser.role === "admin") {
+      if (pUser && (pUser.role === "admin" || pUser.role === "gm")) {
         const loginTime = parseInt(localStorage.getItem("adminLoginTime") || Date.now().toString(), 10);
         if (Date.now() - loginTime >= TIMEOUT_DURATION) {
           performAutoLogout();
@@ -206,6 +207,7 @@ export default function AdminNavbar({ Logout, render }) {
       withCredentials: true,
       secure: window.location.protocol === "https:",
     });
+    window.adminSocket = socket;
 
     socket.on("connect", () => {
       console.log(`✅ Socket.io connected via: ${socket.io.engine.transport.name}`);

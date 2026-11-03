@@ -16,7 +16,7 @@ function LoginPage({ setRender }) {
 
   React.useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
-    if (user && user.role === "admin") {
+    if (user && (user.role === "admin" || user.role === "gm")) {
       navigate("/task/Admin-Home-page");
     } else if (user && user.role === "team_lead") {
       navigate("/task/TeamLeaderDashboard");

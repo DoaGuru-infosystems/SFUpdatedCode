@@ -19,6 +19,7 @@ import TaskView from "./Task/pages/Employee/taskShow";
 // Admin file import
 import AdminNavbar from "./Task/components/adminNavbar";
 import AdminHomePage from "./Task/pages/Admin/adminHome";
+import RevenueEngineProjects from "./Task/pages/Admin/RevenueEngineProjects";
 import EmployeePage from "./Task/pages/Admin/Employees";
 import RegisterUser from "./Task/pages/Admin/registerUser";
 import ProjectsPage from "./Task/pages/Admin/projects";
@@ -114,11 +115,13 @@ const Commonjs = () => {
   const currentUser = getLoggedInUser();
   const isLettersAuthorized = currentUser && (
     currentUser.role === "admin" ||
+    currentUser.role === "gm" ||
     (currentUser.designation && currentUser.designation.trim().toUpperCase() === "HR")
   );
 
   const isSchedulerAuthorized = currentUser && (
     currentUser.role?.toLowerCase() === "admin" ||
+    currentUser.role?.toLowerCase() === "gm" ||
     currentUser.role?.toLowerCase() === "manager" ||
     currentUser.role?.toLowerCase() === "team_lead" ||
     (currentUser.designation && currentUser.designation.toUpperCase().includes("HR")) ||
@@ -156,7 +159,7 @@ const Commonjs = () => {
     if (user) {
       setUserRole(user.role);
       if (path === "/") {
-        if (user.role === "admin") {
+        if (user.role === "admin" || user.role === "gm") {
           navigate("/task/Admin-Home-page");
         } else if (user.role === "user" || user.role === "team_lead") {
           navigate("/task/UserHome");
@@ -170,7 +173,7 @@ const Commonjs = () => {
     <LettersThemeProvider>
       <Toaster position="top-center" reverseOrder={false} />
       {page == "task" ? (
-        userRole === "admin" ? (
+        (userRole === "admin" || userRole === "gm") ? (
           <AdminNavbar Logout={handleLogout} render={render} />
         ) : (
           <Navbar Logout={handleLogout} render={render} />
@@ -199,7 +202,7 @@ const Commonjs = () => {
                                 </Link> */}
                   <Link
                     to={
-                      userRole === "admin"
+                      (userRole === "admin" || userRole === "gm")
                         ? "/task/Admin-Home-page"
                         : userRole === "user"
                           ? "/task/UserHome"
@@ -228,7 +231,7 @@ const Commonjs = () => {
 
         {/*--------------- Task app ----------------- */}
         {/* <TaskApp /> */}
-        {page === "task" && userRole !== "admin" && userRole !== "user" && userRole !== "team_lead" && (
+        {page === "task" && userRole !== "admin" && userRole !== "gm" && userRole !== "user" && userRole !== "team_lead" && (
           <Route
             path="/task/login"
             element={<LoginPage setRender={handleRender} />}
@@ -245,7 +248,7 @@ const Commonjs = () => {
         />
 
         <Route element={<ProtectedRoute />}>
-          {page === "task" && userRole === "admin" && (
+          {page === "task" && (userRole === "admin" || userRole === "gm") && (
             <Route path="/task/Admin-Home-page" element={<AdminHomePage />} />
           )}
 
@@ -292,6 +295,16 @@ const Commonjs = () => {
 
         {/* Admin Routes  */}
         <Route path="/task/Admin-Home-page" element={<AdminHomePage />} />
+        <Route
+          path="/task/re-projects"
+          element={
+            userRole === "admin" || userRole === "gm" ? (
+              <RevenueEngineProjects />
+            ) : (
+              <Navigate to="/task/login" />
+            )
+          }
+        />
         <Route
           path="/task/employee-show-register-page"
           element={<EmployeePage userRole={userRole} />}

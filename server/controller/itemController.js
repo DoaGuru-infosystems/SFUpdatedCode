@@ -327,6 +327,7 @@ const AddData = (req, res) => {
     OtherGraphicsStatus,
     shootCount,
     task_date,
+    task_owners_id,
   } = req.body;
 
   const taskImage = req.file
@@ -382,15 +383,16 @@ const AddData = (req, res) => {
   const safeOtherGraphicsCount = finalOtherGraphicsCount || 0;
 
   const query = `INSERT INTO tasks (
-    user_id, name, ProjectOrClientName, Category, SubCategory, TaskDescription, task_image, ConsumingTimeInMin,
+    user_id, task_owners_id, name, ProjectOrClientName, Category, SubCategory, TaskDescription, task_image, ConsumingTimeInMin,
     videoCount, postCount, post_creative_status, video_status,
     other_graphics_name, other_graphics_count, other_graphics_status, shootCount, task_date
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   db.query(
     query,
     [
       user_id,
+      task_owners_id || null,
       user_full_name,
       ProjectOrClientName,
       Category,

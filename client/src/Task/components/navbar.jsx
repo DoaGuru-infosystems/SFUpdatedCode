@@ -87,6 +87,16 @@ export default function Navbar({ Logout, render }) {
       withCredentials: true
     });
 
+    try {
+      const uStr = localStorage.getItem("user");
+      if (uStr) {
+        const uObj = JSON.parse(uStr);
+        if (uObj?.id) {
+          socket.emit("join_employee_room", uObj.id);
+        }
+      }
+    } catch (e) {}
+
     socket.on("new-scheduler-notification", (notif) => {
       const userStr = localStorage.getItem("user");
       if (!userStr) return;

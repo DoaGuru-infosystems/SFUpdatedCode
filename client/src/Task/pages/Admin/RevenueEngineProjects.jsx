@@ -1,0 +1,1176 @@
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import axios from "axios";
+import moment from "moment";
+import { Calendar, momentLocalizer } from "react-big-calendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { io } from "socket.io-client";
+import { Link, useNavigate } from "react-router-dom";
+import toast, { Toaster } from "react-hot-toast";
+import {
+  Briefcase,
+  Calendar as CalendarIcon,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Archive,
+  Search,
+  RefreshCw,
+  Folder,
+  Layers,
+  User,
+  Eye,
+  X,
+  ArrowLeft,
+  ChevronRight,
+  ExternalLink,
+  FileText,
+} from "lucide-react";
+
+const localizer = momentLocalizer(moment);
+
+const getApiBase = () => {
+  return window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
+};
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const STATUS_CONFIG = {
+  completed: {
+    label: "Completed",
+    bg: "bg-emerald-100",
+    text: "text-emerald-800",
+    border: "border-emerald-300",
+    dot: "bg-emerald-500",
+    calColor: "#10b981",
+  },
+  in_progress: {
+    label: "In Progress",
+    bg: "bg-blue-100",
+    text: "text-blue-800",
+    border: "border-blue-300",
+    dot: "bg-blue-500",
+    calColor: "#3b82f6",
+  },
+  blocked: {
+    label: "Blocked",
+    bg: "bg-rose-100",
+    text: "text-rose-800",
+    border: "border-rose-300",
+    dot: "bg-rose-500",
+    calColor: "#ef4444",
+  },
+  assigned: {
+    label: "Assigned",
+    bg: "bg-slate-100",
+    text: "text-slate-700",
+    border: "border-slate-300",
+    dot: "bg-slate-400",
+    calColor: "#64748b",
+  },
+};
+
+const StatusBadge = ({ status }) => {
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.assigned;
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.bg} ${config.text} ${config.border}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${config.dot}`} />
+      {config.label}
+    </span>
+  );
+};
+
+export default function RevenueEngineProjects() {
+  const navigate = useNavigate();
+
+  // Primary data state
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("list"); // 'list' | 'calendar'
+
+  // Per-project drilldown
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectTasks, setProjectTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [projectSubTab, setProjectSubTab] = useState("calendar"); // 'calendar' | 'tasks'
+
+  // Work log drilldown
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [workLogs, setWorkLogs] = useState([]);
+  const [loadingWorkLogs, setLoadingWorkLogs] = useState(false);
+
+  // Popover for global calendar bar click
+  const [popoverProject, setPopoverProject] = useState(null);
+
+  // Full image preview modal
+  const [previewImage, setPreviewImage] = useState(null);
+
+  // Live socket status
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  // 1. Auth Guard (Admin / GM Only)
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      navigate("/task/login");
+      return;
+    }
+    try {
+      const user = JSON.parse(userStr);
+      if (user.role !== "admin" && user.role !== "gm") {
+        navigate("/task/UserHome");
+      }
+    } catch (e) {
+      navigate("/task/login");
+    }
+  }, [navigate]);
+
+  // 2. Fetch Projects List
+  const fetchProjects = useCallback(async (showToast = false) => {
+    try {
+      if (!showToast) setLoading(true);
+      const url = `${getApiBase()}/api/admin/re-projects${includeArchived ? "?include_archived=true" : ""}`;
+      const res = await axios.get(url, { headers: getAuthHeaders() });
+      if (res.data && res.data.success) {
+        setProjects(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch RE projects:", err);
+      if (err.response?.status === 403 || err.response?.status === 401) {
+        toast.error("Access denied. Admin or GM role required.");
+        navigate("/task/login");
+      } else {
+        toast.error("Could not load RE projects");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [includeArchived, navigate]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  // 3. Fetch Tasks for Selected Project
+  const fetchProjectTasks = useCallback(async (projectId) => {
+    if (!projectId) return;
+    try {
+      setLoadingTasks(true);
+      const res = await axios.get(`${getApiBase()}/api/admin/re-project/${projectId}/tasks`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.data && res.data.success) {
+        setProjectTasks(res.data.data.tasks || []);
+        setSelectedProject((prev) => (prev ? { ...prev, ...res.data.data } : res.data.data));
+      }
+    } catch (err) {
+      console.error("Failed to fetch project tasks:", err);
+      toast.error("Could not load tasks for project");
+    } finally {
+      setLoadingTasks(false);
+    }
+  }, []);
+
+  // 4. Fetch Work Logs for Selected Task
+  const fetchWorkLogs = useCallback(async (taskOwnersId) => {
+    if (!taskOwnersId) return;
+    try {
+      setLoadingWorkLogs(true);
+      const res = await axios.get(`${getApiBase()}/api/admin/re-task/${taskOwnersId}/work-log`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.data && res.data.success) {
+        setWorkLogs(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch work log:", err);
+      toast.error("Could not load work log");
+    } finally {
+      setLoadingWorkLogs(false);
+    }
+  }, []);
+
+  // 5. Socket.io Live Sync
+  useEffect(() => {
+    const socket = window.adminSocket || io(getApiBase(), {
+      transports: ["polling", "websocket"],
+      withCredentials: true,
+      secure: window.location.protocol === "https:",
+    });
+
+    socket.emit("join_admin_room");
+    setSocketConnected(true);
+
+    const handleLiveSync = (payload) => {
+      console.log("[Live Socket Sync] Received event in admin_room:", payload);
+      toast.success("Live Update received from Revenue Engine", {
+        icon: "⚡",
+        duration: 3500,
+      });
+
+      fetchProjects(true);
+
+      if (selectedProject?.project_id) {
+        fetchProjectTasks(selectedProject.project_id);
+      }
+
+      if (selectedTask?.task_owners_id) {
+        fetchWorkLogs(selectedTask.task_owners_id);
+      }
+    };
+
+    socket.on("re:task_status_changed", handleLiveSync);
+    socket.on("re:project_assigned", handleLiveSync);
+    socket.on("re:task_assigned", handleLiveSync);
+    socket.on("re:task_unassigned", handleLiveSync);
+
+    return () => {
+      socket.off("re:task_status_changed", handleLiveSync);
+      socket.off("re:project_assigned", handleLiveSync);
+      socket.off("re:task_assigned", handleLiveSync);
+      socket.off("re:task_unassigned", handleLiveSync);
+    };
+  }, [fetchProjects, selectedProject?.project_id, fetchProjectTasks, selectedTask?.task_owners_id, fetchWorkLogs]);
+
+  // Open Project Drilldown
+  const handleOpenProject = (project) => {
+    setPopoverProject(null);
+    setSelectedProject(project);
+    setProjectSubTab("calendar");
+    fetchProjectTasks(project.project_id);
+  };
+
+  // Open Work Log Drilldown
+  const handleOpenWorkLog = (task) => {
+    setSelectedTask(task);
+    fetchWorkLogs(task.task_owners_id);
+  };
+
+  // Mark Project Inactive
+  const handleMarkInactive = async (projectId, clientName) => {
+    if (!window.confirm(`Are you sure you want to mark project "${clientName}" as inactive / archived?`)) {
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${getApiBase()}/api/admin/re-project/${projectId}/mark-inactive`,
+        {},
+        { headers: getAuthHeaders() }
+      );
+      if (res.data?.success) {
+        toast.success(`Project "${clientName}" marked inactive`);
+        fetchProjects();
+        if (selectedProject?.project_id === projectId) {
+          setSelectedProject((prev) => (prev ? { ...prev, is_active: false } : null));
+        }
+      }
+    } catch (err) {
+      console.error("Error marking project inactive:", err);
+      toast.error(err.response?.data?.message || "Failed to mark project inactive");
+    }
+  };
+
+  // Filtered Projects for List and Calendar
+  const filteredProjects = useMemo(() => {
+    return projects.filter((p) => {
+      const matchesSearch =
+        searchQuery.trim() === "" ||
+        (p.client_name && p.client_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.re_proforma_id && String(p.re_proforma_id).includes(searchQuery.trim())) ||
+        (p.project_id && String(p.project_id).includes(searchQuery.trim()));
+
+      const matchesStatus =
+        statusFilter === "all" || p.current_status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, searchQuery, statusFilter]);
+
+  // Global Calendar Events
+  const globalCalendarEvents = useMemo(() => {
+    return filteredProjects.map((p) => {
+      const start = p.start_date
+        ? moment(p.start_date, "YYYY-MM-DD").startOf("day").toDate()
+        : new Date();
+      const end = p.end_date
+        ? moment(p.end_date, "YYYY-MM-DD").endOf("day").toDate()
+        : moment(start).add(1, "day").toDate();
+
+      return {
+        id: p.project_id,
+        title: `${p.client_name} • ${p.current_status?.toUpperCase()} (${p.completed_tasks}/${p.total_tasks})`,
+        start,
+        end,
+        allDay: true,
+        resource: p,
+      };
+    });
+  }, [filteredProjects]);
+
+  // Per-Project Calendar Events (Task Deadlines as Point Events)
+  const perProjectCalendarEvents = useMemo(() => {
+    return projectTasks.map((t) => {
+      const d = t.deadline
+        ? moment(t.deadline, "YYYY-MM-DD").startOf("day").toDate()
+        : new Date();
+      return {
+        id: t.task_owners_id,
+        title: `[${t.category || "Task"}] ${t.task_name} (${t.assignee_name || "Unassigned"})`,
+        start: d,
+        end: d,
+        allDay: true,
+        resource: t,
+      };
+    });
+  }, [projectTasks]);
+
+  // Event Prop Getters for Styling
+  const projectEventPropGetter = (event) => {
+    const status = event.resource?.current_status || "assigned";
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.assigned;
+    return {
+      style: {
+        backgroundColor: cfg.calColor,
+        color: "#ffffff",
+        borderRadius: "6px",
+        padding: "4px 8px",
+        fontSize: "0.825rem",
+        fontWeight: "600",
+        border: "none",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        cursor: "pointer",
+      },
+    };
+  };
+
+  const taskEventPropGetter = (event) => {
+    const status = event.resource?.status || "assigned";
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.assigned;
+    return {
+      style: {
+        backgroundColor: cfg.calColor,
+        color: "#ffffff",
+        borderRadius: "6px",
+        padding: "4px 8px",
+        fontSize: "0.825rem",
+        fontWeight: "600",
+        border: "none",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        cursor: "pointer",
+      },
+    };
+  };
+
+  // Metrics Summary
+  const metrics = useMemo(() => {
+    const total = projects.length;
+    const completed = projects.filter((p) => p.current_status === "completed").length;
+    const inProgress = projects.filter((p) => p.current_status === "in_progress").length;
+    const blocked = projects.filter((p) => p.current_status === "blocked").length;
+    const archived = projects.filter((p) => !p.is_active).length;
+    return { total, completed, inProgress, blocked, archived };
+  }, [projects]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-800 pb-16">
+      <Toaster position="top-right" />
+
+      {/* Top Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+                <Link to="/task/Admin-Home-page" className="hover:text-blue-600 flex items-center">
+                  <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Dashboard
+                </Link>
+                <span>/</span>
+                <span className="text-slate-800 font-medium">RE Projects</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
+                  <Layers className="w-6 h-6 mr-2 text-blue-600" />
+                  Revenue Engine Projects
+                </h1>
+                <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200">
+                  {metrics.total} Synced
+                </span>
+                {socketConnected && (
+                  <span className="inline-flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5" />
+                    Live Sync
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Full executive visibility across all departments and task lifecycles.
+              </p>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex items-center space-x-2 self-start md:self-auto">
+              <button
+                onClick={() => setActiveTab("list")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
+                  activeTab === "list"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <Briefcase className="w-4 h-4 mr-1.5" />
+                Projects List
+              </button>
+              <button
+                onClick={() => setActiveTab("calendar")}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
+                  activeTab === "calendar"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <CalendarIcon className="w-4 h-4 mr-1.5" />
+                Global Monthly Calendar
+              </button>
+              <button
+                onClick={() => fetchProjects(true)}
+                title="Refresh Projects"
+                className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {/* KPI Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Total Synced</span>
+              <Layers className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="text-2xl font-bold text-slate-900 mt-2">{metrics.total}</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">All synced projects</div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>In Progress</span>
+              <Clock className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="text-2xl font-bold text-blue-600 mt-2">{metrics.inProgress}</div>
+            <div className="text-[11px] text-blue-500 mt-0.5">Active execution</div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Completed</span>
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div className="text-2xl font-bold text-emerald-600 mt-2">{metrics.completed}</div>
+            <div className="text-[11px] text-emerald-500 mt-0.5">All tasks finished</div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Blocked</span>
+              <AlertCircle className="w-4 h-4 text-rose-500" />
+            </div>
+            <div className="text-2xl font-bold text-rose-600 mt-2">{metrics.blocked}</div>
+            <div className="text-[11px] text-rose-500 mt-0.5">Needs intervention</div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Archived</span>
+              <Archive className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="text-2xl font-bold text-slate-600 mt-2">{metrics.archived}</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Inactive projects</div>
+          </div>
+        </div>
+
+        {/* Filter & Search Bar */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="relative w-full md:w-96">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by client name, proforma ID, or project ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-medium text-slate-500">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-xs py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Statuses</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
+
+            <label className="flex items-center space-x-2 text-xs font-medium text-slate-600 cursor-pointer select-none bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+              <input
+                type="checkbox"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+              />
+              <span>Include Inactive / Archived</span>
+            </label>
+          </div>
+        </div>
+
+        {/* ─── TAB 1: PROJECTS LIST VIEW ─── */}
+        {activeTab === "list" && (
+          <div className="space-y-4">
+            {loading ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
+                <RefreshCw className="w-8 h-8 mx-auto animate-spin mb-3 text-blue-500" />
+                <p className="text-sm font-medium">Loading Revenue Engine projects...</p>
+              </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
+                <Folder className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                <h3 className="text-base font-semibold text-slate-800">No Projects Found</h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                  {searchQuery || statusFilter !== "all"
+                    ? "Try adjusting your filters or search query."
+                    : "No projects have been synced from Revenue Engine yet."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredProjects.map((p) => {
+                  const progressPct =
+                    p.total_tasks > 0 ? Math.round((p.completed_tasks / p.total_tasks) * 100) : 0;
+
+                  return (
+                    <div
+                      key={p.project_id}
+                      className={`bg-white rounded-xl border transition-all duration-200 hover:shadow-md flex flex-col justify-between ${
+                        p.is_active ? "border-slate-200" : "border-slate-200 bg-slate-50/70 opacity-80"
+                      }`}
+                    >
+                      <div className="p-5">
+                        {/* Header: Client & Status */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-base text-slate-900 truncate" title={p.client_name}>
+                              {p.client_name}
+                            </h3>
+                            <div className="flex items-center space-x-2 text-xs text-slate-400 mt-0.5">
+                              <span>Proforma #{p.re_proforma_id}</span>
+                              <span>•</span>
+                              <span>SF #{p.project_id}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end space-y-1">
+                            <StatusBadge status={p.current_status} />
+                            {!p.is_active && (
+                              <span className="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">
+                                Archived
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Dates */}
+                        <div className="mt-4 flex items-center justify-between text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">
+                          <div className="flex items-center space-x-1.5">
+                            <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                            <span>
+                              {p.start_date || "N/A"} → {p.end_date || "N/A"}
+                            </span>
+                          </div>
+                          <span className="text-slate-400 font-mono text-[11px]">
+                            {p.end_date && moment(p.end_date).isBefore(moment(), "day") && p.current_status !== "completed" ? (
+                              <span className="text-rose-600 font-semibold">Overdue</span>
+                            ) : (
+                              `${p.total_tasks} Tasks`
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mt-4">
+                          <div className="flex justify-between text-xs mb-1.5">
+                            <span className="text-slate-500 font-medium">Task Completion</span>
+                            <span className="font-semibold text-slate-700">
+                              {p.completed_tasks} / {p.total_tasks} ({progressPct}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                p.current_status === "completed"
+                                  ? "bg-emerald-500"
+                                  : p.current_status === "blocked"
+                                  ? "bg-rose-500"
+                                  : "bg-blue-600"
+                              }`}
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Unassigned Warning */}
+                        {p.unassigned_tasks > 0 && (
+                          <div className="mt-3 text-xs bg-amber-50 text-amber-800 px-2.5 py-1.5 rounded-lg border border-amber-200 flex items-center">
+                            <AlertCircle className="w-3.5 h-3.5 mr-1.5 text-amber-600 shrink-0" />
+                            <span>
+                              {p.unassigned_tasks} task{p.unassigned_tasks > 1 ? "s" : ""} unassigned
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Footer Actions */}
+                      <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 rounded-b-xl flex items-center justify-between">
+                        <button
+                          onClick={() => handleOpenProject(p)}
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center transition"
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" />
+                          View Calendar & Tasks
+                        </button>
+
+                        {p.is_active ? (
+                          <button
+                            onClick={() => handleMarkInactive(p.project_id, p.client_name)}
+                            title="Mark project as inactive/archived"
+                            className="text-xs text-slate-400 hover:text-rose-600 transition flex items-center"
+                          >
+                            <Archive className="w-3.5 h-3.5 mr-1" />
+                            Archive
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Inactive</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── TAB 2: GLOBAL MONTHLY CALENDAR ─── */}
+        {activeTab === "calendar" && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center">
+                  <CalendarIcon className="w-5 h-5 mr-2 text-blue-600" />
+                  Monthly Executive Schedule
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Spanning bars indicate full project durations from start to end date. Click any bar for details.
+                </p>
+              </div>
+
+              {/* Status Color Legend */}
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <span className="flex items-center">
+                  <span className="w-3 h-3 rounded bg-slate-500 mr-1.5" /> Assigned
+                </span>
+                <span className="flex items-center">
+                  <span className="w-3 h-3 rounded bg-blue-500 mr-1.5" /> In Progress
+                </span>
+                <span className="flex items-center">
+                  <span className="w-3 h-3 rounded bg-emerald-500 mr-1.5" /> Completed
+                </span>
+                <span className="flex items-center">
+                  <span className="w-3 h-3 rounded bg-rose-500 mr-1.5" /> Blocked
+                </span>
+              </div>
+            </div>
+
+            <div style={{ height: "640px" }} className="re-global-calendar">
+              <Calendar
+                localizer={localizer}
+                events={globalCalendarEvents}
+                startAccessor="start"
+                endAccessor="end"
+                defaultView="month"
+                views={["month", "agenda"]}
+                eventPropGetter={projectEventPropGetter}
+                onSelectEvent={(event) => setPopoverProject(event.resource)}
+                popup
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── MODAL 1: LIGHTWEIGHT POPOVER (Global Calendar Click) ─── */}
+      {popoverProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="font-bold text-lg text-slate-900">{popoverProject.client_name}</h3>
+                  <StatusBadge status={popoverProject.current_status} />
+                </div>
+                <div className="text-xs text-slate-400 mt-0.5">
+                  Proforma #{popoverProject.re_proforma_id} • Project ID #{popoverProject.project_id}
+                </div>
+              </div>
+              <button
+                onClick={() => setPopoverProject(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs text-slate-600">
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Start Date</span>
+                  <span className="font-semibold text-slate-800">{popoverProject.start_date || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">End Date</span>
+                  <span className="font-semibold text-slate-800">{popoverProject.end_date || "N/A"}</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1 text-xs">
+                  <span className="text-slate-500">Progress</span>
+                  <span className="font-semibold text-slate-800">
+                    {popoverProject.completed_tasks} / {popoverProject.total_tasks} completed
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-2 rounded-full bg-blue-600"
+                    style={{
+                      width: `${
+                        popoverProject.total_tasks > 0
+                          ? (popoverProject.completed_tasks / popoverProject.total_tasks) * 100
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                onClick={() => setPopoverProject(null)}
+                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => handleOpenProject(popoverProject)}
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center"
+              >
+                Open Full Breakdown
+                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 2: FULL PER-PROJECT DRILLDOWN ─── */}
+      {selectedProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 bg-slate-900 text-white flex items-start justify-between">
+              <div>
+                <div className="flex items-center space-x-3">
+                  <h2 className="text-xl font-bold tracking-tight">{selectedProject.client_name}</h2>
+                  <StatusBadge status={selectedProject.current_status} />
+                  {!selectedProject.is_active && (
+                    <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">
+                      Archived
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-3 text-xs text-slate-400 mt-1">
+                  <span>Proforma #{selectedProject.re_proforma_id}</span>
+                  <span>•</span>
+                  <span>SF #{selectedProject.project_id}</span>
+                  <span>•</span>
+                  <span>
+                    Schedule: {selectedProject.start_date || "N/A"} → {selectedProject.end_date || "N/A"}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedProject(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Sub-Tabs: Project Calendar vs Department Task Breakdown */}
+            <div className="px-6 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setProjectSubTab("calendar")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center ${
+                    projectSubTab === "calendar"
+                      ? "bg-white text-blue-600 shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
+                  Task Deadline Calendar
+                </button>
+                <button
+                  onClick={() => setProjectSubTab("tasks")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center ${
+                    projectSubTab === "tasks"
+                      ? "bg-white text-blue-600 shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 mr-1.5" />
+                  All Department Tasks ({projectTasks.length})
+                </button>
+              </div>
+
+              <button
+                onClick={() => fetchProjectTasks(selectedProject.project_id)}
+                className="text-xs text-slate-500 hover:text-slate-800 flex items-center"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1 ${loadingTasks ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {loadingTasks ? (
+                <div className="p-16 text-center text-slate-400">
+                  <RefreshCw className="w-8 h-8 mx-auto animate-spin mb-3 text-blue-500" />
+                  <p className="text-sm font-medium">Loading project tasks...</p>
+                </div>
+              ) : projectTasks.length === 0 ? (
+                <div className="p-16 text-center text-slate-400">
+                  <Folder className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-sm font-medium">No tasks found for this project.</p>
+                </div>
+              ) : projectSubTab === "calendar" ? (
+                /* Per-Project Deadline Calendar */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>
+                      Point events show task deadlines across all departments. Click any event to inspect daily work logs.
+                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="flex items-center">
+                        <span className="w-2.5 h-2.5 rounded bg-emerald-500 mr-1" /> Completed
+                      </span>
+                      <span className="flex items-center">
+                        <span className="w-2.5 h-2.5 rounded bg-blue-500 mr-1" /> In Progress
+                      </span>
+                      <span className="flex items-center">
+                        <span className="w-2.5 h-2.5 rounded bg-rose-500 mr-1" /> Blocked
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ height: "480px" }}>
+                    <Calendar
+                      localizer={localizer}
+                      events={perProjectCalendarEvents}
+                      startAccessor="start"
+                      endAccessor="end"
+                      defaultView="month"
+                      views={["month", "agenda"]}
+                      eventPropGetter={taskEventPropGetter}
+                      onSelectEvent={(event) => handleOpenWorkLog(event.resource)}
+                      popup
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* Cross-Department Tasks Table */
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                  <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-600 font-semibold">
+                      <tr>
+                        <th className="px-4 py-3">Task / RE Item</th>
+                        <th className="px-4 py-3">Department / Cat</th>
+                        <th className="px-4 py-3">Assignee</th>
+                        <th className="px-4 py-3">Deadline</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3 text-right">Work Log</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {projectTasks.map((t) => (
+                        <tr key={t.task_owners_id} className="hover:bg-slate-50 transition">
+                          <td className="px-4 py-3">
+                            <div className="font-semibold text-slate-900">{t.task_name}</div>
+                            {t.description && (
+                              <div className="text-[11px] text-slate-400 truncate max-w-xs">
+                                {t.description}
+                              </div>
+                            )}
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                              SF: {t.sf_task_id || `ID #${t.task_owners_id}`}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                              {t.category || t.assignee_department || "General"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {t.assignee_name ? (
+                              <div>
+                                <div className="font-medium text-slate-900 flex items-center">
+                                  <User className="w-3 h-3 mr-1 text-slate-400" />
+                                  {t.assignee_name}
+                                </div>
+                                <div className="text-[11px] text-slate-400">
+                                  {t.assignee_role || t.assignee_department || "Staff"}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded">
+                                Unassigned
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-600">
+                            {t.deadline || "None"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge status={t.status} />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => handleOpenWorkLog(t)}
+                              className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition"
+                            >
+                              <FileText className="w-3.5 h-3.5 mr-1" />
+                              Work Log
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setSelectedProject(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition"
+              >
+                Close Project Breakdown
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 3: WORK LOG DRILLDOWN ─── */}
+      {selectedTask && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className="p-5 bg-slate-900 text-white flex items-start justify-between">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-lg font-bold">{selectedTask.task_name}</h3>
+                  <StatusBadge status={selectedTask.status} />
+                </div>
+                <div className="text-xs text-slate-400 mt-1 flex items-center space-x-2">
+                  <span>Assignee: {selectedTask.assignee_name || "Unassigned"}</span>
+                  <span>•</span>
+                  <span>Deadline: {selectedTask.deadline || "N/A"}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Work Log Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-slate-800 flex items-center">
+                  <FileText className="w-4 h-4 mr-1.5 text-blue-600" />
+                  Daily Work Log Entries ({workLogs.length})
+                </h4>
+                <button
+                  onClick={() => fetchWorkLogs(selectedTask.task_owners_id)}
+                  className="text-xs text-slate-500 hover:text-slate-800 flex items-center"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 mr-1 ${loadingWorkLogs ? "animate-spin" : ""}`} />
+                  Refresh Logs
+                </button>
+              </div>
+
+              {loadingWorkLogs ? (
+                <div className="p-12 text-center text-slate-400">
+                  <RefreshCw className="w-6 h-6 mx-auto animate-spin mb-2 text-blue-500" />
+                  <p className="text-xs">Loading employee work logs...</p>
+                </div>
+              ) : workLogs.length === 0 ? (
+                <div className="bg-slate-50 rounded-xl p-8 text-center text-slate-500 border border-dashed border-slate-200">
+                  <Clock className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                  <p className="text-sm font-medium">No work logged yet against this task.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    When the assignee logs tasks in the daily task form, entries will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {workLogs.map((log) => {
+                    const imageUrl = log.task_image
+                      ? log.task_image.startsWith("http")
+                        ? log.task_image
+                        : `${getApiBase()}/${log.task_image.replace(/^\/+/, "")}`
+                      : null;
+
+                    return (
+                      <div
+                        key={log.task_log_id}
+                        className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs hover:border-slate-300 transition"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs border-b border-slate-100 pb-2 mb-2 gap-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-semibold text-slate-900">{log.employee_name || "Employee"}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="font-mono text-slate-500">{log.task_date || "Date N/A"}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {log.consuming_time_min > 0 && (
+                              <span className="inline-flex items-center bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {log.consuming_time_min} mins
+                              </span>
+                            )}
+                            {log.category && (
+                              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                                {log.category}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                          {log.description || "No description entered."}
+                        </p>
+
+                        {/* Output Metrics (Posts, Videos, Shoots) */}
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                          {log.post_count > 0 && (
+                            <span className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                              Posts: {log.post_count}
+                            </span>
+                          )}
+                          {log.video_count > 0 && (
+                            <span className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                              Videos: {log.video_count}
+                            </span>
+                          )}
+                          {log.shoot_count > 0 && (
+                            <span className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                              Shoots: {log.shoot_count}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Image Attachment */}
+                        {imageUrl && (
+                          <div className="mt-3 pt-2 border-t border-slate-100">
+                            <button
+                              onClick={() => setPreviewImage(imageUrl)}
+                              className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 font-medium group"
+                            >
+                              <img
+                                src={imageUrl}
+                                alt="Work log attachment"
+                                className="w-12 h-12 object-cover rounded-lg border border-slate-200 mr-2 group-hover:opacity-90"
+                              />
+                              <span>View Attached Image</span>
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition"
+              >
+                Close Work Log
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 4: FULLSCREEN IMAGE PREVIEW ─── */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={previewImage}
+              alt="Full preview"
+              className="max-h-[85vh] w-auto rounded-lg shadow-2xl object-contain"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

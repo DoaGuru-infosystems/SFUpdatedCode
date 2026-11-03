@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -34,6 +35,86 @@ const AdminHomePage = () => {
   const [attendance, setAttendance] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reProjects, setReProjects] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const fetchReProjects = async () => {
+      try {
+        const res = await axios.get((window.API_BASE || "") + "/api/re-projects", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          setReProjects(res.data.data.slice(0, 3));
+        }
+      } catch (err) {
+        console.error("Error fetching RE projects:", err);
+      }
+    };
+
+    fetchReProjects();
+
+    const socket = window.adminSocket || io(window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com", {
+      transports: ["polling", "websocket"],
+      withCredentials: true,
+      secure: window.location.protocol === "https:",
+    });
+
+    if (socket) {
+      if (typeof socket.emit === "function") {
+        socket.emit("join_admin_room");
+      }
+
+      const handleProjectAssigned = (data) => {
+        console.log("⚡ [adminHome] Live RE project received:", data);
+        setReProjects((prev) => {
+          const newEntry = {
+            project_id: data.project_id,
+            re_proforma_id: data.re_proforma_id,
+            client_name: data.client_name,
+            start_date: data.start_date,
+            end_date: data.end_date,
+            is_active: 1,
+            total_tasks: data.tasks_created || 0,
+            unassigned_tasks: data.tasks_created || 0,
+            created_at: new Date().toISOString(),
+          };
+          const filtered = prev.filter((p) => p.project_id !== data.project_id);
+          return [newEntry, ...filtered].slice(0, 3);
+        });
+      };
+
+      socket.on("re:project_assigned", handleProjectAssigned);
+
+      return () => {
+        socket.off("re:project_assigned", handleProjectAssigned);
+      };
+    }
+  }, []);
+
+  const handleArchiveProject = async (projectId) => {
+    if (!window.confirm("Are you sure you want to archive this project? It will be marked inactive in Revenue Engine.")) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com"}/api/admin/re-project/${projectId}/mark-inactive`,
+        {},
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success("Project archived in Revenue Engine");
+        setReProjects((prev) =>
+          prev.map((p) => (p.project_id === projectId ? { ...p, is_active: 0 } : p))
+        );
+      } else {
+        toast.error(res.data?.message || "Failed to archive project");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to archive project");
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -397,6 +478,83 @@ const AdminHomePage = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* ── New from Revenue Engine Live Queue (TASK 3) ─────────────── */}
+      <div className="mt-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+              New from Revenue Engine
+            </h3>
+          </div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Live Push Active • Top 3 Recent
+          </span>
+        </div>
+
+        {reProjects.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-wider border border-dashed border-slate-200 rounded-xl">
+            No projects from Revenue Engine yet
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {reProjects.map((p) => (
+              <div
+                key={p.project_id || p.re_proforma_id}
+                className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50/80 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                      Proforma #{p.re_proforma_id}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">
+                      ID #{p.project_id}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-black text-slate-900 tracking-tight truncate">
+                    {p.client_name}
+                  </h4>
+                  <div className="text-[11px] text-slate-600 mt-2 space-y-0.5">
+                    <div>
+                      <span className="font-bold text-slate-700">Tasks:</span>{" "}
+                      {p.total_tasks} total ({p.unassigned_tasks} unassigned)
+                    </div>
+                    {(p.start_date || p.end_date) && (
+                      <div className="text-[10px] text-slate-400">
+                        {p.start_date || "N/A"} → {p.end_date || "N/A"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                  <span className={`inline-flex items-center gap-1 font-bold ${p.is_active === 0 ? "text-slate-400" : "text-emerald-600"}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${p.is_active === 0 ? "bg-slate-400" : "bg-emerald-500"}`}></span>
+                    {p.is_active === 0 ? "Archived" : "Live"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {p.is_active !== 0 && (
+                      <button
+                        onClick={() => handleArchiveProject(p.project_id)}
+                        className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:underline px-2 py-0.5 rounded bg-rose-50 border border-rose-100 transition-all"
+                      >
+                        Archive Project
+                      </button>
+                    )}
+                    <span className="text-slate-400 font-medium">
+                      {p.created_at ? new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

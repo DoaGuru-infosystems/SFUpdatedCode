@@ -51,6 +51,129 @@ const LeaderDashboard = () => {
   const [teamMembers, setTeamMembers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reProjects, setReProjects] = useState([]);
+  const [selectedPoModal, setSelectedPoModal] = useState(null);
+  const [selectedPoEmp, setSelectedPoEmp] = useState("");
+  const [poLoading, setPoLoading] = useState(false);
+
+  // Phase 5: Reassign Task & Project Owner states
+  const [selectedReassignTaskModal, setSelectedReassignTaskModal] = useState(null);
+  const [reassignTaskEmpId, setReassignTaskEmpId] = useState("");
+  const [reassignTaskReason, setReassignTaskReason] = useState("");
+  const [reassignTaskLoading, setReassignTaskLoading] = useState(false);
+
+  const [selectedReassignPoModal, setSelectedReassignPoModal] = useState(null);
+  const [reassignPoEmpId, setReassignPoEmpId] = useState("");
+  const [reassignPoReason, setReassignPoReason] = useState("");
+  const [reassignPoLoading, setReassignPoLoading] = useState(false);
+
+  const handleReassignTaskSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedReassignTaskModal || !reassignTaskEmpId) {
+      return toast.error("Please select an employee");
+    }
+    setReassignTaskLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/employee/reassign-task`,
+        {
+          task_owners_id: selectedReassignTaskModal.task_owners_id,
+          new_employee_id: reassignTaskEmpId,
+          reason: reassignTaskReason || null,
+        },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || "Task reassigned successfully!");
+        setSelectedReassignTaskModal(null);
+        setReassignTaskEmpId("");
+        setReassignTaskReason("");
+        fetchReProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to reassign task");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reassign task");
+    } finally {
+      setReassignTaskLoading(false);
+    }
+  };
+
+  const handleReassignPoSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedReassignPoModal || !reassignPoEmpId) {
+      return toast.error("Please select an employee");
+    }
+    setReassignPoLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/leader/reassign-project-owner`,
+        {
+          project_id: selectedReassignPoModal.project_id,
+          old_employee_id: selectedReassignPoModal.project_owner_id || null,
+          new_employee_id: reassignPoEmpId,
+          reason: reassignPoReason || null,
+        },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || "Project Owner reassigned successfully!");
+        setSelectedReassignPoModal(null);
+        setReassignPoEmpId("");
+        setReassignPoReason("");
+        fetchReProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to reassign Project Owner");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to assign Project Owner");
+    } finally {
+      setReassignPoLoading(false);
+    }
+  };
+
+  const fetchReProjects = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await axios.get(`${API_BASE}/api/leader/re-projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data?.success) {
+        setReProjects(res.data.data || []);
+      }
+    } catch (e) {
+      console.error("Error fetching leader RE projects:", e);
+    }
+  };
+
+  const handleAssignPoSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedPoModal || !selectedPoEmp) return toast.error("Please select an employee");
+    setPoLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/leader/assign-project-owner`,
+        { project_id: selectedPoModal.project_id, employee_id: selectedPoEmp },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || "Project Owner assigned successfully!");
+        setSelectedPoModal(null);
+        setSelectedPoEmp("");
+        fetchReProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to assign Project Owner");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to assign Project Owner");
+    } finally {
+      setPoLoading(false);
+    }
+  };
 
   // Filters and Selection States
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -150,6 +273,7 @@ const LeaderDashboard = () => {
       ]);
       setTeamMembers(membersRes.data.data || []);
       setProjects(projectsRes.data || []);
+      fetchReProjects();
     } catch (error) {
       console.error("Error fetching initial dashboard data:", error);
       toast.error("Failed to load team metadata.");
@@ -699,6 +823,121 @@ const LeaderDashboard = () => {
                 <div className="flex justify-between items-center pb-2 border-b border-slate-100">
                   <h3 className="font-bold text-slate-800 text-sm">Recent Tasks</h3>
                   <button onClick={() => setActiveTab("team_tasks")} className="text-xs font-black text-indigo-600 hover:text-indigo-700">View All</button>
+                </div>
+
+                {/* ── Revenue Engine Synced Projects (Phase 3) ── */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                        <FaProjectDiagram />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Revenue Engine Projects</h3>
+                        <p className="text-slate-400 text-xs">Tasks synced from RE matching your department ({leader?.department || "Department"})</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full self-start sm:self-auto">
+                      {reProjects.length} Synced {reProjects.length === 1 ? 'Project' : 'Projects'}
+                    </span>
+                  </div>
+
+                  {reProjects.length === 0 ? (
+                    <div className="py-6 text-center text-slate-400 text-xs font-bold">
+                      No Revenue Engine projects found for your department.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {reProjects.map((proj) => (
+                        <div key={proj.project_id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-900">{proj.client_name}</h4>
+                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                Timeline: {proj.start_date || "N/A"} → {proj.end_date || "N/A"} • Project ID: #{proj.project_id}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                onClick={() => {
+                                  setSelectedPoModal(proj);
+                                  setSelectedPoEmp("");
+                                }}
+                                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2"
+                              >
+                                <FaUserPlus size={11} /> Mark PO
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedReassignPoModal(proj);
+                                  setReassignPoEmpId("");
+                                  setReassignPoReason("");
+                                }}
+                                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2"
+                              >
+                                <FaUserPlus size={11} /> Reassign PO
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100 overflow-hidden">
+                            <div className="p-2.5 bg-slate-50 flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
+                              <span>Department Tasks ({proj.tasks?.length || 0})</span>
+                              <span>Category & Assignment</span>
+                            </div>
+                            {proj.tasks && proj.tasks.length > 0 ? (
+                              proj.tasks.map((t) => (
+                                <div key={t.task_owners_id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                                  <div>
+                                    <span className="font-bold text-slate-800">{t.task_name}</span>
+                                    <span className="ml-2 text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                      {t.category}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {t.employee_name ? (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-bold text-slate-700">
+                                          👤 {t.employee_name}
+                                        </span>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedReassignTaskModal({
+                                              ...t,
+                                              project_id: proj.project_id,
+                                              client_name: proj.client_name,
+                                            });
+                                            setReassignTaskEmpId("");
+                                            setReassignTaskReason("");
+                                          }}
+                                          className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-md text-[10px] font-bold transition shadow-sm"
+                                        >
+                                          Reassign
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                        Unassigned
+                                      </span>
+                                    )}
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                      t.status === 'completed'
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                        : 'bg-amber-50 text-amber-600 border-amber-100'
+                                    }`}>
+                                      {t.status}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="p-3 text-center text-xs text-slate-400">No matching tasks for your department.</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="divide-y divide-slate-100">
@@ -1564,6 +1803,210 @@ const LeaderDashboard = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── Mark Project Owner Modal ── */}
+        {selectedPoModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in"
+            onClick={() => setSelectedPoModal(null)}
+          >
+            <div
+              className="relative max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-6 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Mark Project Owner</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">{selectedPoModal.client_name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPoModal(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center font-bold text-lg transition-all"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handleAssignPoSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">Select Team Member *</label>
+                  <select
+                    value={selectedPoEmp}
+                    onChange={(e) => setSelectedPoEmp(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">-- Choose Colleague --</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.full_name} ({m.designation || m.department})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPoModal(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={poLoading}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
+                  >
+                    {poLoading ? "Assigning..." : "Confirm PO"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ── Reassign Project Owner Modal (Phase 5) ── */}
+        {selectedReassignPoModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in"
+            onClick={() => setSelectedReassignPoModal(null)}
+          >
+            <div
+              className="relative max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-6 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Reassign Project Owner</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">{selectedReassignPoModal.client_name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReassignPoModal(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center font-bold text-lg transition-all"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handleReassignPoSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">New Project Owner *</label>
+                  <select
+                    value={reassignPoEmpId}
+                    onChange={(e) => setReassignPoEmpId(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  >
+                    <option value="">-- Choose New Project Owner --</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.full_name} ({m.designation || m.department})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">Reason for Reassignment (Optional)</label>
+                  <input
+                    type="text"
+                    value={reassignPoReason}
+                    onChange={(e) => setReassignPoReason(e.target.value)}
+                    placeholder="e.g. Previous PO on leave, workload balancing"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReassignPoModal(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={reassignPoLoading}
+                    className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
+                  >
+                    {reassignPoLoading ? "Reassigning..." : "Confirm Reassignment"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ── Reassign Task Owner Modal (Phase 5) ── */}
+        {selectedReassignTaskModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in"
+            onClick={() => setSelectedReassignTaskModal(null)}
+          >
+            <div
+              className="relative max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-6 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Reassign Task Owner</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">Task: {selectedReassignTaskModal.task_name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReassignTaskModal(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center font-bold text-lg transition-all"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handleReassignTaskSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">New Assignee *</label>
+                  <select
+                    value={reassignTaskEmpId}
+                    onChange={(e) => setReassignTaskEmpId(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  >
+                    <option value="">-- Choose New Assignee --</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.full_name} ({m.designation || m.department})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">Reason for Reassignment (Optional)</label>
+                  <input
+                    type="text"
+                    value={reassignTaskReason}
+                    onChange={(e) => setReassignTaskReason(e.target.value)}
+                    placeholder="e.g. Employee absent, urgent delivery"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReassignTaskModal(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={reassignTaskLoading}
+                    className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
+                  >
+                    {reassignTaskLoading ? "Reassigning..." : "Confirm Reassignment"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
