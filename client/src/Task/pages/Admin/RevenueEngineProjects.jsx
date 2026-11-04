@@ -133,11 +133,11 @@ export default function RevenueEngineProjects() {
     }
   }, [navigate]);
 
-  // 2. Fetch Projects List
+  // 2. Fetch Projects List (always fetches full list so metrics include true archived counts)
   const fetchProjects = useCallback(async (showToast = false) => {
     try {
       if (!showToast) setLoading(true);
-      const url = `${getApiBase()}/api/admin/re-projects${includeArchived ? "?include_archived=true" : ""}`;
+      const url = `${getApiBase()}/api/admin/re-projects?include_archived=true`;
       const res = await axios.get(url, { headers: getAuthHeaders() });
       if (res.data && res.data.success) {
         setProjects(res.data.data || []);
@@ -153,7 +153,7 @@ export default function RevenueEngineProjects() {
     } finally {
       setLoading(false);
     }
-  }, [includeArchived, navigate]);
+  }, [navigate]);
 
   useEffect(() => {
     fetchProjects();
@@ -316,12 +316,26 @@ export default function RevenueEngineProjects() {
         (p.re_proforma_id && String(p.re_proforma_id).includes(searchQuery.trim())) ||
         (p.project_id && String(p.project_id).includes(searchQuery.trim()));
 
-      const matchesStatus =
-        statusFilter === "all" || p.current_status === statusFilter;
+      if (!matchesSearch) return false;
 
-      return matchesSearch && matchesStatus;
+      // When "Archived Only" is selected: strictly show only inactive projects
+      if (statusFilter === "archived") {
+        return !p.is_active;
+      }
+
+      // When a specific active status is selected
+      if (statusFilter !== "all" && p.current_status !== statusFilter) {
+        return false;
+      }
+
+      // If user is viewing active projects without checking "Include Inactive / Archived", hide inactive
+      if (!includeArchived && !p.is_active) {
+        return false;
+      }
+
+      return true;
     });
-  }, [projects, searchQuery, statusFilter]);
+  }, [projects, searchQuery, statusFilter, includeArchived]);
 
   // Global Calendar Events
   const globalCalendarEvents = useMemo(() => {
@@ -400,10 +414,11 @@ export default function RevenueEngineProjects() {
 
   // Metrics Summary
   const metrics = useMemo(() => {
-    const total = projects.length;
-    const completed = projects.filter((p) => p.current_status === "completed").length;
-    const inProgress = projects.filter((p) => p.current_status === "in_progress").length;
-    const blocked = projects.filter((p) => p.current_status === "blocked").length;
+    const activeProjects = projects.filter((p) => p.is_active);
+    const total = activeProjects.length;
+    const completed = activeProjects.filter((p) => p.current_status === "completed").length;
+    const inProgress = activeProjects.filter((p) => p.current_status === "in_progress").length;
+    const blocked = activeProjects.filter((p) => p.current_status === "blocked").length;
     const archived = projects.filter((p) => !p.is_active).length;
     return { total, completed, inProgress, blocked, archived };
   }, [projects]);
@@ -483,16 +498,32 @@ export default function RevenueEngineProjects() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
         {/* KPI Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div
+            onClick={() => {
+              setStatusFilter("all");
+              setIncludeArchived(false);
+            }}
+            className={`bg-white p-4 rounded-xl border shadow-xs cursor-pointer hover:border-blue-400 transition-all ${
+              statusFilter === "all" && !includeArchived ? "ring-2 ring-blue-500 border-blue-500" : "border-slate-200"
+            }`}
+          >
             <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
               <span>Total Synced</span>
               <Layers className="w-4 h-4 text-blue-500" />
             </div>
             <div className="text-2xl font-bold text-slate-900 mt-2">{metrics.total}</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">All synced projects</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Active projects</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div
+            onClick={() => {
+              setStatusFilter("in_progress");
+              setIncludeArchived(false);
+            }}
+            className={`bg-white p-4 rounded-xl border shadow-xs cursor-pointer hover:border-blue-400 transition-all ${
+              statusFilter === "in_progress" ? "ring-2 ring-blue-500 border-blue-500" : "border-slate-200"
+            }`}
+          >
             <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
               <span>In Progress</span>
               <Clock className="w-4 h-4 text-blue-500" />
@@ -501,7 +532,15 @@ export default function RevenueEngineProjects() {
             <div className="text-[11px] text-blue-500 mt-0.5">Active execution</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div
+            onClick={() => {
+              setStatusFilter("completed");
+              setIncludeArchived(false);
+            }}
+            className={`bg-white p-4 rounded-xl border shadow-xs cursor-pointer hover:border-emerald-400 transition-all ${
+              statusFilter === "completed" ? "ring-2 ring-emerald-500 border-emerald-500" : "border-slate-200"
+            }`}
+          >
             <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
               <span>Completed</span>
               <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -510,7 +549,15 @@ export default function RevenueEngineProjects() {
             <div className="text-[11px] text-emerald-500 mt-0.5">All tasks finished</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div
+            onClick={() => {
+              setStatusFilter("blocked");
+              setIncludeArchived(false);
+            }}
+            className={`bg-white p-4 rounded-xl border shadow-xs cursor-pointer hover:border-rose-400 transition-all ${
+              statusFilter === "blocked" ? "ring-2 ring-rose-500 border-rose-500" : "border-slate-200"
+            }`}
+          >
             <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
               <span>Blocked</span>
               <AlertCircle className="w-4 h-4 text-rose-500" />
@@ -519,7 +566,15 @@ export default function RevenueEngineProjects() {
             <div className="text-[11px] text-rose-500 mt-0.5">Needs intervention</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div
+            onClick={() => {
+              setStatusFilter("archived");
+              setIncludeArchived(true);
+            }}
+            className={`bg-white p-4 rounded-xl border shadow-xs cursor-pointer hover:border-slate-400 transition-all ${
+              statusFilter === "archived" ? "ring-2 ring-slate-600 border-slate-600" : "border-slate-200"
+            }`}
+          >
             <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
               <span>Archived</span>
               <Archive className="w-4 h-4 text-slate-400" />
@@ -547,14 +602,21 @@ export default function RevenueEngineProjects() {
               <span className="text-xs font-medium text-slate-500">Status:</span>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStatusFilter(val);
+                  if (val === "archived") {
+                    setIncludeArchived(true);
+                  }
+                }}
                 className="text-xs py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">All Statuses</option>
+                <option value="all">All Active Statuses</option>
                 <option value="assigned">Assigned</option>
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="blocked">Blocked</option>
+                <option value="archived">Archived Only</option>
               </select>
             </div>
 
