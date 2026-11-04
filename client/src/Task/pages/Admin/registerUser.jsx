@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-// import cogoToast from 'cogo-toast';
 
 const RegisterUser = () => {
   const [formData, setFormData] = useState({
@@ -15,12 +14,40 @@ const RegisterUser = () => {
     confirmPassword: "",
   });
 
+  const [departments, setDepartments] = useState([]);
+  const [isOtherDept, setIsOtherDept] = useState(false);
+  const [customDept, setCustomDept] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    axios
+      .get((window.API_BASE || "") + "/api/admin/departments", { headers })
+      .then((res) => {
+        if (res.data && res.data.success) {
+          setDepartments(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching departments:", err));
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value,
     });
+  };
+
+  const handleDeptSelect = (e) => {
+    const val = e.target.value;
+    if (val === "Other") {
+      setIsOtherDept(true);
+      setFormData((prev) => ({ ...prev, department: customDept }));
+    } else {
+      setIsOtherDept(false);
+      setFormData((prev) => ({ ...prev, department: val }));
+    }
   };
 
   const handleSubmit = (e) => {
@@ -33,12 +60,23 @@ const RegisterUser = () => {
       alert("Passwords do not match");
       return;
     }
+
+    const finalDept = isOtherDept ? customDept.trim() : formData.department;
+    if (!finalDept) {
+      alert("Please select or enter a department");
+      return;
+    }
+
     const { confirmPassword, ...dataToSend } = formData;
+    dataToSend.department = finalDept;
+
+    const token = localStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
     axios
-      .post(window.API_BASE + "/api/register", dataToSend)
+      .post((window.API_BASE || "") + "/api/register", dataToSend, { headers })
       .then((response) => {
-        console.log(response);
-        alert(response.data.message);
+        alert(response.data.message || "User registered successfully");
         // Clear the form fields
         setFormData({
           fullName: "",
@@ -51,13 +89,16 @@ const RegisterUser = () => {
           password: "",
           confirmPassword: "",
         });
+        setIsOtherDept(false);
+        setCustomDept("");
       })
       .catch((error) => {
         console.error(
           "Axios error:",
-          error.response ? error.response.data : error.message,
-        ); // Log the error details
-        alert("An error occurred. Please try again.");
+          error.response ? error.response.data : error.message
+        );
+        const msg = error.response?.data?.message || error.response?.data?.error || "An error occurred. Please try again.";
+        alert(msg);
       });
   };
 
@@ -107,15 +148,38 @@ const RegisterUser = () => {
             required
             className="m-2 p-3 border border-cyan-600 rounded-lg"
           />
-          <input
-            type="text"
-            name="department"
-            placeholder="Department"
-            value={formData.department}
-            onChange={handleChange}
+
+          {/* Department Select Dropdown + Other */}
+          <select
+            name="departmentSelect"
+            value={isOtherDept ? "Other" : (formData.department || "")}
+            onChange={handleDeptSelect}
             required
-            className="m-2 p-3 border border-cyan-600 rounded-lg"
-          />
+            className="m-2 p-3 border border-cyan-600 rounded-lg bg-white text-gray-700"
+          >
+            <option value="">-- Select Department --</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.name}>
+                {d.name} {d.tl_name ? `(TL: ${d.tl_name})` : "(TL: Unassigned)"}
+              </option>
+            ))}
+            <option value="Other">+ Other (Add New Department)</option>
+          </select>
+          {isOtherDept && (
+            <input
+              type="text"
+              name="customDepartment"
+              placeholder="Enter New Department Name"
+              value={customDept}
+              onChange={(e) => {
+                setCustomDept(e.target.value);
+                setFormData((prev) => ({ ...prev, department: e.target.value }));
+              }}
+              required
+              className="m-2 p-3 border border-cyan-600 rounded-lg bg-indigo-50/60 font-semibold"
+            />
+          )}
+
           <select
             name="role"
             value={formData.role}

@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 const navigation = [
   { name: "Dashboard", href: "task/Admin-Home-page" },
   { name: "RE Projects", href: "/task/re-projects" },
+  { name: "Departments", href: "/task/departments" },
   { name: "Employee", href: "task/employee-show-register-page" },
   {
     name: "Project Details",

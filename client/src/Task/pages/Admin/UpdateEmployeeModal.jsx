@@ -13,12 +13,28 @@ const UpdateEmployeeModal = ({
 }) => {
   const modalRef = useRef();
   const [formData, setFormData] = useState(employee || {});
-
-  console.log(employee);
+  const [departments, setDepartments] = useState([]);
+  const [isOtherDept, setIsOtherDept] = useState(false);
+  const [customDept, setCustomDept] = useState("");
 
   useEffect(() => {
     setFormData(employee || {});
+    setIsOtherDept(false);
+    setCustomDept("");
   }, [employee]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    axios
+      .get(`${window.API_BASE}/api/admin/departments`, { headers })
+      .then((res) => {
+        if (res.data && res.data.success) {
+          setDepartments(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching departments:", err));
+  }, []);
 
   // Close when clicking outside
   const handleOutsideClick = (e) => {
@@ -63,6 +79,9 @@ const UpdateEmployeeModal = ({
 
   const handleSubmit = async () => {
     try {
+      if (isOtherDept && customDept.trim()) {
+        formData.department = customDept.trim();
+      }
       const fd = new FormData();
 
       for (const key in formData) {
@@ -101,7 +120,8 @@ const UpdateEmployeeModal = ({
       onClose();
     } catch (error) {
       console.log(error);
-      alert("failed to update details");
+      const errMsg = error.response?.data?.message || error.response?.data?.error || "failed to update details";
+      alert(errMsg);
     }
   };
 
@@ -213,18 +233,41 @@ const UpdateEmployeeModal = ({
                 </label>
 
                 <select
-                  name="department"
-                  value={formData.department || ""}
-                  onChange={handleChange}
+                  name="departmentSelect"
+                  value={isOtherDept ? "Other" : (formData.department || "")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "Other") {
+                      setIsOtherDept(true);
+                      setFormData((prev) => ({ ...prev, department: customDept }));
+                    } else {
+                      setIsOtherDept(false);
+                      setFormData((prev) => ({ ...prev, department: val }));
+                    }
+                  }}
                   className="w-full p-2 border rounded-lg"
                 >
-                  <option value="">-select-</option>
-                  <option value="development">Development</option>
-                  <option value="digital marketing">Digital Marketing</option>
-                  <option value="seo">SEO</option>
-                  <option value="management">Management</option>
-                  <option value="sales">Sales</option>
+                  <option value="">-select department-</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name} {d.tl_name ? `(TL: ${d.tl_name})` : "(TL: Unassigned)"}
+                    </option>
+                  ))}
+                  <option value="Other">+ Other (Add New Department)</option>
                 </select>
+                {isOtherDept && (
+                  <input
+                    type="text"
+                    placeholder="Enter Custom Department Name"
+                    value={customDept}
+                    onChange={(e) => {
+                      setCustomDept(e.target.value);
+                      setFormData((prev) => ({ ...prev, department: e.target.value }));
+                    }}
+                    required
+                    className="w-full mt-2 p-2 border rounded-lg bg-indigo-50/60 font-semibold"
+                  />
+                )}
               </div>
 
               {/* Role */}

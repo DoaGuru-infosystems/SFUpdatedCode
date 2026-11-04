@@ -10,6 +10,8 @@
 const { db } = require("../config/db");
 const jwt = require("jsonwebtoken");
 const socketUtil = require("../utils/socket");
+const { notifyReProjectSynced } = require("../services/reAssignmentWhatsAppService");
+const { matchesCategoryAndDepartment } = require("../utils/projectStatusHelper");
 
 const handleProjectAssigned = (req, res) => {
   // ── 1. Auth check ────────────────────────────────────────────────────────
@@ -23,11 +25,13 @@ const handleProjectAssigned = (req, res) => {
     event_type,
     idempotency_key,
     proforma_id,
+    proforma_number,
     client_name,
     start_date,
     end_date,
     assigned_by,
     service_items,
+    department,
   } = req.body;
 
   if (
@@ -102,12 +106,13 @@ const handleProjectAssigned = (req, res) => {
             // ── 5b. INSERT into re_synced_projects ─────────────────────────
             const insertReSyncSql = `
               INSERT INTO re_synced_projects
-                (project_id, re_proforma_id, re_idempotency_key, client_name, start_date, end_date, is_active)
-              VALUES (?, ?, ?, ?, ?, ?, 1)
+                (project_id, re_proforma_id, re_proforma_number, re_idempotency_key, client_name, start_date, end_date, is_active)
+              VALUES (?, ?, ?, ?, ?, ?, ?, 1)
             `;
             const reSyncParams = [
               newProjectId,
               proforma_id,
+              proforma_number || null,
               idempotency_key,
               client_name || null,
               start_date  || null,
@@ -123,11 +128,19 @@ const handleProjectAssigned = (req, res) => {
                 });
               }
 
+              const explicitDept =
+                department ||
+                (service_items && service_items[0] && (service_items[0].department || service_items[0].category)) ||
+                null;
+
               const eventData = {
                 proforma_id,
-                client_name: client_name || `RE Project #${proforma_id}`,
+                proforma_number: proforma_number || null,
+                client_name: client_name || (proforma_number ? `RE Project ${proforma_number}` : `RE Project #${proforma_id}`),
                 start_date: start_date || null,
                 end_date: end_date || null,
+                department: explicitDept,
+                service_items: service_items || [],
               };
 
               // ── 5c. INSERT service_items into task_owners ────────────────
@@ -210,30 +223,71 @@ function commitAndRespond(connection, res, projectId, tasksCreated, idempotency_
     }
     console.log(`[RE Webhook] ✅ project.assigned processed — project_id=${projectId}, tasks_created=${tasksCreated}, key=${idempotency_key}`);
 
-    // TASK 1: Socket.io live push to admin_room (joined by both admin and gm)
-    try {
-      const io = socketUtil.getIO();
-      const payload = {
-        project_id     : projectId,
-        re_proforma_id : eventData.proforma_id,
-        client_name    : eventData.client_name,
-        start_date     : eventData.start_date,
-        end_date       : eventData.end_date,
-        tasks_created  : tasksCreated,
-      };
-      io.to("admin_room").emit("re:project_assigned", payload);
-      console.log(`[RE Webhook] ⚡ Broadcasted re:project_assigned to admin_room for project ${projectId}`);
-    } catch (sockErr) {
-      console.error("[RE Webhook] Socket emit error:", sockErr.message);
-    }
+    // Check unassigned TL departments for this project
+    const deptSql = "SELECT id, name, tl_employee_id FROM departments";
+    db.query(deptSql, (dErr, depts) => {
+      const allDepts = !dErr && Array.isArray(depts) ? depts : [];
+      const unassignedTlSet = new Set();
 
-    return res.status(201).json({
-      success: true,
-      message: "Project assigned and synced successfully",
-      data: {
-        project_id    : projectId,
-        tasks_created : tasksCreated,
-      },
+      (eventData.service_items || []).forEach((item) => {
+        const cat = item.category || item.department;
+        if (cat) {
+          const matched = allDepts.find((d) => matchesCategoryAndDepartment(cat, d.name));
+          if (matched && !matched.tl_employee_id) {
+            unassignedTlSet.add(matched.name);
+          }
+        }
+      });
+
+      if (eventData.department) {
+        const matched = allDepts.find((d) => matchesCategoryAndDepartment(eventData.department, d.name));
+        if (matched && !matched.tl_employee_id) {
+          unassignedTlSet.add(matched.name);
+        }
+      }
+
+      const unassignedTlDepts = Array.from(unassignedTlSet);
+
+      // TASK 1: Socket.io live push to admin_room (joined by both admin and gm)
+      try {
+        const io = socketUtil.getIO();
+        const payload = {
+          project_id         : projectId,
+          re_proforma_id     : eventData.proforma_id,
+          re_proforma_number : eventData.proforma_number || null,
+          client_name        : eventData.client_name,
+          start_date         : eventData.start_date,
+          end_date           : eventData.end_date,
+          tasks_created      : tasksCreated,
+          unassigned_tl_departments: unassignedTlDepts,
+        };
+        io.to("admin_room").emit("re:project_assigned", payload);
+        console.log(`[RE Webhook] ⚡ Broadcasted re:project_assigned to admin_room for project ${projectId}`);
+      } catch (sockErr) {
+        console.error("[RE Webhook] Socket emit error:", sockErr.message);
+      }
+
+      // ── 7. Asynchronous WhatsApp Notifications (MD/GM & Department TL) ───────
+      try {
+        notifyReProjectSynced({
+          projectId,
+          clientName: eventData.client_name,
+          proformaNumber: eventData.proforma_number || null,
+          department: eventData.department || null,
+        }).catch((wErr) => console.error("[RE Webhook] WhatsApp dispatch error:", wErr.message));
+      } catch (wErr) {
+        console.error("[RE Webhook] WhatsApp setup error:", wErr.message);
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: "Project assigned and synced successfully",
+        data: {
+          project_id    : projectId,
+          tasks_created : tasksCreated,
+          unassigned_tl_departments: unassignedTlDepts,
+        },
+      });
     });
   });
 }
@@ -272,7 +326,9 @@ const getReProjects = (req, res) => {
     SELECT 
       rsp.project_id,
       rsp.re_proforma_id,
+      rsp.re_proforma_number,
       COALESCE(rsp.client_name, p.name) AS client_name,
+      p.department AS project_department,
       rsp.start_date,
       rsp.end_date,
       rsp.is_active,
@@ -282,7 +338,7 @@ const getReProjects = (req, res) => {
     FROM re_synced_projects rsp
     LEFT JOIN projects p ON rsp.project_id = p.id
     LEFT JOIN task_owners t ON rsp.project_id = t.project_id
-    GROUP BY rsp.id, rsp.project_id, rsp.re_proforma_id, rsp.client_name, p.name, rsp.start_date, rsp.end_date, rsp.is_active, rsp.created_at
+    GROUP BY rsp.id, rsp.project_id, rsp.re_proforma_id, rsp.re_proforma_number, rsp.client_name, p.name, p.department, rsp.start_date, rsp.end_date, rsp.is_active, rsp.created_at
     ORDER BY rsp.created_at DESC
   `;
 
@@ -296,9 +352,58 @@ const getReProjects = (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: rows,
+    if (rows.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const projectIds = rows.map((r) => r.project_id);
+
+    // Fetch departments and task categories to check for unassigned TLs dynamically
+    const deptSql = "SELECT id, name, tl_employee_id FROM departments";
+    db.query(deptSql, (dErr, depts) => {
+      const allDepts = !dErr && Array.isArray(depts) ? depts : [];
+
+      const taskCatSql = "SELECT project_id, category FROM task_owners WHERE project_id IN (?)";
+      db.query(taskCatSql, [projectIds], (tErr, taskCats) => {
+        const catMap = new Map();
+        (taskCats || []).forEach((tc) => {
+          if (!catMap.has(tc.project_id)) {
+            catMap.set(tc.project_id, []);
+          }
+          if (tc.category) {
+            catMap.get(tc.project_id).push(tc.category);
+          }
+        });
+
+        const formatted = rows.map((r) => {
+          const cats = catMap.get(r.project_id) || [];
+          const unassignedTlSet = new Set();
+
+          cats.forEach((cat) => {
+            const matched = allDepts.find((d) => matchesCategoryAndDepartment(cat, d.name));
+            if (matched && !matched.tl_employee_id) {
+              unassignedTlSet.add(matched.name);
+            }
+          });
+
+          if (r.project_department) {
+            const matched = allDepts.find((d) => matchesCategoryAndDepartment(r.project_department, d.name));
+            if (matched && !matched.tl_employee_id) {
+              unassignedTlSet.add(matched.name);
+            }
+          }
+
+          return {
+            ...r,
+            unassigned_tl_departments: Array.from(unassignedTlSet),
+          };
+        });
+
+        return res.status(200).json({
+          success: true,
+          data: formatted,
+        });
+      });
     });
   });
 };

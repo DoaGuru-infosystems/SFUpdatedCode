@@ -14,6 +14,10 @@ const jwt = require("jsonwebtoken");
 const { matchesCategoryAndDepartment, deriveProjectStatus } = require("../utils/projectStatusHelper");
 const socketUtil = require("../utils/socket");
 const { sendStatusUpdateToRE } = require("../services/reWebhookSender");
+const {
+  notifyProjectOwnerAssigned,
+  notifyTaskOwnerAssigned,
+} = require("../services/reAssignmentWhatsAppService");
 
 // Helper to authenticate user from token
 function getAuthUser(req) {
@@ -59,6 +63,8 @@ const getLeaderReProjects = (req, res) => {
     const projectsSql = `
       SELECT 
         rsp.project_id,
+        rsp.re_proforma_id,
+        rsp.re_proforma_number,
         COALESCE(rsp.client_name, p.name) AS client_name,
         rsp.start_date,
         rsp.end_date,
@@ -73,6 +79,7 @@ const getLeaderReProjects = (req, res) => {
       JOIN projects p ON rsp.project_id = p.id
       JOIN task_owners t ON rsp.project_id = t.project_id
       LEFT JOIN task_users u ON t.employee_id = u.id
+      WHERE rsp.is_active = 1
       ORDER BY rsp.created_at DESC, t.id ASC
     `;
 
@@ -88,11 +95,13 @@ const getLeaderReProjects = (req, res) => {
       rows.forEach((row) => {
         if (!projectMap.has(row.project_id)) {
           projectMap.set(row.project_id, {
-            project_id : row.project_id,
-            client_name: row.client_name,
-            start_date : row.start_date,
-            end_date   : row.end_date,
-            tasks      : [],
+            project_id         : row.project_id,
+            re_proforma_id     : row.re_proforma_id,
+            re_proforma_number : row.re_proforma_number || null,
+            client_name        : row.client_name,
+            start_date         : row.start_date,
+            end_date           : row.end_date,
+            tasks              : [],
           });
         }
 
@@ -214,6 +223,14 @@ const assignProjectOwner = (req, res) => {
           }
 
           console.log(`[Assign PO] ✅ Employee ${employee_id} assigned as PO for project ${project_id} by TL ${user.id}`);
+
+          // Asynchronously notify assigned Project Owner via WhatsApp
+          notifyProjectOwnerAssigned({
+            projectId: project_id,
+            employeeId: employee_id,
+            tlUserId: user.id,
+          }).catch((wErr) => console.error("[Assign PO] WhatsApp dispatch error:", wErr.message));
+
           return res.status(200).json({
             success: true,
             message: "Project Owner assigned",
@@ -256,11 +273,12 @@ const getEmployeeOwnedProjects = (req, res) => {
         rsp.client_name,
         rsp.start_date,
         rsp.end_date,
-        rsp.re_proforma_id
+        rsp.re_proforma_id,
+        rsp.re_proforma_number
       FROM project_owners po
       JOIN projects p ON po.project_id = p.id
       LEFT JOIN re_synced_projects rsp ON po.project_id = rsp.project_id
-      WHERE po.employee_id = ? AND po.status = 'active'
+      WHERE po.employee_id = ? AND po.status = 'active' AND rsp.is_active = 1
       ORDER BY po.created_at DESC
     `;
 
@@ -333,13 +351,14 @@ const getEmployeeOwnedProjects = (req, res) => {
             }));
 
           return {
-            project_id    : p.project_id,
-            re_proforma_id: p.re_proforma_id || null,
-            client_name   : p.client_name || p.project_name,
-            start_date    : p.start_date || null,
-            end_date      : p.end_date || null,
-            overall_status: overallStatus,
-            tasks         : departmentTasks,
+            project_id         : p.project_id,
+            re_proforma_id     : p.re_proforma_id || null,
+            re_proforma_number : p.re_proforma_number || null,
+            client_name        : p.client_name || p.project_name,
+            start_date         : p.start_date || null,
+            end_date           : p.end_date || null,
+            overall_status     : overallStatus,
+            tasks              : departmentTasks,
           };
         });
 
@@ -413,6 +432,14 @@ const assignTaskOwner = (req, res) => {
 
         console.log(`[Assign Task] ✅ Task ${task_owners_id} assigned to employee ${employee_id} by PO ${user.id}`);
 
+        // Asynchronously notify assigned Task Owner via WhatsApp
+        notifyTaskOwnerAssigned({
+          taskOwnersId: task_owners_id,
+          employeeId: employee_id,
+          poUserId: user.id,
+          deadline: deadline || null,
+        }).catch((wErr) => console.error("[Assign Task] WhatsApp dispatch error:", wErr.message));
+
         // Outbound RE Webhook sync (Phase 6)
         sendStatusUpdateToRE(projectId, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
 
@@ -446,7 +473,7 @@ const getMyReTasks = (req, res) => {
     FROM task_owners t
     JOIN projects p ON t.project_id = p.id
     LEFT JOIN re_synced_projects rsp ON t.project_id = rsp.project_id
-    WHERE t.employee_id = ?
+    WHERE t.employee_id = ? AND rsp.is_active = 1
     ORDER BY t.deadline ASC, t.id DESC
   `;
 
@@ -717,6 +744,14 @@ const reassignTaskOwner = (req, res) => {
 
                       console.log(`[Reassign Task] ✅ Task ${task_owners_id} reassigned: ${old_employee_id} -> ${new_employee_id} by user ${user.id}`);
 
+                      // Asynchronously notify newly assigned Task Owner via WhatsApp
+                      notifyTaskOwnerAssigned({
+                        taskOwnersId: Number(task_owners_id),
+                        employeeId: Number(new_employee_id),
+                        poUserId: user.id,
+                        deadline: task.deadline || null,
+                      }).catch((wErr) => console.error("[Reassign Task] WhatsApp dispatch error:", wErr.message));
+
                       // Outbound RE Webhook sync (Phase 6)
                       sendStatusUpdateToRE(task.project_id, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
 
@@ -909,6 +944,14 @@ const reassignProjectOwner = (req, res) => {
                         }
 
                         console.log(`[Reassign PO] ✅ PO for project ${project_id} reassigned: ${effectiveOldEmpId} -> ${new_employee_id} by TL ${user.id}`);
+
+                        // Asynchronously notify newly assigned Project Owner via WhatsApp
+                        notifyProjectOwnerAssigned({
+                          projectId: Number(project_id),
+                          employeeId: Number(new_employee_id),
+                          tlUserId: user.id,
+                        }).catch((wErr) => console.error("[Reassign PO] WhatsApp dispatch error:", wErr.message));
+
                         return res.status(200).json({
                           success: true,
                           message: "Project Owner reassigned",
@@ -961,6 +1004,35 @@ const markProjectInactive = (req, res) => {
 
     console.log(`[Mark Inactive] ✅ Project ${project_id} marked inactive by user ${user.id} (${user.role})`);
 
+    // Socket.io live push: notify admin_room, leaders, and affected employees
+    try {
+      const io = socketUtil.getIO();
+      io.to("admin_room").emit("re:project_archived", { project_id: Number(project_id) });
+      io.emit("re:project_archived", { project_id: Number(project_id) });
+
+      // Targeted notification to assigned task owners
+      const findEmpsSql = "SELECT DISTINCT employee_id FROM task_owners WHERE project_id = ? AND employee_id IS NOT NULL";
+      db.query(findEmpsSql, [project_id], (fErr, empRows) => {
+        if (!fErr && empRows) {
+          empRows.forEach((r) => {
+            io.to(`employee_${r.employee_id}`).emit("re:project_archived", { project_id: Number(project_id) });
+          });
+        }
+      });
+
+      // Targeted notification to assigned project owners
+      const findPoSql = "SELECT DISTINCT employee_id FROM project_owners WHERE project_id = ? AND status = 'active'";
+      db.query(findPoSql, [project_id], (poErr, poRows) => {
+        if (!poErr && poRows) {
+          poRows.forEach((r) => {
+            io.to(`employee_${r.employee_id}`).emit("re:project_archived", { project_id: Number(project_id) });
+          });
+        }
+      });
+    } catch (sockErr) {
+      console.warn("[Mark Inactive] Socket emit warning:", sockErr.message);
+    }
+
     // Outbound sync to RE
     sendStatusUpdateToRE(project_id, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
 
@@ -968,6 +1040,76 @@ const markProjectInactive = (req, res) => {
       success: true,
       message: "Project marked inactive",
       data: { project_id: Number(project_id), is_active: false },
+    });
+  });
+};
+
+// ── Mark Project Active / Restore (Admin / GM only) ─────────────
+// POST /api/admin/re-project/:project_id/mark-active
+const markProjectActive = (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) {
+    return res.status(401).json({ success: false, message: "Unauthorized: Missing or invalid token" });
+  }
+
+  if (user.role !== "admin" && user.role !== "gm") {
+    return res.status(403).json({ success: false, message: "Forbidden: Admin or GM access required" });
+  }
+
+  const { project_id } = req.params;
+  if (!project_id) {
+    return res.status(400).json({ success: false, message: "project_id is required" });
+  }
+
+  const updateSql = "UPDATE re_synced_projects SET is_active = 1 WHERE project_id = ?";
+  db.query(updateSql, [project_id], (err, result) => {
+    if (err) {
+      console.error("[Mark Active] Error updating re_synced_projects:", err.message);
+      return res.status(500).json({ success: false, message: "Database error", error: err.message });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "RE project not found" });
+    }
+
+    console.log(`[Mark Active] ✅ Project ${project_id} restored to active by user ${user.id} (${user.role})`);
+
+    // Socket.io live push: notify admin_room, leaders, and affected employees
+    try {
+      const io = socketUtil.getIO();
+      io.to("admin_room").emit("re:project_unarchived", { project_id: Number(project_id) });
+      io.emit("re:project_unarchived", { project_id: Number(project_id) });
+
+      // Targeted notification to assigned task owners
+      const findEmpsSql = "SELECT DISTINCT employee_id FROM task_owners WHERE project_id = ? AND employee_id IS NOT NULL";
+      db.query(findEmpsSql, [project_id], (fErr, empRows) => {
+        if (!fErr && empRows) {
+          empRows.forEach((r) => {
+            io.to(`employee_${r.employee_id}`).emit("re:project_unarchived", { project_id: Number(project_id) });
+          });
+        }
+      });
+
+      // Targeted notification to assigned project owners
+      const findPoSql = "SELECT DISTINCT employee_id FROM project_owners WHERE project_id = ? AND status = 'active'";
+      db.query(findPoSql, [project_id], (poErr, poRows) => {
+        if (!poErr && poRows) {
+          poRows.forEach((r) => {
+            io.to(`employee_${r.employee_id}`).emit("re:project_unarchived", { project_id: Number(project_id) });
+          });
+        }
+      });
+    } catch (sockErr) {
+      console.warn("[Mark Active] Socket emit warning:", sockErr.message);
+    }
+
+    // Outbound sync to RE
+    sendStatusUpdateToRE(project_id, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
+
+    return res.status(200).json({
+      success: true,
+      message: "Project restored to active",
+      data: { project_id: Number(project_id), is_active: true },
     });
   });
 };
@@ -992,6 +1134,7 @@ const getAdminReProjects = (req, res) => {
       rsp.id AS rsp_id,
       rsp.project_id,
       rsp.re_proforma_id,
+      rsp.re_proforma_number,
       COALESCE(rsp.client_name, p.name) AS client_name,
       rsp.start_date,
       rsp.end_date,
@@ -1040,36 +1183,55 @@ const getAdminReProjects = (req, res) => {
         tasksByProject.get(t.project_id).push(t);
       });
 
-      const formatted = projectRows.map((p) => {
-        const pTasks = tasksByProject.get(p.project_id) || [];
-        const currentStatus = deriveProjectStatus(pTasks);
-        const totalTasks = pTasks.length;
-        const completedTasks = pTasks.filter((t) => t.status === "completed").length;
-        const unassignedTasks = pTasks.filter((t) => !t.employee_id).length;
+      // Fetch all departments to dynamically detect if any department involved has no TL assigned
+      const deptSql = "SELECT id, name, tl_employee_id FROM departments";
+      db.query(deptSql, (dErr, depts) => {
+        const allDepts = !dErr && Array.isArray(depts) ? depts : [];
 
-        const sDate = p.start_date
-          ? (typeof p.start_date === "string" ? p.start_date.substring(0, 10) : new Date(p.start_date).toISOString().split("T")[0])
-          : null;
-        const eDate = p.end_date
-          ? (typeof p.end_date === "string" ? p.end_date.substring(0, 10) : new Date(p.end_date).toISOString().split("T")[0])
-          : null;
+        const formatted = projectRows.map((p) => {
+          const pTasks = tasksByProject.get(p.project_id) || [];
+          const currentStatus = deriveProjectStatus(pTasks);
+          const totalTasks = pTasks.length;
+          const completedTasks = pTasks.filter((t) => t.status === "completed").length;
+          const unassignedTasks = pTasks.filter((t) => !t.employee_id).length;
 
-        return {
-          project_id       : p.project_id,
-          re_proforma_id   : p.re_proforma_id,
-          client_name      : p.client_name,
-          start_date       : sDate,
-          end_date         : eDate,
-          is_active        : Boolean(p.is_active !== 0),
-          current_status   : currentStatus,
-          total_tasks      : totalTasks,
-          completed_tasks  : completedTasks,
-          unassigned_tasks : unassignedTasks,
-          created_at       : p.created_at,
-        };
+          // Check if any task's category belongs to a department where tl_employee_id is NULL
+          const unassignedTlSet = new Set();
+          pTasks.forEach((t) => {
+            if (t.category) {
+              const matched = allDepts.find((d) => matchesCategoryAndDepartment(t.category, d.name));
+              if (matched && !matched.tl_employee_id) {
+                unassignedTlSet.add(matched.name);
+              }
+            }
+          });
+
+          const sDate = p.start_date
+            ? (typeof p.start_date === "string" ? p.start_date.substring(0, 10) : new Date(p.start_date).toISOString().split("T")[0])
+            : null;
+          const eDate = p.end_date
+            ? (typeof p.end_date === "string" ? p.end_date.substring(0, 10) : new Date(p.end_date).toISOString().split("T")[0])
+            : null;
+
+          return {
+            project_id         : p.project_id,
+            re_proforma_id     : p.re_proforma_id,
+            re_proforma_number : p.re_proforma_number || null,
+            client_name        : p.client_name,
+            start_date         : sDate,
+            end_date           : eDate,
+            is_active          : Boolean(p.is_active !== 0),
+            current_status     : currentStatus,
+            total_tasks        : totalTasks,
+            completed_tasks    : completedTasks,
+            unassigned_tasks   : unassignedTasks,
+            unassigned_tl_departments: Array.from(unassignedTlSet),
+            created_at         : p.created_at,
+          };
+        });
+
+        return res.status(200).json({ success: true, data: formatted });
       });
-
-      return res.status(200).json({ success: true, data: formatted });
     });
   });
 };
@@ -1091,6 +1253,7 @@ const getAdminReProjectTasks = (req, res) => {
     SELECT 
       rsp.project_id,
       rsp.re_proforma_id,
+      rsp.re_proforma_number,
       COALESCE(rsp.client_name, p.name) AS client_name,
       rsp.start_date,
       rsp.end_date,
@@ -1168,13 +1331,14 @@ const getAdminReProjectTasks = (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
-          project_id    : Number(proj.project_id),
-          re_proforma_id: proj.re_proforma_id,
-          client_name   : proj.client_name,
-          start_date    : sDate,
-          end_date      : eDate,
-          current_status: currentStatus,
-          is_active     : Boolean(proj.is_active !== 0),
+          project_id         : Number(proj.project_id),
+          re_proforma_id     : proj.re_proforma_id,
+          re_proforma_number : proj.re_proforma_number || null,
+          client_name        : proj.client_name,
+          start_date         : sDate,
+          end_date           : eDate,
+          current_status     : currentStatus,
+          is_active          : Boolean(proj.is_active !== 0),
           tasks         : formattedTasks,
         },
       });
@@ -1256,6 +1420,7 @@ module.exports = {
   reassignTaskOwner,
   reassignProjectOwner,
   markProjectInactive,
+  markProjectActive,
   getAdminReProjects,
   getAdminReProjectTasks,
   getAdminReTaskWorkLog,

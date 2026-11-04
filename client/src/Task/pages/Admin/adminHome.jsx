@@ -10,7 +10,7 @@ import {
   CheckCircle,
   AlertCircle,
   Plus,
-  FileText,
+  FileText,  
   Calendar,
   ChevronRight,
   TrendingUp,
@@ -72,12 +72,14 @@ const AdminHomePage = () => {
           const newEntry = {
             project_id: data.project_id,
             re_proforma_id: data.re_proforma_id,
+            re_proforma_number: data.re_proforma_number || null,
             client_name: data.client_name,
             start_date: data.start_date,
             end_date: data.end_date,
             is_active: 1,
             total_tasks: data.tasks_created || 0,
             unassigned_tasks: data.tasks_created || 0,
+            unassigned_tl_departments: data.unassigned_tl_departments || [],
             created_at: new Date().toISOString(),
           };
           const filtered = prev.filter((p) => p.project_id !== data.project_id);
@@ -85,10 +87,18 @@ const AdminHomePage = () => {
         });
       };
 
+      const handleProjectUnarchived = ({ project_id }) => {
+        setReProjects((prev) =>
+          prev.map((p) => (Number(p.project_id) === Number(project_id) ? { ...p, is_active: 1 } : p))
+        );
+      };
+
       socket.on("re:project_assigned", handleProjectAssigned);
+      socket.on("re:project_unarchived", handleProjectUnarchived);
 
       return () => {
         socket.off("re:project_assigned", handleProjectAssigned);
+        socket.off("re:project_unarchived", handleProjectUnarchived);
       };
     }
   }, []);
@@ -114,6 +124,30 @@ const AdminHomePage = () => {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to archive project");
+    }
+  };
+
+  const handleRestoreProject = async (projectId) => {
+    if (!window.confirm("Are you sure you want to restore this project to active?")) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com"}/api/admin/re-project/${projectId}/mark-active`,
+        {},
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success("Project restored to active");
+        setReProjects((prev) =>
+          prev.map((p) => (p.project_id === projectId ? { ...p, is_active: 1 } : p))
+        );
+      } else {
+        toast.error(res.data?.message || "Failed to restore project");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to restore project");
     }
   };
 
@@ -512,7 +546,7 @@ const AdminHomePage = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                      Proforma #{p.re_proforma_id}
+                      {p.re_proforma_number ? p.re_proforma_number : `Proforma #${p.re_proforma_id}`}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400">
                       ID #{p.project_id}
@@ -531,6 +565,12 @@ const AdminHomePage = () => {
                         {p.start_date || "N/A"} → {p.end_date || "N/A"}
                       </div>
                     )}
+                    {p.unassigned_tl_departments && p.unassigned_tl_departments.length > 0 && (
+                      <div className="mt-2 text-[10px] bg-rose-50 text-rose-800 px-2 py-1 rounded-md border border-rose-200 flex items-center font-bold">
+                        <span className="mr-1">⚠️</span>
+                        <span>TL not assigned for {p.unassigned_tl_departments.join(", ")}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
@@ -539,12 +579,19 @@ const AdminHomePage = () => {
                     {p.is_active === 0 ? "Archived" : "Live"}
                   </span>
                   <div className="flex items-center gap-2">
-                    {p.is_active !== 0 && (
+                    {p.is_active !== 0 ? (
                       <button
                         onClick={() => handleArchiveProject(p.project_id)}
                         className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:underline px-2 py-0.5 rounded bg-rose-50 border border-rose-100 transition-all"
                       >
                         Archive Project
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRestoreProject(p.project_id)}
+                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 hover:underline px-2 py-0.5 rounded bg-emerald-50 border border-emerald-100 transition-all"
+                      >
+                        Restore Project
                       </button>
                     )}
                     <span className="text-slate-400 font-medium">

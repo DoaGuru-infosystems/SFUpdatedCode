@@ -24,6 +24,7 @@ import {
   ChevronRight,
   ExternalLink,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 
 const localizer = momentLocalizer(moment);
@@ -230,12 +231,16 @@ export default function RevenueEngineProjects() {
     socket.on("re:project_assigned", handleLiveSync);
     socket.on("re:task_assigned", handleLiveSync);
     socket.on("re:task_unassigned", handleLiveSync);
+    socket.on("re:project_archived", handleLiveSync);
+    socket.on("re:project_unarchived", handleLiveSync);
 
     return () => {
       socket.off("re:task_status_changed", handleLiveSync);
       socket.off("re:project_assigned", handleLiveSync);
       socket.off("re:task_assigned", handleLiveSync);
       socket.off("re:task_unassigned", handleLiveSync);
+      socket.off("re:project_archived", handleLiveSync);
+      socket.off("re:project_unarchived", handleLiveSync);
     };
   }, [fetchProjects, selectedProject?.project_id, fetchProjectTasks, selectedTask?.task_owners_id, fetchWorkLogs]);
 
@@ -277,12 +282,37 @@ export default function RevenueEngineProjects() {
     }
   };
 
+  // Mark Project Active / Restore
+  const handleMarkActive = async (projectId, clientName) => {
+    if (!window.confirm(`Are you sure you want to restore project "${clientName}" to active?`)) {
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${getApiBase()}/api/admin/re-project/${projectId}/mark-active`,
+        {},
+        { headers: getAuthHeaders() }
+      );
+      if (res.data?.success) {
+        toast.success(`Project "${clientName}" restored to active`);
+        fetchProjects();
+        if (selectedProject?.project_id === projectId) {
+          setSelectedProject((prev) => (prev ? { ...prev, is_active: true } : null));
+        }
+      }
+    } catch (err) {
+      console.error("Error restoring project:", err);
+      toast.error(err.response?.data?.message || "Failed to restore project");
+    }
+  };
+
   // Filtered Projects for List and Calendar
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
       const matchesSearch =
         searchQuery.trim() === "" ||
         (p.client_name && p.client_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.re_proforma_number && p.re_proforma_number.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.re_proforma_id && String(p.re_proforma_id).includes(searchQuery.trim())) ||
         (p.project_id && String(p.project_id).includes(searchQuery.trim()));
 
@@ -579,7 +609,7 @@ export default function RevenueEngineProjects() {
                               {p.client_name}
                             </h3>
                             <div className="flex items-center space-x-2 text-xs text-slate-400 mt-0.5">
-                              <span>Proforma #{p.re_proforma_id}</span>
+                              <span>{p.re_proforma_number ? p.re_proforma_number : `Proforma #${p.re_proforma_id}`}</span>
                               <span>•</span>
                               <span>SF #{p.project_id}</span>
                             </div>
@@ -642,6 +672,16 @@ export default function RevenueEngineProjects() {
                             </span>
                           </div>
                         )}
+
+                        {/* No-TL Department Warning */}
+                        {p.unassigned_tl_departments && p.unassigned_tl_departments.length > 0 && (
+                          <div className="mt-2 text-xs bg-rose-50 text-rose-800 px-2.5 py-1.5 rounded-lg border border-rose-200 flex items-center">
+                            <AlertCircle className="w-3.5 h-3.5 mr-1.5 text-rose-600 shrink-0" />
+                            <span className="font-semibold">
+                              ⚠️ Team Lead not assigned for {p.unassigned_tl_departments.join(", ")}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Card Footer Actions */}
@@ -664,7 +704,17 @@ export default function RevenueEngineProjects() {
                             Archive
                           </button>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">Inactive</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400 italic">Inactive</span>
+                            <button
+                              onClick={() => handleMarkActive(p.project_id, p.client_name)}
+                              title="Restore project to active"
+                              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition flex items-center shadow-sm"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                              Restore
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -734,7 +784,7 @@ export default function RevenueEngineProjects() {
                   <StatusBadge status={popoverProject.current_status} />
                 </div>
                 <div className="text-xs text-slate-400 mt-0.5">
-                  Proforma #{popoverProject.re_proforma_id} • Project ID #{popoverProject.project_id}
+                  {popoverProject.re_proforma_number ? popoverProject.re_proforma_number : `Proforma #${popoverProject.re_proforma_id}`} • Project ID #{popoverProject.project_id}
                 </div>
               </div>
               <button
@@ -815,7 +865,7 @@ export default function RevenueEngineProjects() {
                   )}
                 </div>
                 <div className="flex items-center space-x-3 text-xs text-slate-400 mt-1">
-                  <span>Proforma #{selectedProject.re_proforma_id}</span>
+                  <span>{selectedProject.re_proforma_number ? selectedProject.re_proforma_number : `Proforma #${selectedProject.re_proforma_id}`}</span>
                   <span>•</span>
                   <span>SF #{selectedProject.project_id}</span>
                   <span>•</span>

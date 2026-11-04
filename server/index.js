@@ -48,6 +48,7 @@ const commitmentRoute = require("./router/commitmentRoute.js");
 const leaderRoute = require("./router/leaderRoute.js");
 const reWebhookRoute = require("./router/reWebhookRoute.js");
 const projectAssignmentRoute = require("./router/projectAssignmentRoute.js");
+const departmentRoute = require("./router/departmentRoute.js");
 
 const getOfferLetters = require("./router/letterRoutes.js");
 const saveInternshipOffer = require("./router/letterRoutes.js");
@@ -100,6 +101,7 @@ app.use(commitmentRoute);
 app.use(leaderRoute);
 app.use(reWebhookRoute);
 app.use(projectAssignmentRoute);
+app.use(departmentRoute);
 app.use(sundayLoginRoute);
 // app.use("/api", reminderRoute);
 

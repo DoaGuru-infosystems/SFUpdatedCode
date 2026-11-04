@@ -2,6 +2,11 @@
 const { db } = require("../config/db");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const {
+  normalizeDepartmentName,
+  validateTeamLeadAssignment,
+  syncDepartmentTeamLead,
+} = require("../utils/departmentHelper");
 const dotenv = require('dotenv');
 const { sendAdminOtpWhatsApp, sendAdminOtpEmail } = require('../utils/whatsappUtils');
 dotenv.config();
@@ -91,11 +96,20 @@ const UserRegister = async (req, res) => {
   const { fullName, mobileNumber, emailId, designation, role, password, employment_status, department } = req.body;
   const userRole = role || 'user';
   const status = employment_status || 'active';
-  const userDept = department || null;
+  const userDept = normalizeDepartmentName(department) || null;
 
   if (!password) {
     return res.status(400).json({ message: 'Password is required' });
   }
+
+  // Validate Team Lead role rules
+  validateTeamLeadAssignment({ role: userRole, department: userDept, employmentStatus: status }, (valErr, valResult) => {
+    if (valErr) {
+      return res.status(500).json({ error: 'Internal server error', message: valErr.message });
+    }
+    if (!valResult.ok) {
+      return res.status(valResult.status).json({ message: valResult.message });
+    }
 
   // Check if user already exists
   const checkUserQuery = 'SELECT * FROM task_users WHERE email_id = ?';
@@ -119,12 +133,16 @@ const UserRegister = async (req, res) => {
         if (err) {
           return res.status(500).json({ error: 'Internal server error' });
         }
-        res.status(200).json({ message: 'User registered successfully' });
+        syncDepartmentTeamLead({ employeeId: result.insertId, role: userRole, department: userDept, employmentStatus: status }, (sErr) => {
+          if (sErr) console.error('Error syncing department TL:', sErr.message);
+          res.status(200).json({ message: 'User registered successfully' });
+        });
       });
     } catch (hashError) {
       console.error('❌ Error hashing password during registration:', hashError.message);
       return res.status(500).json({ error: 'Failed to process password hashing' });
     }
+  });
   });
 };
 

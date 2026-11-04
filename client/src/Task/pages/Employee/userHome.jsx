@@ -1062,6 +1062,20 @@ function UserHome() {
       toast("You are no longer Project Owner for project #" + project_id, { icon: "ℹ️" });
     });
 
+    // Project archived by admin -> remove its tasks and refresh owned projects live
+    socket.on("re:project_archived", ({ project_id }) => {
+      console.log("⚡ Received re:project_archived:", project_id);
+      setMyReTasks((prev) => prev.filter((t) => Number(t.project_id) !== Number(project_id)));
+      fetchOwnedProjects();
+    });
+
+    // Project unarchived / restored by admin -> refresh my tasks and owned projects live
+    socket.on("re:project_unarchived", ({ project_id }) => {
+      console.log("⚡ Received re:project_unarchived:", project_id);
+      fetchMyReTasks();
+      fetchOwnedProjects();
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -1293,9 +1307,9 @@ function UserHome() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="text-sm font-black text-slate-900">{p.client_name}</h3>
-                          {p.re_proforma_id && (
+                          {(p.re_proforma_number || p.re_proforma_id) && (
                             <span className="text-[9px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
-                              RE #{p.re_proforma_id}
+                              {p.re_proforma_number ? p.re_proforma_number : `RE #${p.re_proforma_id}`}
                             </span>
                           )}
                         </div>

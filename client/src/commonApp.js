@@ -20,6 +20,7 @@ import TaskView from "./Task/pages/Employee/taskShow";
 import AdminNavbar from "./Task/components/adminNavbar";
 import AdminHomePage from "./Task/pages/Admin/adminHome";
 import RevenueEngineProjects from "./Task/pages/Admin/RevenueEngineProjects";
+import DepartmentsPage from "./Task/pages/Admin/DepartmentsPage";
 import EmployeePage from "./Task/pages/Admin/Employees";
 import RegisterUser from "./Task/pages/Admin/registerUser";
 import ProjectsPage from "./Task/pages/Admin/projects";
@@ -300,6 +301,16 @@ const Commonjs = () => {
           element={
             userRole === "admin" || userRole === "gm" ? (
               <RevenueEngineProjects />
+            ) : (
+              <Navigate to="/task/login" />
+            )
+          }
+        />
+        <Route
+          path="/task/departments"
+          element={
+            userRole === "admin" || userRole === "gm" ? (
+              <DepartmentsPage />
             ) : (
               <Navigate to="/task/login" />
             )

@@ -1,4 +1,9 @@
 const { db } = require('../config/db');
+const {
+  normalizeDepartmentName,
+  validateTeamLeadAssignment,
+  syncDepartmentTeamLead,
+} = require('../utils/departmentHelper');
 const moment = require("moment-timezone");
 
 // Route to update projects
@@ -234,6 +239,34 @@ const updateEmployeeKyc = (req, res) => {
     const body = req.body;
     const files = req.files;
 
+    // Fetch existing employee to evaluate TL role and department transitions
+    db.query("SELECT id, role, department, employment_status, full_name FROM task_users WHERE id = ?", [employeeId], (fetchErr, empRows) => {
+      if (fetchErr) {
+        return res.status(500).json({ success: false, message: "Database error", error: fetchErr.message });
+      }
+      if (empRows.length === 0) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      const currentEmp = empRows[0];
+      const targetRole = body.role !== undefined && body.role !== "" && body.role !== "null" ? body.role : currentEmp.role;
+      const rawDept = body.department !== undefined && body.department !== "" && body.department !== "null" ? body.department : currentEmp.department;
+      const targetDept = normalizeDepartmentName(rawDept);
+      const targetStatus = body.employment_status !== undefined && body.employment_status !== "" && body.employment_status !== "null" ? body.employment_status : currentEmp.employment_status;
+
+      if (body.department !== undefined && body.department !== "" && body.department !== "null") {
+        body.department = targetDept;
+      }
+
+      // Validate Team Lead active-only and conflict rules
+      validateTeamLeadAssignment({ employeeId, role: targetRole, department: targetDept, employmentStatus: targetStatus }, (valErr, valResult) => {
+        if (valErr) {
+          return res.status(500).json({ success: false, message: "Database error", error: valErr.message });
+        }
+        if (!valResult.ok) {
+          return res.status(valResult.status).json({ success: false, message: valResult.message });
+        }
+
     // Allowed table fields only
     const allowedFields = [
       "role",
@@ -315,10 +348,15 @@ const updateEmployeeKyc = (req, res) => {
         return res.status(500).json({ message: "Database error", err });
       }
 
-      return res.json({
-        success: true,
-        message: "Employee updated successfully",
-        result,
+      syncDepartmentTeamLead({ employeeId, role: targetRole, department: targetDept, employmentStatus: targetStatus }, (sErr) => {
+        if (sErr) console.error("Error syncing department TL:", sErr.message);
+        return res.json({
+          success: true,
+          message: "Employee updated successfully",
+          result,
+        });
+      });
+    });
       });
     });
 

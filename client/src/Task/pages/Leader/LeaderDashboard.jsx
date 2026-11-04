@@ -322,6 +322,16 @@ const LeaderDashboard = () => {
       fetchAssignedTasks();
     });
 
+    socket.on("re:project_archived", () => {
+      console.log("⚡ Real-time RE project archived received!");
+      fetchReProjects();
+    });
+
+    socket.on("re:project_unarchived", () => {
+      console.log("⚡ Real-time RE project unarchived received!");
+      fetchReProjects();
+    });
+
     return () => {
       socket.disconnect();
     };

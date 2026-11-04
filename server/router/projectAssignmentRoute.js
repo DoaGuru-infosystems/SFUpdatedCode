@@ -15,6 +15,7 @@ const {
   reassignTaskOwner,
   reassignProjectOwner,
   markProjectInactive,
+  markProjectActive,
   getAdminReProjects,
   getAdminReProjectTasks,
   getAdminReTaskWorkLog,
@@ -36,6 +37,7 @@ router.patch("/api/employee/task-status/:task_owners_id", updateTaskStatus);
 
 // Admin / GM routes (Phase 6 & Phase 7)
 router.post("/api/admin/re-project/:project_id/mark-inactive", markProjectInactive);
+router.post("/api/admin/re-project/:project_id/mark-active", markProjectActive);
 router.get("/api/admin/re-projects", getAdminReProjects);
 router.get("/api/admin/re-project/:project_id/tasks", getAdminReProjectTasks);
 router.get("/api/admin/re-task/:task_owners_id/work-log", getAdminReTaskWorkLog);
