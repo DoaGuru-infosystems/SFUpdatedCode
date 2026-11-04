@@ -1008,7 +1008,6 @@ const markProjectInactive = (req, res) => {
     try {
       const io = socketUtil.getIO();
       io.to("admin_room").emit("re:project_archived", { project_id: Number(project_id) });
-      io.emit("re:project_archived", { project_id: Number(project_id) });
 
       // Targeted notification to assigned task owners
       const findEmpsSql = "SELECT DISTINCT employee_id FROM task_owners WHERE project_id = ? AND employee_id IS NOT NULL";
@@ -1078,7 +1077,6 @@ const markProjectActive = (req, res) => {
     try {
       const io = socketUtil.getIO();
       io.to("admin_room").emit("re:project_unarchived", { project_id: Number(project_id) });
-      io.emit("re:project_unarchived", { project_id: Number(project_id) });
 
       // Targeted notification to assigned task owners
       const findEmpsSql = "SELECT DISTINCT employee_id FROM task_owners WHERE project_id = ? AND employee_id IS NOT NULL";

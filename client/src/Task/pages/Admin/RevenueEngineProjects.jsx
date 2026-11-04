@@ -5,7 +5,7 @@ import { Calendar, momentLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { io } from "socket.io-client";
 import { Link, useNavigate } from "react-router-dom";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import {
   Briefcase,
   Calendar as CalendarIcon,
@@ -209,22 +209,27 @@ export default function RevenueEngineProjects() {
     socket.emit("join_admin_room");
     setSocketConnected(true);
 
+    let syncDebounceTimer = null;
     const handleLiveSync = (payload) => {
       console.log("[Live Socket Sync] Received event in admin_room:", payload);
-      toast.success("Live Update received from Revenue Engine", {
-        icon: "⚡",
-        duration: 3500,
-      });
+      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = setTimeout(() => {
+        toast.success("Live Update received from Revenue Engine", {
+          id: "re-live-update",
+          icon: "⚡",
+          duration: 3500,
+        });
 
-      fetchProjects(true);
+        fetchProjects(true);
 
-      if (selectedProject?.project_id) {
-        fetchProjectTasks(selectedProject.project_id);
-      }
+        if (selectedProject?.project_id) {
+          fetchProjectTasks(selectedProject.project_id);
+        }
 
-      if (selectedTask?.task_owners_id) {
-        fetchWorkLogs(selectedTask.task_owners_id);
-      }
+        if (selectedTask?.task_owners_id) {
+          fetchWorkLogs(selectedTask.task_owners_id);
+        }
+      }, 300);
     };
 
     socket.on("re:task_status_changed", handleLiveSync);
@@ -235,6 +240,7 @@ export default function RevenueEngineProjects() {
     socket.on("re:project_unarchived", handleLiveSync);
 
     return () => {
+      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
       socket.off("re:task_status_changed", handleLiveSync);
       socket.off("re:project_assigned", handleLiveSync);
       socket.off("re:task_assigned", handleLiveSync);
@@ -425,8 +431,6 @@ export default function RevenueEngineProjects() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-16">
-      <Toaster position="top-right" />
-
       {/* Top Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
