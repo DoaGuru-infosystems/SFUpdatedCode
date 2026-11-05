@@ -43,5 +43,6 @@ router.get("/api/admin/re-projects", getAdminReProjects);
 router.get("/api/admin/re-project/:project_id/tasks", getAdminReProjectTasks);
 router.get("/api/admin/re-task/:task_owners_id/work-log", getAdminReTaskWorkLog);
 router.post("/api/admin/re-daily-digest/trigger", triggerReDailyDigest);
+router.post("/api/admin/re-escalations/trigger", triggerReEscalations);
 
 module.exports = router;

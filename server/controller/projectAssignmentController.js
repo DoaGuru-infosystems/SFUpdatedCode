@@ -1438,6 +1438,27 @@ const triggerReDailyDigest = async (req, res) => {
   }
 };
 
+// POST /api/admin/re-escalations/trigger
+const triggerReEscalations = async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) {
+    return res.status(401).json({ success: false, message: "Unauthorized: Missing or invalid token" });
+  }
+
+  if (user.role !== "admin" && user.role !== "gm") {
+    return res.status(403).json({ success: false, message: "Forbidden: Admin or GM access required" });
+  }
+
+  try {
+    const { runDeadlineEscalations } = require("../services/reEscalationService");
+    const result = await runDeadlineEscalations();
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("[RE Escalation Trigger] Error:", err.message);
+    return res.status(500).json({ success: false, message: "Escalation run failed", error: err.message });
+  }
+};
+
 module.exports = {
   getLeaderReProjects,
   assignProjectOwner,
@@ -1453,5 +1474,6 @@ module.exports = {
   getAdminReProjectTasks,
   getAdminReTaskWorkLog,
   triggerReDailyDigest,
+  triggerReEscalations,
 };
 

@@ -32,7 +32,7 @@ async function sendStatusUpdateToRE(projectId, updatedByEmployeeId) {
 
     // 1. Look up re_synced_projects for this project_id
     const rspRows = await new Promise((resolve, reject) => {
-      const sql = "SELECT re_proforma_id, is_active FROM re_synced_projects WHERE project_id = ?";
+      const sql = "SELECT re_proforma_id, re_proforma_number, client_name, is_active FROM re_synced_projects WHERE project_id = ?";
       db.query(sql, [projectId], (err, rows) => (err ? reject(err) : resolve(rows)));
     });
 
@@ -41,7 +41,7 @@ async function sendStatusUpdateToRE(projectId, updatedByEmployeeId) {
       return { success: false, skipped: true };
     }
 
-    const { re_proforma_id, is_active } = rspRows[0];
+    const { re_proforma_id, re_proforma_number, client_name, is_active } = rspRows[0];
 
     // 2. Look up updater employee/admin full_name
     let updatedByName = "System / Automated";
@@ -94,6 +94,8 @@ async function sendStatusUpdateToRE(projectId, updatedByEmployeeId) {
     const payload = {
       idempotency_key: `${re_proforma_id}-status-${Date.now()}`,
       proforma_id: String(re_proforma_id),
+      proforma_number: re_proforma_number || null,
+      client_name: client_name || null,
       current_status: currentStatus,
       is_active: Boolean(is_active !== 0 && is_active !== false),
       tasks: taskRows.map((t) => ({

@@ -6,6 +6,7 @@ const { processAndSendNotification } = require('./notificationService');
 const { mockReminders, mockReminderEmployees, mockSFEmployees } = require('../../controller/scheduler/mockDb');
 const { sendSchedulerReminderWhatsApp } = require('../../utils/whatsappUtils');
 const { runDailyDigest } = require('../reDailyDigestService');
+const { runDeadlineEscalations } = require('../reEscalationService');
 
 const getNextRecurrence = (currentDateVal, currentTimeStr, repeatType) => {
   let dateStr = currentDateVal;
@@ -393,6 +394,19 @@ const startSchedulerCron = () => {
     timezone: 'Asia/Kolkata'
   });
 
+  // RE D-4 Deadline Escalation & Blocked Sync: 10:00 AM & 6:00 PM IST daily
+  console.log('⏰ [Scheduler] Scheduling RE D-4 Deadline Escalation cron (Daily at 10:00 AM & 6:00 PM IST)...');
+  cron.schedule('0 10,18 * * *', async () => {
+    try {
+      console.log('[RE Escalation] ⏰ Escalation cron triggered.');
+      await runDeadlineEscalations();
+    } catch (err) {
+      console.error('[RE Escalation] ❌ Cron error:', err.message);
+    }
+  }, {
+    timezone: 'Asia/Kolkata'
+  });
+
   // Run immediately on start (using isProcessing lock)
   (async () => {
     isProcessing = true;
@@ -406,4 +420,4 @@ const startSchedulerCron = () => {
   })();
 };
 
-module.exports = { startSchedulerCron, processReminders, sendDailyAdminSummary, runDailyDigest };
+module.exports = { startSchedulerCron, processReminders, sendDailyAdminSummary, runDailyDigest, runDeadlineEscalations };

@@ -18,16 +18,34 @@ const { db } = require("../config/db");
 const { sendMetaTemplate, formatWhatsAppNumber } = require("./reAssignmentWhatsAppService");
 const { matchesCategoryAndDepartment, isStrictDepartment } = require("../utils/projectStatusHelper");
 
-// ── SMTP transporter (matches notificationController.js pattern) ─────────────
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT, 10) || 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// ── SMTP transporter helper ──────────────────────────────────────────────────
+function getEmailTransporter() {
+  if (process.env.EMAILSENDER && process.env.EMAILPASSWORD) {
+    return {
+      transporter: nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAILSENDER,
+          pass: process.env.EMAILPASSWORD,
+        },
+      }),
+      fromEmail: process.env.EMAILSENDER,
+    };
+  }
+  return {
+    transporter: nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || "doaguru.com",
+      port: parseInt(process.env.EMAIL_PORT, 10) || 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: { rejectUnauthorized: false },
+    }),
+    fromEmail: process.env.EMAIL_USER || "hr@doaguru.com",
+  };
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -288,25 +306,28 @@ async function runDailyDigest() {
 
     if (emp.email_id && emp.email_id.includes("@")) {
       try {
-        await new Promise((resolve, reject) => {
-          transporter.sendMail(
+        const emailConfig = getEmailTransporter();
+        const info = await new Promise((resolve, reject) => {
+          emailConfig.transporter.sendMail(
             {
-              from: process.env.EMAIL_USER || "hr@doaguru.com",
+              from: emailConfig.fromEmail,
               to: emp.email_id,
               subject: "Aapke Pending Tasks — Daily Reminder",
               text: textBody,
               html: htmlBody,
             },
-            (err, info) => {
+            (err, resultInfo) => {
               if (err) return reject(err);
-              resolve(info);
+              resolve(resultInfo);
             }
           );
         });
 
         empDetail.email.sent = true;
+        empDetail.email.messageId = info?.messageId || null;
+        empDetail.email.response = info?.response || null;
         console.log(
-          `[RE Daily Digest] ✅ Email sent to ${empName} <${emp.email_id}>`
+          `[RE Daily Digest] ✅ Email sent to ${empName} <${emp.email_id}> (messageId: ${info?.messageId}, response: ${info?.response})`
         );
       } catch (emailErr) {
         const msg = `Email error for ${empName} <${emp.email_id}>: ${emailErr.message}`;
@@ -346,4 +367,5 @@ module.exports = {
   buildWhatsAppBody,
   buildEmailHtml,
   formatDeadline,
+  getEmailTransporter,
 };
