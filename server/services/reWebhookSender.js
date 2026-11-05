@@ -72,6 +72,7 @@ async function sendStatusUpdateToRE(projectId, updatedByEmployeeId) {
         SELECT 
           t.id,
           t.sf_task_id,
+          t.category,
           t.re_item_name AS task_name,
           t.description AS task_description,
           t.deadline,

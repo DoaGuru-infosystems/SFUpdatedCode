@@ -130,9 +130,10 @@ const getLeaderReProjects = (req, res) => {
       return res.status(200).json({
         success: true,
         data: result,
-      });
-    });
-  });
+      }); // closes tasks query
+      }); // closes dept query
+    }); // closes ownedProjectsSql query
+  }); // closes user dept query
 };
 
 // ── TASK 3: Team Lead: mark employee as Project Owner ───────────────────────
@@ -294,7 +295,11 @@ const getEmployeeOwnedProjects = (req, res) => {
 
       const projectIds = poRows.map((r) => r.project_id);
 
-      // 3. Fetch all tasks for these projects to derive status AND filter own-dept tasks
+      // 3. Fetch departments for department-aware status derivation
+      db.query("SELECT name, strict_deadline_tracking FROM departments", (deptEmpErr, allDeptsEmp) => {
+        const deptListEmp = !deptEmpErr && Array.isArray(allDeptsEmp) ? allDeptsEmp : null;
+
+      // 4. Fetch all tasks for these projects to derive status AND filter own-dept tasks
       const tasksSql = `
         SELECT 
           t.id AS task_owners_id,
@@ -332,7 +337,7 @@ const getEmployeeOwnedProjects = (req, res) => {
         // Assemble response
         const result = poRows.map((p) => {
           const allProjectTasks = tasksByProject.get(p.project_id) || [];
-          const overallStatus = deriveProjectStatus(allProjectTasks);
+          const overallStatus = deriveProjectStatus(allProjectTasks, deptListEmp);
 
           // ONLY include tasks matching this employee's department
           const departmentTasks = allProjectTasks
@@ -1182,13 +1187,13 @@ const getAdminReProjects = (req, res) => {
       });
 
       // Fetch all departments to dynamically detect if any department involved has no TL assigned
-      const deptSql = "SELECT id, name, tl_employee_id FROM departments";
+      const deptSql = "SELECT id, name, tl_employee_id, strict_deadline_tracking FROM departments";
       db.query(deptSql, (dErr, depts) => {
         const allDepts = !dErr && Array.isArray(depts) ? depts : [];
 
         const formatted = projectRows.map((p) => {
           const pTasks = tasksByProject.get(p.project_id) || [];
-          const currentStatus = deriveProjectStatus(pTasks);
+          const currentStatus = deriveProjectStatus(pTasks, allDepts);
           const totalTasks = pTasks.length;
           const completedTasks = pTasks.filter((t) => t.status === "completed").length;
           const unassignedTasks = pTasks.filter((t) => !t.employee_id).length;
@@ -1300,7 +1305,10 @@ const getAdminReProjectTasks = (req, res) => {
         return res.status(500).json({ success: false, message: "Database error", error: tErr.message });
       }
 
-      const currentStatus = deriveProjectStatus(taskRows);
+      // Fetch departments for department-aware status derivation
+      db.query("SELECT name, strict_deadline_tracking FROM departments", (dErrPT, allDeptsPT) => {
+        const deptListPT = !dErrPT && Array.isArray(allDeptsPT) ? allDeptsPT : null;
+        const currentStatus = deriveProjectStatus(taskRows, deptListPT);
 
       const sDate = proj.start_date
         ? (typeof proj.start_date === "string" ? proj.start_date.substring(0, 10) : new Date(proj.start_date).toISOString().split("T")[0])
@@ -1340,8 +1348,9 @@ const getAdminReProjectTasks = (req, res) => {
           tasks         : formattedTasks,
         },
       });
-    });
-  });
+      }); // closes dept query
+    }); // closes tasks query
+  }); // closes project query
 };
 
 // GET /api/admin/re-task/:task_owners_id/work-log
