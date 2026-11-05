@@ -925,14 +925,14 @@ export default function RevenueEngineProjects() {
                           </div>
                           <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                             <div
-                              className={`h-2 rounded-full transition-all duration-300 \${
+                              className={`h-2 rounded-full transition-all duration-300 ${
                                 p.current_status === "completed"
                                   ? "bg-emerald-500"
                                   : p.current_status === "blocked"
                                   ? "bg-rose-500"
                                   : "bg-blue-600"
                               }`}
-                              style={{ width: `\${progressPct}%\` }}
+                              style={{ width: `${progressPct}%` }}
                             />
                           </div>
                         </div>
@@ -1559,7 +1559,7 @@ export default function RevenueEngineProjects() {
                     <div
                       key={dept.id}
                       onClick={() => handleToggleDeptId(dept.id)}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition \${
+                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition ${
                         isChecked
                           ? "bg-blue-50 border-blue-400 text-blue-900"
                           : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
@@ -1575,7 +1575,7 @@ export default function RevenueEngineProjects() {
                         <span className="text-sm font-semibold">{dept.name}</span>
                       </div>
                       <span className="text-[11px] text-slate-400">
-                        {dept.tl_name ? \`TL: \${dept.tl_name}\` : "No TL set"}
+                        {dept.tl_name ? `TL: ${dept.tl_name}` : "No TL set"}
                       </span>
                     </div>
                   );
