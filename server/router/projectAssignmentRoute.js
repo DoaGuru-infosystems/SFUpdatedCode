@@ -20,6 +20,7 @@ const {
   getAdminReProjectTasks,
   getAdminReTaskWorkLog,
   triggerReDailyDigest,
+  triggerReEscalations,
 } = require("../controller/projectAssignmentController");
 
 // Team Lead routes (Phase 3 & Phase 5)
