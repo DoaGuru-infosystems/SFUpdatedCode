@@ -118,6 +118,7 @@ const getLeaderReProjects = (req, res) => {
               t.id AS task_owners_id,
               t.re_item_name AS task_name,
               t.category,
+              t.description,
               t.status,
               t.employee_id,
               t.deadline,
@@ -179,6 +180,7 @@ const getLeaderReProjects = (req, res) => {
                   task_owners_id       : row.task_owners_id,
                   task_name            : row.task_name,
                   category             : row.category,
+                  description          : row.description || null,
                   status               : row.status,
                   employee_id          : row.employee_id,
                   employee_name        : row.employee_name || null,
@@ -459,7 +461,7 @@ const assignTaskOwner = (req, res) => {
     return res.status(401).json({ success: false, message: "Unauthorized: Missing or invalid token" });
   }
 
-  const { task_owners_id, employee_id, deadline } = req.body;
+  const { task_owners_id, employee_id, deadline, description } = req.body;
   if (!task_owners_id || !employee_id) {
     return res.status(400).json({ success: false, message: "task_owners_id and employee_id are required" });
   }
@@ -517,11 +519,11 @@ const assignTaskOwner = (req, res) => {
         // 3. Update existing task_owners row
         const updateTaskSql = `
           UPDATE task_owners
-          SET employee_id = ?, assigned_by = ?, deadline = ?, status = 'pending'
+          SET employee_id = ?, assigned_by = ?, deadline = ?, description = COALESCE(?, description), status = 'pending'
           WHERE id = ?
         `;
 
-        db.query(updateTaskSql, [employee_id, user.id, deadline || null, task_owners_id], (updErr) => {
+        db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, task_owners_id], (updErr) => {
           if (updErr) {
             console.error("[Assign Task] Error updating task_owners:", updErr.message);
             return res.status(500).json({ success: false, message: "Database error", error: updErr.message });
@@ -1818,7 +1820,7 @@ const directAssignTaskOwner = (req, res) => {
   }
 
   const projectId = req.params.projectId || req.params.project_id;
-  const { task_id, employee_id, deadline } = req.body;
+  const { task_id, employee_id, deadline, description } = req.body;
 
   if (!projectId || !task_id || !employee_id) {
     return res.status(400).json({ success: false, message: "projectId, task_id, and employee_id are required" });
@@ -1841,11 +1843,11 @@ const directAssignTaskOwner = (req, res) => {
       // 3. Update task_owners row directly with assigned_by_gm = 1
       const updateTaskSql = `
         UPDATE task_owners
-        SET employee_id = ?, assigned_by = ?, assigned_by_gm = 1, deadline = ?, status = 'pending'
+        SET employee_id = ?, assigned_by = ?, assigned_by_gm = 1, deadline = ?, description = COALESCE(?, description), status = 'pending'
         WHERE id = ? AND project_id = ?
       `;
 
-      db.query(updateTaskSql, [employee_id, user.id, deadline || null, task_id, projectId], (updErr) => {
+      db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, task_id, projectId], (updErr) => {
         if (updErr) {
           console.error("[Direct Assign Task] Error updating task_owners:", updErr.message);
           return res.status(500).json({ success: false, message: "Database error", error: updErr.message });

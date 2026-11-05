@@ -139,6 +139,7 @@ export default function RevenueEngineProjects() {
   const [taskModalProjectId, setTaskModalProjectId] = useState(null);
   const [selectedTaskEmpId, setSelectedTaskEmpId] = useState("");
   const [taskDeadline, setTaskDeadline] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
   const [savingTask, setSavingTask] = useState(false);
 
   // Fetch departments & active employees on mount
@@ -241,6 +242,7 @@ export default function RevenueEngineProjects() {
     setTaskModalProjectId(projectId);
     setSelectedTaskEmpId(task.employee_id ? String(task.employee_id) : "");
     setTaskDeadline(task.deadline ? String(task.deadline).substring(0, 10) : (defaultDeadline || ""));
+    setTaskDescription(task.description || "");
   };
 
   const handleSaveTask = async () => {
@@ -256,12 +258,14 @@ export default function RevenueEngineProjects() {
           task_id: taskModalTask.task_owners_id,
           employee_id: Number(selectedTaskEmpId),
           deadline: taskDeadline || null,
+          description: taskDescription || null,
         },
         { headers: getAuthHeaders() }
       );
       if (res.data && res.data.success) {
         toast.success("Task Owner assigned directly! Task owner notified.");
         setTaskModalTask(null);
+        setTaskDescription("");
         fetchProjectTasks(taskModalProjectId);
         fetchProjects();
       }
@@ -1734,6 +1738,19 @@ export default function RevenueEngineProjects() {
                   value={taskDeadline}
                   onChange={(e) => setTaskDeadline(e.target.value)}
                   className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Task Description / Instructions:
+                </label>
+                <textarea
+                  rows={3}
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  placeholder="Enter task guidelines, scope or notes..."
+                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
             </div>

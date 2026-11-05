@@ -168,6 +168,7 @@ function UserHome() {
   const [selectedTaskToAssign, setSelectedTaskToAssign] = useState(null);
   const [assignEmployeeId, setAssignEmployeeId] = useState("");
   const [assignDeadline, setAssignDeadline] = useState("");
+  const [assignDescription, setAssignDescription] = useState("");
   const [assignTaskLoading, setAssignTaskLoading] = useState(false);
 
   // ── Phase 4: Employee Assigned RE Tasks States ──
@@ -251,6 +252,7 @@ function UserHome() {
           task_owners_id: selectedTaskToAssign.task_owners_id,
           employee_id: assignEmployeeId,
           deadline: assignDeadline || null,
+          description: assignDescription || null,
         },
         {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -261,6 +263,7 @@ function UserHome() {
         setSelectedTaskToAssign(null);
         setAssignEmployeeId("");
         setAssignDeadline("");
+        setAssignDescription("");
         fetchOwnedProjects();
       } else {
         toast.error(res.data?.message || "Failed to assign Task Owner");
@@ -1395,6 +1398,7 @@ function UserHome() {
                                     setSelectedTaskToAssign(t);
                                     setAssignEmployeeId("");
                                     setAssignDeadline("");
+                                    setAssignDescription(t.description || "");
                                   }}
                                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
                                 >
@@ -2249,6 +2253,19 @@ function UserHome() {
                   value={assignDeadline}
                   onChange={(e) => setAssignDeadline(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                  Task Description / Instructions (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={assignDescription}
+                  onChange={(e) => setAssignDescription(e.target.value)}
+                  placeholder="Enter task instructions, scope, or guidelines..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                 />
               </div>
 

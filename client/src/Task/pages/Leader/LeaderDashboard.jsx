@@ -66,6 +66,7 @@ const LeaderDashboard = () => {
   const [selectedAssignTaskModal, setSelectedAssignTaskModal] = useState(null);
   const [assignTaskEmpId, setAssignTaskEmpId] = useState("");
   const [assignTaskDeadline, setAssignTaskDeadline] = useState("");
+  const [assignTaskDescription, setAssignTaskDescription] = useState("");
   const [assignTaskLoading, setAssignTaskLoading] = useState(false);
 
   const handleAssignTaskSubmit = async (e) => {
@@ -82,6 +83,7 @@ const LeaderDashboard = () => {
           task_owners_id: selectedAssignTaskModal.task_owners_id,
           employee_id: assignTaskEmpId,
           deadline: assignTaskDeadline || null,
+          description: assignTaskDescription || null,
         },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
@@ -90,6 +92,7 @@ const LeaderDashboard = () => {
         setSelectedAssignTaskModal(null);
         setAssignTaskEmpId("");
         setAssignTaskDeadline("");
+        setAssignTaskDescription("");
         fetchReProjects();
       } else {
         toast.error(res.data?.message || "Failed to assign task");
@@ -967,6 +970,11 @@ const LeaderDashboard = () => {
                                         {t.deadline_display || (t.deadline ? String(t.deadline).substring(0, 10) : "No fixed deadline")}
                                       </span>
                                     </div>
+                                    {t.description && (
+                                      <div className="text-[11px] text-slate-500 font-normal mt-0.5 italic line-clamp-1" title={t.description}>
+                                        📝 {t.description}
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {t.employee_name ? (
@@ -1011,6 +1019,7 @@ const LeaderDashboard = () => {
                                             });
                                             setAssignTaskEmpId("");
                                             setAssignTaskDeadline(proj.end_date ? String(proj.end_date).substring(0, 10) : "");
+                                            setAssignTaskDescription(t.description || "");
                                           }}
                                           className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-bold transition shadow-sm"
                                         >
@@ -2152,6 +2161,17 @@ const LeaderDashboard = () => {
                     value={assignTaskDeadline}
                     onChange={(e) => setAssignTaskDeadline(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">Task Description / Instructions (Optional)</label>
+                  <textarea
+                    rows={3}
+                    value={assignTaskDescription}
+                    onChange={(e) => setAssignTaskDescription(e.target.value)}
+                    placeholder="Enter instructions, requirements, or notes for this task..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                   />
                 </div>
 
