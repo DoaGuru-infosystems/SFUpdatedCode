@@ -25,6 +25,10 @@ import {
   ExternalLink,
   FileText,
   RotateCcw,
+  Building,
+  UserPlus,
+  Zap,
+  Edit3,
 } from "lucide-react";
 
 const localizer = momentLocalizer(moment);
@@ -115,6 +119,159 @@ export default function RevenueEngineProjects() {
 
   // Live socket status
   const [socketConnected, setSocketConnected] = useState(false);
+
+  // Phase G Direct Assignment State (GM / MD)
+  const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [availableEmployees, setAvailableEmployees] = useState([]);
+
+  // Modal 1: Assign Departments
+  const [deptModalProject, setDeptModalProject] = useState(null);
+  const [selectedDeptIds, setSelectedDeptIds] = useState([]);
+  const [savingDept, setSavingDept] = useState(false);
+
+  // Modal 2: Direct Assign PO
+  const [poModalProject, setPoModalProject] = useState(null);
+  const [selectedPoEmpId, setSelectedPoEmpId] = useState("");
+  const [savingPo, setSavingPo] = useState(false);
+
+  // Modal 3: Direct Assign / Reassign Task Owner
+  const [taskModalTask, setTaskModalTask] = useState(null);
+  const [taskModalProjectId, setTaskModalProjectId] = useState(null);
+  const [selectedTaskEmpId, setSelectedTaskEmpId] = useState("");
+  const [taskDeadline, setTaskDeadline] = useState("");
+  const [savingTask, setSavingTask] = useState(false);
+
+  // Fetch departments & active employees on mount
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [dRes, eRes] = await Promise.all([
+          axios.get(`${getApiBase()}/api/admin/departments`, { headers: getAuthHeaders() }),
+          axios.get(`${getApiBase()}/api/users`, { headers: getAuthHeaders() }),
+        ]);
+        if (dRes.data && dRes.data.success) {
+          setAvailableDepartments(dRes.data.data || []);
+        }
+        if (Array.isArray(eRes.data)) {
+          setAvailableEmployees(eRes.data.filter((u) => u.employment_status !== "inactive"));
+        }
+      } catch (err) {
+        console.error("Error fetching depts/users metadata:", err);
+      }
+    };
+    fetchMetadata();
+  }, []);
+
+  const handleOpenDeptModal = (proj) => {
+    setDeptModalProject(proj);
+    const existing = (proj.assigned_departments || []).map((d) => d.department_id);
+    setSelectedDeptIds(existing);
+  };
+
+  const handleToggleDeptId = (id) => {
+    setSelectedDeptIds((prev) =>
+      prev.includes(id) ? prev.filter((dId) => dId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSaveDepartments = async () => {
+    if (!deptModalProject) return;
+    if (selectedDeptIds.length === 0) {
+      toast.error("Please select at least one department");
+      return;
+    }
+    try {
+      setSavingDept(true);
+      const res = await axios.post(
+        `${getApiBase()}/api/admin/re-project/${deptModalProject.project_id}/assign-departments`,
+        { department_ids: selectedDeptIds },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data && res.data.success) {
+        toast.success("Departments assigned successfully! TLs notified.");
+        setDeptModalProject(null);
+        fetchProjects();
+        if (selectedProject && selectedProject.project_id === deptModalProject.project_id) {
+          fetchProjectTasks(deptModalProject.project_id);
+        }
+      }
+    } catch (err) {
+      console.error("Error assigning departments:", err);
+      toast.error(err.response?.data?.message || "Failed to assign departments");
+    } finally {
+      setSavingDept(false);
+    }
+  };
+
+  const handleOpenPoModal = (proj) => {
+    setPoModalProject(proj);
+    setSelectedPoEmpId(proj.project_owner?.employee_id ? String(proj.project_owner.employee_id) : "");
+  };
+
+  const handleSavePo = async () => {
+    if (!poModalProject || !selectedPoEmpId) {
+      toast.error("Please select an employee to be Project Owner");
+      return;
+    }
+    try {
+      setSavingPo(true);
+      const res = await axios.post(
+        `${getApiBase()}/api/admin/re-project/${poModalProject.project_id}/direct-assign-po`,
+        { employee_id: Number(selectedPoEmpId) },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data && res.data.success) {
+        toast.success("Project Owner directly assigned! PO notified via WhatsApp.");
+        setPoModalProject(null);
+        fetchProjects();
+        if (selectedProject && selectedProject.project_id === poModalProject.project_id) {
+          fetchProjectTasks(poModalProject.project_id);
+        }
+      }
+    } catch (err) {
+      console.error("Error assigning PO:", err);
+      toast.error(err.response?.data?.message || "Failed to assign Project Owner");
+    } finally {
+      setSavingPo(false);
+    }
+  };
+
+  const handleOpenTaskModal = (task, projectId, defaultDeadline) => {
+    setTaskModalTask(task);
+    setTaskModalProjectId(projectId);
+    setSelectedTaskEmpId(task.employee_id ? String(task.employee_id) : "");
+    setTaskDeadline(task.deadline ? String(task.deadline).substring(0, 10) : (defaultDeadline || ""));
+  };
+
+  const handleSaveTask = async () => {
+    if (!taskModalTask || !taskModalProjectId || !selectedTaskEmpId) {
+      toast.error("Please select an employee for this task");
+      return;
+    }
+    try {
+      setSavingTask(true);
+      const res = await axios.post(
+        `${getApiBase()}/api/admin/re-project/${taskModalProjectId}/direct-assign-task-owner`,
+        {
+          task_id: taskModalTask.task_owners_id,
+          employee_id: Number(selectedTaskEmpId),
+          deadline: taskDeadline || null,
+        },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data && res.data.success) {
+        toast.success("Task Owner assigned directly! Task owner notified.");
+        setTaskModalTask(null);
+        fetchProjectTasks(taskModalProjectId);
+        fetchProjects();
+      }
+    } catch (err) {
+      console.error("Error assigning task:", err);
+      toast.error(err.response?.data?.message || "Failed to assign task");
+    } finally {
+      setSavingTask(false);
+    }
+  };
 
   // 1. Auth Guard (Admin / GM Only)
   useEffect(() => {
@@ -707,8 +864,59 @@ export default function RevenueEngineProjects() {
                           </span>
                         </div>
 
+                                                {/* Departments Section */}
+                        <div className="mt-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
+                          <div className="flex items-center space-x-1.5 overflow-hidden flex-1 mr-2">
+                            <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="font-semibold text-slate-700">Depts:</span>
+                            {p.assigned_departments && p.assigned_departments.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {p.assigned_departments.map((d) => (
+                                  <span key={d.department_id} className="bg-blue-50 text-blue-700 text-[10px] font-medium px-1.5 py-0.5 rounded border border-blue-200">
+                                    {d.department_name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] italic">Auto-derived</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleOpenDeptModal(p)}
+                            className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 hover:underline"
+                          >
+                            {p.assigned_departments && p.assigned_departments.length > 0 ? "Edit" : "+ Assign"}
+                          </button>
+                        </div>
+
+                        {/* Project Owner (PO) Section */}
+                        <div className="mt-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
+                          <div className="flex items-center space-x-1.5 min-w-0 flex-1 mr-2">
+                            <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="font-semibold text-slate-700">PO:</span>
+                            {p.project_owner ? (
+                              <span className="text-slate-900 font-medium truncate flex items-center">
+                                {p.project_owner.employee_name}
+                                {p.project_owner.assigned_by_gm && (
+                                  <span className="ml-1 bg-amber-100 text-amber-800 text-[9px] font-bold px-1 py-0.2 rounded border border-amber-300">
+                                    ⚡ GM
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-rose-500 font-medium text-[11px]">No PO Assigned</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleOpenPoModal(p)}
+                            className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 hover:underline"
+                          >
+                            {p.project_owner ? "Change" : "+ Assign PO"}
+                          </button>
+                        </div>
+
                         {/* Progress Bar */}
-                        <div className="mt-4">
+                        <div className="mt-3">
                           <div className="flex justify-between text-xs mb-1.5">
                             <span className="text-slate-500 font-medium">Task Completion</span>
                             <span className="font-semibold text-slate-700">
@@ -717,14 +925,14 @@ export default function RevenueEngineProjects() {
                           </div>
                           <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                             <div
-                              className={`h-2 rounded-full transition-all duration-300 ${
+                              className={`h-2 rounded-full transition-all duration-300 \${
                                 p.current_status === "completed"
                                   ? "bg-emerald-500"
                                   : p.current_status === "blocked"
                                   ? "bg-rose-500"
                                   : "bg-blue-600"
                               }`}
-                              style={{ width: `${progressPct}%` }}
+                              style={{ width: `\${progressPct}%\` }}
                             />
                           </div>
                         </div>
@@ -939,7 +1147,39 @@ export default function RevenueEngineProjects() {
                     Schedule: {selectedProject.start_date || "N/A"} → {selectedProject.end_date || "N/A"}
                   </span>
                 </div>
-              </div>
+              
+                <div className="flex flex-wrap items-center gap-3 text-xs mt-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-slate-400">PO:</span>
+                    <span className="font-semibold text-white">
+                      {selectedProject.project_owner?.employee_name || "None"}
+                    </span>
+                    {selectedProject.project_owner?.assigned_by_gm && (
+                      <span className="bg-amber-400 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        ⚡ GM
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleOpenPoModal(selectedProject)}
+                      className="text-blue-400 hover:text-blue-300 font-medium ml-1 underline"
+                    >
+                      {selectedProject.project_owner ? "Change" : "Assign"}
+                    </button>
+                  </div>
+                  <span>•</span>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-slate-400">Departments:</span>
+                    <span className="text-slate-300">
+                      {(selectedProject.assigned_departments || []).map((d) => d.department_name).join(", ") || "Auto-derived"}
+                    </span>
+                    <button
+                      onClick={() => handleOpenDeptModal(selectedProject)}
+                      className="text-blue-400 hover:text-blue-300 font-medium ml-1 underline"
+                    >
+                      Manage
+                    </button>
+                  </div>
+                </div></div>
               <button
                 onClick={() => setSelectedProject(null)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg transition"
@@ -1065,19 +1305,41 @@ export default function RevenueEngineProjects() {
                           </td>
                           <td className="px-4 py-3">
                             {t.assignee_name ? (
-                              <div>
-                                <div className="font-medium text-slate-900 flex items-center">
-                                  <User className="w-3 h-3 mr-1 text-slate-400" />
-                                  {t.assignee_name}
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-slate-900 flex items-center">
+                                    <User className="w-3 h-3 mr-1 text-slate-400" />
+                                    {t.assignee_name}
+                                    {t.assigned_by_gm && (
+                                      <span className="ml-1.5 bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-300">
+                                        ⚡ GM
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400">
+                                    {t.assignee_role || t.assignee_department || "Staff"}
+                                  </div>
                                 </div>
-                                <div className="text-[11px] text-slate-400">
-                                  {t.assignee_role || t.assignee_department || "Staff"}
-                                </div>
+                                <button
+                                  onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
+                                  className="ml-2 text-[10px] font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition"
+                                >
+                                  Reassign
+                                </button>
                               </div>
                             ) : (
-                              <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded">
-                                Unassigned
-                              </span>
+                              <div className="flex items-center justify-between">
+                                <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded text-[11px]">
+                                  Unassigned
+                                </span>
+                                <button
+                                  onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
+                                  className="ml-2 inline-flex items-center text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded shadow-xs transition"
+                                >
+                                  <Zap className="w-3 h-3 mr-1" />
+                                  Assign
+                                </button>
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3 font-mono text-slate-600">
@@ -1260,6 +1522,225 @@ export default function RevenueEngineProjects() {
                 className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition"
               >
                 Close Work Log
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 5: ASSIGN DEPARTMENTS (GM/MD) ─── */}
+      {deptModalProject && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 flex items-center">
+                  <Building className="w-4 h-4 mr-2 text-blue-600" />
+                  Assign Departments
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">{deptModalProject.client_name}</p>
+              </div>
+              <button
+                onClick={() => setDeptModalProject(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+              <p className="text-xs text-slate-600">
+                Select one or more departments to explicitly route this project. Department Team Leads will be notified via WhatsApp.
+              </p>
+              <div className="space-y-2 mt-2">
+                {availableDepartments.map((dept) => {
+                  const isChecked = selectedDeptIds.includes(dept.id);
+                  return (
+                    <div
+                      key={dept.id}
+                      onClick={() => handleToggleDeptId(dept.id)}
+                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition \${
+                        isChecked
+                          ? "bg-blue-50 border-blue-400 text-blue-900"
+                          : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-semibold">{dept.name}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-400">
+                        {dept.tl_name ? \`TL: \${dept.tl_name}\` : "No TL set"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                onClick={() => setDeptModalProject(null)}
+                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveDepartments}
+                disabled={savingDept}
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
+              >
+                {savingDept ? "Saving..." : "Save Departments"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 6: DIRECT ASSIGN PROJECT OWNER (GM/MD) ─── */}
+      {poModalProject && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 flex items-center">
+                  <UserPlus className="w-4 h-4 mr-2 text-blue-600" />
+                  Direct Assign Project Owner (PO)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">{poModalProject.client_name}</p>
+              </div>
+              <button
+                onClick={() => setPoModalProject(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-slate-600">
+                As GM/MD, you can directly assign an employee from <strong>any department</strong> to be the Project Owner (PO), bypassing TL bottlenecks.
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Select Employee:
+                </label>
+                <select
+                  value={selectedPoEmpId}
+                  onChange={(e) => setSelectedPoEmpId(e.target.value)}
+                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Select Active Employee --</option>
+                  {availableEmployees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name} ({emp.department || "No Dept"} • {emp.designation || emp.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                onClick={() => setPoModalProject(null)}
+                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePo}
+                disabled={savingPo || !selectedPoEmpId}
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
+              >
+                {savingPo ? "Assigning..." : "Assign as PO"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 7: DIRECT ASSIGN / REASSIGN TASK OWNER (GM/MD) ─── */}
+      {taskModalTask && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 flex items-center">
+                  <Zap className="w-4 h-4 mr-2 text-amber-500" />
+                  Direct Assign Task Owner
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">{taskModalTask.task_name}</p>
+              </div>
+              <button
+                onClick={() => setTaskModalTask(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Category:</span>
+                  <span className="font-semibold text-slate-700">{taskModalTask.category || "General"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Current Assignee:</span>
+                  <span className="font-semibold text-slate-700">{taskModalTask.assignee_name || "Unassigned"}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Assign To (Any Department):
+                </label>
+                <select
+                  value={selectedTaskEmpId}
+                  onChange={(e) => setSelectedTaskEmpId(e.target.value)}
+                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Select Active Employee --</option>
+                  {availableEmployees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name} ({emp.department || "No Dept"} • {emp.designation || emp.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Task Deadline:
+                </label>
+                <input
+                  type="date"
+                  value={taskDeadline}
+                  onChange={(e) => setTaskDeadline(e.target.value)}
+                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                onClick={() => setTaskModalTask(null)}
+                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTask}
+                disabled={savingTask || !selectedTaskEmpId}
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
+              >
+                {savingTask ? "Saving..." : "Save Assignment"}
               </button>
             </div>
           </div>

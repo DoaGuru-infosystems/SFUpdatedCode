@@ -379,10 +379,73 @@ async function notifyTaskOwnerAssigned({ taskOwnersId, employeeId, poUserId, dea
   }
 }
 
+/**
+ * 4. GM/MD assigns project to specific departments -> Notifies the relevant Department Team Leads
+ */
+async function notifyDepartmentTlAssigned({ projectId, departmentIds, assignedByUserId }) {
+  try {
+    if (!projectId || !Array.isArray(departmentIds) || departmentIds.length === 0) return;
+
+    const projSql = `
+      SELECT 
+        p.id AS project_id,
+        COALESCE(rsp.client_name, p.name) AS client_name,
+        COALESCE(rsp.re_proforma_number, CONCAT('SF #', p.id)) AS proforma_display
+      FROM projects p
+      LEFT JOIN re_synced_projects rsp ON p.id = rsp.project_id
+      WHERE p.id = ?
+    `;
+
+    db.query(projSql, [projectId], (pErr, pRows) => {
+      if (pErr || pRows.length === 0) return;
+      const proj = pRows[0];
+      const clientName = proj.client_name || "Client Project";
+      const proforma = proj.proforma_display;
+
+      const callerSql = "SELECT full_name FROM admin_users WHERE id = ? UNION SELECT full_name FROM task_users WHERE id = ? LIMIT 1";
+      db.query(callerSql, [assignedByUserId, assignedByUserId], (cErr, cRows) => {
+        const callerName = cRows && cRows.length > 0 ? cRows[0].full_name.trim() : "Management (GM/MD)";
+
+        const deptSql = `
+          SELECT d.id, d.name AS dept_name, u.full_name AS tl_name, u.mobile_number AS tl_phone
+          FROM departments d
+          JOIN task_users u ON d.tl_employee_id = u.id
+          WHERE d.id IN (?) AND u.employment_status = 'active'
+        `;
+
+        db.query(deptSql, [departmentIds], (dErr, dRows) => {
+          if (dErr || !Array.isArray(dRows)) return;
+
+          dRows.forEach((d) => {
+            if (!d.tl_phone) return;
+            const tlName = d.tl_name ? d.tl_name.trim() : "Team Lead";
+            const deptName = d.dept_name || "Department";
+
+            sendMetaTemplate({
+              to: d.tl_phone,
+              templateName: "sf_project_synced_alert",
+              languageCode: "en",
+              parameters: [tlName, clientName, proforma, deptName],
+              fallbackData: {
+                name: tlName,
+                title: `Project Assigned: ${clientName}`,
+                message: `Hello ${tlName}, Project '${clientName}' (${proforma}) has been assigned to your department (${deptName}) by ${callerName}. Please review and assign a Project Owner in Smart Factory.`,
+              },
+            }).catch((e) => console.error(`[WhatsApp Assignment] TL alert error for ${tlName}:`, e.message));
+          });
+        });
+      });
+    });
+  } catch (err) {
+    console.error("[WhatsApp Assignment] notifyDepartmentTlAssigned error:", err.message);
+  }
+}
+
 module.exports = {
   notifyReProjectSynced,
   notifyProjectOwnerAssigned,
   notifyTaskOwnerAssigned,
+  notifyDepartmentTlAssigned,
   sendMetaTemplate,
   formatWhatsAppNumber,
 };

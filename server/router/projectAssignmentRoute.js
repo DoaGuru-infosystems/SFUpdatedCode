@@ -21,12 +21,16 @@ const {
   getAdminReTaskWorkLog,
   triggerReDailyDigest,
   triggerReEscalations,
+  assignProjectDepartments,
+  directAssignProjectOwner,
+  directAssignTaskOwner,
 } = require("../controller/projectAssignmentController");
 
 // Team Lead routes (Phase 3 & Phase 5)
 router.get("/api/leader/re-projects", getLeaderReProjects);
 router.post("/api/leader/assign-project-owner", assignProjectOwner);
 router.post("/api/leader/reassign-project-owner", reassignProjectOwner);
+router.post("/api/leader/reassign-task-owner", reassignTaskOwner);
 
 // Employee routes (Phase 3, Phase 4 & Phase 5)
 router.get("/api/employee/owned-projects", getEmployeeOwnedProjects);
@@ -45,5 +49,10 @@ router.get("/api/admin/re-project/:project_id/tasks", getAdminReProjectTasks);
 router.get("/api/admin/re-task/:task_owners_id/work-log", getAdminReTaskWorkLog);
 router.post("/api/admin/re-daily-digest/trigger", triggerReDailyDigest);
 router.post("/api/admin/re-escalations/trigger", triggerReEscalations);
+
+// Phase G: GM/MD Direct Assignment & Department Mapping
+router.post("/api/admin/re-project/:projectId/assign-departments", assignProjectDepartments);
+router.post("/api/admin/re-project/:projectId/direct-assign-po", directAssignProjectOwner);
+router.post("/api/admin/re-project/:projectId/direct-assign-task-owner", directAssignTaskOwner);
 
 module.exports = router;

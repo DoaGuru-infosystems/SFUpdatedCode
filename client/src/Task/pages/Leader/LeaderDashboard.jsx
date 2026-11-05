@@ -862,7 +862,19 @@ const LeaderDashboard = () => {
                         <div key={proj.project_id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
-                              <h4 className="text-sm font-bold text-slate-900">{proj.client_name}</h4>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-sm font-bold text-slate-900">{proj.client_name}</h4>
+                                {proj.project_owner_name ? (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1">
+                                    👑 PO: {proj.project_owner_name}
+                                    {proj.po_assigned_by_gm && <span className="text-amber-600 font-extrabold">(by GM)</span>}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                                    No PO Assigned
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-slate-400 font-bold mt-0.5">
                                 Timeline: {proj.start_date || "N/A"} → {proj.end_date || "N/A"} • Project ID: #{proj.project_id}
                               </p>
@@ -899,10 +911,23 @@ const LeaderDashboard = () => {
                               proj.tasks.map((t) => (
                                 <div key={t.task_owners_id} className="p-3 flex items-center justify-between gap-3 text-xs">
                                   <div>
-                                    <span className="font-bold text-slate-800">{t.task_name}</span>
-                                    <span className="ml-2 text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                                      {t.category}
-                                    </span>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-bold text-slate-800">{t.task_name}</span>
+                                      <span className="text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                        {t.category}
+                                      </span>
+                                      {t.assigned_by_gm && (
+                                        <span className="text-[9px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
+                                          ⚡ Assigned by GM{t.assigned_by_name ? ` (${t.assigned_by_name})` : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 font-medium mt-1 flex items-center gap-1">
+                                      <span>📅 Deadline:</span>
+                                      <span className={t.is_strict_department && t.deadline ? "font-bold text-slate-800" : "italic text-slate-400"}>
+                                        {t.deadline_display || (t.deadline ? String(t.deadline).substring(0, 10) : "No fixed deadline")}
+                                      </span>
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {t.employee_name ? (
