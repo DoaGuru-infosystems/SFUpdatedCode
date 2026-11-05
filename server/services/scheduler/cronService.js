@@ -5,6 +5,7 @@ const { schedulerPool, schedulerQuery } = require('../../config/schedulerDb');
 const { processAndSendNotification } = require('./notificationService');
 const { mockReminders, mockReminderEmployees, mockSFEmployees } = require('../../controller/scheduler/mockDb');
 const { sendSchedulerReminderWhatsApp } = require('../../utils/whatsappUtils');
+const { runDailyDigest } = require('../reDailyDigestService');
 
 const getNextRecurrence = (currentDateVal, currentTimeStr, repeatType) => {
   let dateStr = currentDateVal;
@@ -379,6 +380,19 @@ const startSchedulerCron = () => {
     }
   });
 
+  // RE Daily Digest: 10:00 AM IST daily
+  console.log('⏰ [Scheduler] Scheduling RE Daily Digest cron (Daily at 10:00 AM IST)...');
+  cron.schedule('0 10 * * *', async () => {
+    try {
+      console.log('[RE Daily Digest] ⏰ Cron triggered at 10:00 AM IST.');
+      await runDailyDigest();
+    } catch (err) {
+      console.error('[RE Daily Digest] ❌ Cron error:', err.message);
+    }
+  }, {
+    timezone: 'Asia/Kolkata'
+  });
+
   // Run immediately on start (using isProcessing lock)
   (async () => {
     isProcessing = true;
@@ -392,4 +406,4 @@ const startSchedulerCron = () => {
   })();
 };
 
-module.exports = { startSchedulerCron, processReminders, sendDailyAdminSummary };
+module.exports = { startSchedulerCron, processReminders, sendDailyAdminSummary, runDailyDigest };

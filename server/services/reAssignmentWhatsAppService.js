@@ -95,11 +95,11 @@ async function sendMetaTemplate({ to, templateName, languageCode = "en", paramet
               {
                 type: "body",
                 parameters: [
-                  { type: "text", text: String(fallbackData.name || "User").substring(0, 60) },
-                  { type: "text", text: String(fallbackData.title || "Project Assignment").substring(0, 60) },
+                  { type: "text", text: String(fallbackData.name || "User").replace(/[\r\n\t]+/g, " ").trim().substring(0, 60) },
+                  { type: "text", text: String(fallbackData.title || "Project Assignment").replace(/[\r\n\t]+/g, " ").trim().substring(0, 60) },
                   { type: "text", text: moment().format("DD-MM-YYYY") },
                   { type: "text", text: moment().format("hh:mm A") },
-                  { type: "text", text: String(fallbackData.message || "Please check Smart Factory").substring(0, 1024) },
+                  { type: "text", text: String(fallbackData.message || "Please check Smart Factory").replace(/[\r\n\t]+/g, " | ").trim().substring(0, 1024) },
                 ],
               },
             ],

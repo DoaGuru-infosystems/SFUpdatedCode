@@ -1417,6 +1417,27 @@ const getAdminReTaskWorkLog = (req, res) => {
   });
 };
 
+// POST /api/admin/re-daily-digest/trigger
+const triggerReDailyDigest = async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) {
+    return res.status(401).json({ success: false, message: "Unauthorized: Missing or invalid token" });
+  }
+
+  if (user.role !== "admin" && user.role !== "gm") {
+    return res.status(403).json({ success: false, message: "Forbidden: Admin or GM access required" });
+  }
+
+  try {
+    const { runDailyDigest } = require("../services/reDailyDigestService");
+    const result = await runDailyDigest();
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("[RE Daily Digest Trigger] Error:", err.message);
+    return res.status(500).json({ success: false, message: "Daily digest failed", error: err.message });
+  }
+};
+
 module.exports = {
   getLeaderReProjects,
   assignProjectOwner,
@@ -1431,5 +1452,6 @@ module.exports = {
   getAdminReProjects,
   getAdminReProjectTasks,
   getAdminReTaskWorkLog,
+  triggerReDailyDigest,
 };
 

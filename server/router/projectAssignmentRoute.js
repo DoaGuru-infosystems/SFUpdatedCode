@@ -19,6 +19,7 @@ const {
   getAdminReProjects,
   getAdminReProjectTasks,
   getAdminReTaskWorkLog,
+  triggerReDailyDigest,
 } = require("../controller/projectAssignmentController");
 
 // Team Lead routes (Phase 3 & Phase 5)
@@ -41,5 +42,6 @@ router.post("/api/admin/re-project/:project_id/mark-active", markProjectActive);
 router.get("/api/admin/re-projects", getAdminReProjects);
 router.get("/api/admin/re-project/:project_id/tasks", getAdminReProjectTasks);
 router.get("/api/admin/re-task/:task_owners_id/work-log", getAdminReTaskWorkLog);
+router.post("/api/admin/re-daily-digest/trigger", triggerReDailyDigest);
 
 module.exports = router;
