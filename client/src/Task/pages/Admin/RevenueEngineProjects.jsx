@@ -1320,12 +1320,22 @@ export default function RevenueEngineProjects() {
                                     {t.assignee_role || t.assignee_department || "Staff"}
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
-                                  className="ml-2 text-[10px] font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition"
-                                >
-                                  Reassign
-                                </button>
+                                <div className="flex items-center gap-1.5 ml-2">
+                                  {/* Disabled Assign button because task is already assigned */}
+                                  <button
+                                    disabled
+                                    title="Task is already assigned to someone"
+                                    className="text-[10px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1 rounded cursor-not-allowed opacity-60"
+                                  >
+                                    Assign
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
+                                    className="text-[10px] font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition"
+                                  >
+                                    Reassign
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <div className="flex items-center justify-between">

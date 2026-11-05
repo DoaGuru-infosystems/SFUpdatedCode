@@ -1366,6 +1366,14 @@ function UserHome() {
                                       Status: {t.status}
                                     </span>
                                   </div>
+                                  {/* Disabled Assign button because task is already assigned to someone */}
+                                  <button
+                                    disabled
+                                    title="Task is already assigned to someone"
+                                    className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg text-[10px] font-bold cursor-not-allowed opacity-60"
+                                  >
+                                    Assign
+                                  </button>
                                   <button
                                     onClick={() => {
                                       setSelectedReassignTaskModal({

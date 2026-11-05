@@ -464,8 +464,8 @@ const assignTaskOwner = (req, res) => {
     return res.status(400).json({ success: false, message: "task_owners_id and employee_id are required" });
   }
 
-  // 1. Fetch task to get project_id
-  const getTaskSql = "SELECT id, project_id, category FROM task_owners WHERE id = ?";
+  // 1. Fetch task to get project_id and check if already assigned
+  const getTaskSql = "SELECT id, project_id, category, employee_id FROM task_owners WHERE id = ?";
   db.query(getTaskSql, [task_owners_id], (tErr, tRows) => {
     if (tErr) {
       console.error("[Assign Task] Error fetching task:", tErr.message);
@@ -476,9 +476,17 @@ const assignTaskOwner = (req, res) => {
       return res.status(404).json({ success: false, message: "Task not found" });
     }
 
+    // If task is already assigned to someone, block fresh "Assign" - must use Reassign
+    if (tRows[0].employee_id) {
+      return res.status(400).json({
+        success: false,
+        message: "This task is already assigned. Please use Reassign instead.",
+      });
+    }
+
     const projectId = tRows[0].project_id;
 
-    // 2. CONTEXTUAL PERMISSION CHECK: Verify requester is an active Project Owner for this project
+    // 2. CONTEXTUAL PERMISSION CHECK: Verify requester is PO, TL, or GM/Admin
     const checkPoSql = `
       SELECT id FROM project_owners
       WHERE project_id = ? AND employee_id = ? AND status = 'active'
@@ -490,42 +498,57 @@ const assignTaskOwner = (req, res) => {
         return res.status(500).json({ success: false, message: "Database error", error: poErr.message });
       }
 
-      if (poRows.length === 0) {
-        return res.status(403).json({
-          success: false,
-          message: "Forbidden: You are not an active Project Owner for this project",
-        });
-      }
+      const isPo = poRows.length > 0;
+      const isAdminOrGm = isCallerAdminOrGm(user);
 
-      // 3. Update existing task_owners row
-      const updateTaskSql = `
-        UPDATE task_owners
-        SET employee_id = ?, assigned_by = ?, deadline = ?, status = 'pending'
-        WHERE id = ?
-      `;
+      const checkTlSql = "SELECT department, role FROM task_users WHERE id = ?";
+      db.query(checkTlSql, [user.id], (tlErr, tlRows) => {
+        const isTl = (user.role === "team_lead" || (tlRows && tlRows.length > 0 && tlRows[0].role === "team_lead")) &&
+                     tlRows && tlRows.length > 0 &&
+                     matchesCategoryAndDepartment(tRows[0].category, tlRows[0].department);
 
-      db.query(updateTaskSql, [employee_id, user.id, deadline || null, task_owners_id], (updErr) => {
-        if (updErr) {
-          console.error("[Assign Task] Error updating task_owners:", updErr.message);
-          return res.status(500).json({ success: false, message: "Database error", error: updErr.message });
+        if (!isPo && !isTl && !isAdminOrGm) {
+          return res.status(403).json({
+            success: false,
+            message: "Forbidden: You must be an active Project Owner, Team Lead, or GM/Admin to assign this task",
+          });
         }
 
-        console.log(`[Assign Task] ✅ Task ${task_owners_id} assigned to employee ${employee_id} by PO ${user.id}`);
+        // 3. Update existing task_owners row
+        const updateTaskSql = `
+          UPDATE task_owners
+          SET employee_id = ?, assigned_by = ?, deadline = ?, status = 'pending'
+          WHERE id = ?
+        `;
 
-        // Asynchronously notify assigned Task Owner via WhatsApp
-        notifyTaskOwnerAssigned({
-          taskOwnersId: task_owners_id,
-          employeeId: employee_id,
-          poUserId: user.id,
-          deadline: deadline || null,
-        }).catch((wErr) => console.error("[Assign Task] WhatsApp dispatch error:", wErr.message));
+        db.query(updateTaskSql, [employee_id, user.id, deadline || null, task_owners_id], (updErr) => {
+          if (updErr) {
+            console.error("[Assign Task] Error updating task_owners:", updErr.message);
+            return res.status(500).json({ success: false, message: "Database error", error: updErr.message });
+          }
 
-        // Outbound RE Webhook sync (Phase 6)
-        sendStatusUpdateToRE(projectId, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
+          console.log(`[Assign Task] ✅ Task ${task_owners_id} assigned to employee ${employee_id} by user ${user.id}`);
 
-        return res.status(200).json({
-          success: true,
-          message: "Task Owner assigned",
+          // Asynchronously notify assigned Task Owner via WhatsApp
+          notifyTaskOwnerAssigned({
+            taskOwnersId: task_owners_id,
+            employeeId: employee_id,
+            poUserId: user.id,
+            deadline: deadline || null,
+          }).catch((wErr) => console.error("[Assign Task] WhatsApp dispatch error:", wErr.message));
+
+          // Outbound RE Webhook sync (Phase 6)
+          sendStatusUpdateToRE(projectId, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
+
+          return res.status(200).json({
+            success: true,
+            message: "Task Owner assigned",
+            data: {
+              task_owners_id: Number(task_owners_id),
+              employee_id: Number(employee_id),
+              deadline: deadline || null,
+            },
+          });
         });
       });
     });

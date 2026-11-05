@@ -62,6 +62,45 @@ const LeaderDashboard = () => {
   const [reassignTaskReason, setReassignTaskReason] = useState("");
   const [reassignTaskLoading, setReassignTaskLoading] = useState(false);
 
+  // Direct Task Assignment states (TL assignment of unassigned tasks)
+  const [selectedAssignTaskModal, setSelectedAssignTaskModal] = useState(null);
+  const [assignTaskEmpId, setAssignTaskEmpId] = useState("");
+  const [assignTaskDeadline, setAssignTaskDeadline] = useState("");
+  const [assignTaskLoading, setAssignTaskLoading] = useState(false);
+
+  const handleAssignTaskSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedAssignTaskModal || !assignTaskEmpId) {
+      return toast.error("Please select an employee");
+    }
+    setAssignTaskLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/employee/assign-task-owner`,
+        {
+          task_owners_id: selectedAssignTaskModal.task_owners_id,
+          employee_id: assignTaskEmpId,
+          deadline: assignTaskDeadline || null,
+        },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || "Task Owner assigned successfully!");
+        setSelectedAssignTaskModal(null);
+        setAssignTaskEmpId("");
+        setAssignTaskDeadline("");
+        fetchReProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to assign task");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to assign task");
+    } finally {
+      setAssignTaskLoading(false);
+    }
+  };
+
   const [selectedReassignPoModal, setSelectedReassignPoModal] = useState(null);
   const [reassignPoEmpId, setReassignPoEmpId] = useState("");
   const [reassignPoReason, setReassignPoReason] = useState("");
@@ -935,6 +974,14 @@ const LeaderDashboard = () => {
                                         <span className="text-[11px] font-bold text-slate-700">
                                           👤 {t.employee_name}
                                         </span>
+                                        {/* Disabled Assign button because task is already assigned to someone */}
+                                        <button
+                                          disabled
+                                          title="Task is already assigned to someone"
+                                          className="px-2 py-0.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-md text-[10px] font-bold cursor-not-allowed opacity-60"
+                                        >
+                                          Assign
+                                        </button>
                                         <button
                                           onClick={() => {
                                             setSelectedReassignTaskModal({
@@ -951,9 +998,25 @@ const LeaderDashboard = () => {
                                         </button>
                                       </div>
                                     ) : (
-                                      <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                        Unassigned
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                          Unassigned
+                                        </span>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedAssignTaskModal({
+                                              ...t,
+                                              project_id: proj.project_id,
+                                              client_name: proj.client_name,
+                                            });
+                                            setAssignTaskEmpId("");
+                                            setAssignTaskDeadline(proj.end_date ? String(proj.end_date).substring(0, 10) : "");
+                                          }}
+                                          className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-bold transition shadow-sm"
+                                        >
+                                          Assign
+                                        </button>
+                                      </div>
                                     )}
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                                       t.status === 'completed'
@@ -2036,6 +2099,76 @@ const LeaderDashboard = () => {
                     className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
                   >
                     {reassignTaskLoading ? "Reassigning..." : "Confirm Reassignment"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* ── Assign Task Owner Modal (TL Direct Assignment) ── */}
+        {selectedAssignTaskModal && (
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedAssignTaskModal(null)}
+          >
+            <div
+              className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Assign Task Owner</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">Task: {selectedAssignTaskModal.task_name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAssignTaskModal(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center font-bold text-lg transition-all"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handleAssignTaskSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">Assign To Member *</label>
+                  <select
+                    value={assignTaskEmpId}
+                    onChange={(e) => setAssignTaskEmpId(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">-- Choose Team Member --</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.full_name} ({m.designation || m.department})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">Deadline (Optional)</label>
+                  <input
+                    type="date"
+                    value={assignTaskDeadline}
+                    onChange={(e) => setAssignTaskDeadline(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAssignTaskModal(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={assignTaskLoading}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
+                  >
+                    {assignTaskLoading ? "Assigning..." : "Confirm Assignment"}
                   </button>
                 </div>
               </form>
