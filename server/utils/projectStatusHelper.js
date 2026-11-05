@@ -182,10 +182,14 @@ function deriveProjectStatus(taskRows, departments = null) {
   if (hasStrictBlocked) return "blocked";
 
   // 3. In Progress:
-  // - Any task is 'in_progress' or 'review'
+  // - Any task is 'in_progress', 'review', or partially 'completed' (work has begun)
   // - OR any non-strict task is overdue & incomplete (flexible deadline cross, does not block project)
   const hasInProgress = taskRows.some((t) => {
-    if (t.status === "in_progress" || t.status === "review") {
+    if (
+      t.status === "in_progress" ||
+      t.status === "review" ||
+      t.status === "completed"
+    ) {
       return true;
     }
     const isStrict = isStrictDepartment(t, departments);
