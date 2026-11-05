@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
 import DatePicker from "react-datepicker";
@@ -1105,6 +1106,37 @@ function UserHome() {
   return (
     <div className="min-h-screen bg-slate-50 p-3 md:p-6 pb-20 font-sans">
       <div className="max-w-[1400px] mx-auto space-y-4">
+        {/* ═══ Quick Switch for Team Lead to Leader Dashboard & RE Projects ═══ */}
+        {(user?.role === "team_lead" || user?.role === "leader" || user?.designation?.toLowerCase().includes("lead") || user?.id === 39 || user?.id === 62) && (
+          <div className="bg-linear-to-r from-indigo-800 via-indigo-600 to-purple-600 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-indigo-400/30">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-xl shrink-0">
+                👑
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-black text-white tracking-wide">
+                    Team Leader Workspace & Revenue Engine Projects
+                  </h2>
+                  <span className="text-[10px] bg-amber-400 text-slate-900 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    TL Active
+                  </span>
+                </div>
+                <p className="text-xs text-indigo-100 font-medium mt-0.5">
+                  Revenue Engine se naye synced projects dekhne, Project Owners aur Task Owners assign karne ke liye Team Leader Dashboard par switch karein.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/task/TeamLeaderDashboard"
+              className="shrink-0 bg-white hover:bg-indigo-50 text-indigo-700 font-black px-5 py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 border border-white/50"
+            >
+              <span>Open Leader Dashboard & RE Projects</span>
+              <span>→</span>
+            </Link>
+          </div>
+        )}
+
         {/* ═══ Dashboard Identity & Status Bar ═══ */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">

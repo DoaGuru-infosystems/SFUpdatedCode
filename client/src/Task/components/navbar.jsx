@@ -31,29 +31,117 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
+const buildNavigation = (userObj, profileObj) => {
+  const merged = { ...(userObj || {}), ...(profileObj || {}) };
+  const dept = (merged.department || "").trim().toLowerCase();
+  const role = (merged.role || "").trim().toLowerCase();
+  const designation = (merged.designation || "").trim().toLowerCase();
+
+  const isTeamLead =
+    role === "team_lead" ||
+    role === "leader" ||
+    designation.includes("lead") ||
+    merged.id === 39 ||
+    merged.id === 62;
+
+  const assignDataChildren = [
+    { name: "View Task", href: "/task/TaskView" },
+    { name: "Assigned Projects", href: "/task/AssignProjectDetails" },
+  ];
+
+  if (dept === "development") {
+    assignDataChildren.push({ name: "Assigned Development Task", href: "/task/check-assigned-development-task" });
+  } else if (dept === "digital marketing" || dept === "seo" || dept === "sales") {
+    assignDataChildren.push({ name: "Assigned Daily Target", href: "/task/AssignProjectTarget-Details" });
+  }
+
+  const items = [];
+
+  if (isTeamLead) {
+    // 1. Direct top-level button for Leader Dashboard & RE Projects
+    items.push({
+      name: "⚡ RE Projects (TL)",
+      href: "/task/TeamLeaderDashboard",
+      highlight: true,
+    });
+
+    // 2. Team Lead Actions Dropdown
+    items.push({
+      name: "Lead Actions",
+      children: [
+        { name: "⚡ RE Projects (New from RE)", href: "/task/TeamLeaderDashboard?tab=dashboard" },
+        { name: "📊 Team Overview & Stats", href: "/task/TeamLeaderDashboard?tab=dashboard" },
+        { name: "📋 Team Tasks", href: "/task/TeamLeaderDashboard?tab=team_tasks" },
+        { name: "👥 Team Members", href: "/task/TeamLeaderDashboard?tab=team" },
+        { name: "➕ Assign Task", href: "/task/TeamLeaderDashboard?tab=assign" },
+        { name: "📌 Assigned Tasks", href: "/task/TeamLeaderDashboard?tab=assigned_tasks" },
+      ],
+    });
+
+    // 3. Personal Work
+    items.push({ name: "My Work", href: "/task/UserHome" });
+  } else {
+    items.push({ name: "Dashboard", href: "/task/UserHome" });
+  }
+
+  items.push({
+    name: "Assign Data",
+    children: assignDataChildren,
+  });
+
+  items.push({
+    name: "Reports",
+    children: [
+      { name: "Task Report", href: "/task/EmployeeTaskReport" },
+      { name: "Attendance Report", href: "/task/employee-attendance-report" },
+      { name: "Leave Report", href: "/task/employee-leave-report" },
+    ],
+  });
+
+  if (designation === "hr") {
+    items.push({ name: "Letters", href: "/task/letters" });
+    items.push({ name: "Scheduler", href: "/task/scheduler/" });
+  }
+
+  return items;
+};
+
+const getStoredUser = () => {
+  try {
+    const u = localStorage.getItem("user");
+    return u ? JSON.parse(u) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export default function Navbar({ Logout, render }) {
-  const [user, setUser] = useState(localStorage.getItem("user"));
+  const [user, setUser] = useState(() => localStorage.getItem("user"));
   const [userName, setUserName] = useState("User name");
   const location = useLocation();
 
   const [profile, setProfile] = useState(null);
-  const employeeId = JSON.parse(localStorage.getItem("user"));
-  const [navigation, setNavigation] = useState(baseNavigation);
+  const [navigation, setNavigation] = useState(() => buildNavigation(getStoredUser(), null));
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    const stored = getStoredUser();
+    if (!stored?.id) return;
     const fetchEmployeeData = async () => {
       try {
         const response = await axios.get(
-          `${API_BASE}/api/getEmployee/${employeeId.id}`
+          `${API_BASE}/api/getEmployee/${stored.id}`
         );
-        setProfile(response.data);
+        if (response.data) {
+          setProfile(response.data);
+          setNavigation(buildNavigation(stored, response.data));
+        }
       } catch (error) {
         console.error("Error:", error);
       }
     };
     fetchEmployeeData();
-  }, []);
+  }, [render]);
 
   useEffect(() => {
     const fetchUnreadCount = async () => {
@@ -137,65 +225,9 @@ export default function Navbar({ Logout, render }) {
   }, []);
 
   useEffect(() => {
-    console.log(profile, "profile", profile?.department);
-
-    const assignDataChildren = [
-      { name: "View Task", href: "/task/TaskView" },
-      { name: "Assigned Projects", href: "/task/AssignProjectDetails" },
-    ];
-
-    const dept = profile?.department?.trim().toLowerCase();
-    if (dept === "development") {
-      assignDataChildren.push({ name: "Assigned Development Task", href: "/task/check-assigned-development-task" });
-    } else if (dept === "digital marketing" || dept === "seo" || dept === "sales") {
-      assignDataChildren.push({ name: "Assigned Daily Target", href: "/task/AssignProjectTarget-Details" });
-    }
-
-    const updatedNavigation = [
-      { name: "Dashboard", href: "/task/UserHome" },
-      {
-        name: "Assign Data",
-        children: assignDataChildren
-      },
-      {
-        name: "Reports",
-        children: [
-          { name: "Task Report", href: "/task/EmployeeTaskReport" },
-          { name: "Attendance Report", href: "/task/employee-attendance-report" },
-          { name: "Leave Report", href: "/task/employee-leave-report" },
-        ]
-      },
-    ];
-
-    if (profile?.designation && profile.designation.trim().toUpperCase() === "HR") {
-      updatedNavigation.push({ name: "Letters", href: "/task/letters" });
-      updatedNavigation.push({ name: "Scheduler", href: "/task/scheduler/" });
-    }
-
-    const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
-    const isTeamLead =
-      profile?.role === "team_lead" ||
-      loggedInUser?.role === "team_lead" ||
-      profile?.id === 62 ||
-      loggedInUser?.id === 62 ||
-      profile?.designation?.toLowerCase().includes("lead") ||
-      loggedInUser?.designation?.toLowerCase().includes("lead");
-
-    if (isTeamLead) {
-      updatedNavigation.push({
-        name: "Lead Dashboard",
-        children: [
-          { name: "Overview", href: "/task/TeamLeaderDashboard?tab=dashboard" },
-          { name: "Team Tasks", href: "/task/TeamLeaderDashboard?tab=team_tasks" },
-          { name: "Team Members", href: "/task/TeamLeaderDashboard?tab=team" },
-          { name: "Assign Task", href: "/task/TeamLeaderDashboard?tab=assign" },
-          { name: "Assigned Tasks", href: "/task/TeamLeaderDashboard?tab=assigned_tasks" }
-        ]
-      });
-    }
-
-    setNavigation(updatedNavigation);
-  }, [profile]);
+    const stored = getStoredUser();
+    setNavigation(buildNavigation(stored, profile));
+  }, [profile, render]);
 
   useEffect(() => {
     setUser(localStorage.getItem("user"));
@@ -299,8 +331,10 @@ export default function Navbar({ Logout, render }) {
                             className={classNames(
                               isActive
                                 ? "bg-slate-900 text-white font-bold shadow-xs"
+                                : item.highlight
+                                ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-black border border-indigo-200 shadow-xs"
                                 : "text-slate-700 hover:bg-slate-100 hover:text-indigo-600 font-semibold",
-                              "rounded-lg px-3 py-2 text-sm transition-colors"
+                              "rounded-lg px-3 py-2 text-sm transition-colors flex items-center gap-1.5"
                             )}
                             aria-current={isActive ? "page" : undefined}
                           >
@@ -432,6 +466,8 @@ export default function Navbar({ Logout, render }) {
                     className={classNames(
                       isActive
                         ? "bg-slate-900 text-white font-bold shadow-xs"
+                        : item.highlight
+                        ? "bg-indigo-50 text-indigo-700 font-black border border-indigo-200"
                         : "text-slate-800 hover:bg-slate-100 hover:text-indigo-600 font-bold",
                       "block w-full rounded-xl px-3.5 py-2.5 text-sm transition-all text-left"
                     )}

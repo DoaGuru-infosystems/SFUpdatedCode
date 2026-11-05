@@ -162,7 +162,9 @@ const Commonjs = () => {
       if (path === "/") {
         if (user.role === "admin" || user.role === "gm") {
           navigate("/task/Admin-Home-page");
-        } else if (user.role === "user" || user.role === "team_lead") {
+        } else if (user.role === "team_lead") {
+          navigate("/task/TeamLeaderDashboard");
+        } else if (user.role === "user") {
           navigate("/task/UserHome");
         }
       }
