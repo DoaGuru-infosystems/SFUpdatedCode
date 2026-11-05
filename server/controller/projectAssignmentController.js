@@ -130,10 +130,9 @@ const getLeaderReProjects = (req, res) => {
       return res.status(200).json({
         success: true,
         data: result,
-      }); // closes tasks query
-      }); // closes dept query
-    }); // closes ownedProjectsSql query
-  }); // closes user dept query
+         });
+    });
+  });
 };
 
 // ── TASK 3: Team Lead: mark employee as Project Owner ───────────────────────
@@ -371,9 +370,10 @@ const getEmployeeOwnedProjects = (req, res) => {
           success: true,
           data: result,
         });
-      });
-    });
-  });
+      }); // closes taskRows query
+      }); // closes deptSqlEmp query
+    }); // closes ownedProjectsSql query
+  }); // closes user dept query
 };
 
 // ── TASK 5: Assign Task Owner (writes to existing task_owners rows) ──────────
