@@ -65,9 +65,20 @@ function matchesCategoryAndDepartment(category, department) {
   // Direct substring match
   if (dept.includes(cat) || cat.includes(dept)) return true;
 
-  // Digital Marketing / DM
+  // Digital Marketing / DM / SMO / Editing / Video / Creative / GMB
   if (
-    (cat === "dm" || cat.includes("marketing") || cat.includes("digital") || cat.includes("social") || cat.includes("media")) &&
+    (cat === "dm" ||
+      cat === "smo" ||
+      cat.includes("marketing") ||
+      cat.includes("digital") ||
+      cat.includes("social") ||
+      cat.includes("media") ||
+      cat.includes("smo") ||
+      cat.includes("edit") ||
+      cat.includes("video") ||
+      cat.includes("graphic") ||
+      cat.includes("creative") ||
+      cat.includes("gmb")) &&
     (dept.includes("digital") || dept.includes("marketing") || dept === "dm")
   ) {
     return true;
