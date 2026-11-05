@@ -17,6 +17,13 @@ function normalizeDepartmentName(dept) {
   return trimmed;
 }
 
+function normalizeRole(role) {
+  if (!role) return "user";
+  const r = String(role).trim().toLowerCase();
+  if (r === "team lead" || r === "team_lead" || r === "teamlead" || r === "tl") return "team_lead";
+  return r;
+}
+
 function ensureDepartmentExists(deptName, callback) {
   const normName = normalizeDepartmentName(deptName);
   if (!normName) return callback(null, null);
@@ -61,8 +68,8 @@ function validateTeamLeadAssignment(
   { employeeId, role, department, employmentStatus },
   callback
 ) {
-  const targetRole = role || "user";
-  const targetStatus = employmentStatus || "active";
+  const targetRole = normalizeRole(role);
+  const targetStatus = (employmentStatus || "active").trim().toLowerCase();
 
   if (targetRole !== "team_lead") {
     // Non-TL roles do not trigger TL conflict/status restrictions
@@ -136,8 +143,8 @@ function syncDepartmentTeamLead(
 ) {
   if (!employeeId) return callback && callback(null);
 
-  const targetRole = role || "user";
-  const targetStatus = employmentStatus || "active";
+  const targetRole = normalizeRole(role);
+  const targetStatus = (employmentStatus || "active").trim().toLowerCase();
 
   if (targetRole === "team_lead" && targetStatus === "active" && department) {
     ensureDepartmentExists(department, (err, deptRow) => {
@@ -170,6 +177,7 @@ function syncDepartmentTeamLead(
 
 module.exports = {
   normalizeDepartmentName,
+  normalizeRole,
   ensureDepartmentExists,
   validateTeamLeadAssignment,
   syncDepartmentTeamLead,

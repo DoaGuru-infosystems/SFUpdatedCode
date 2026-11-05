@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const {
   normalizeDepartmentName,
+  normalizeRole,
   validateTeamLeadAssignment,
   syncDepartmentTeamLead,
 } = require("../utils/departmentHelper");
@@ -94,7 +95,7 @@ const loginController = async (req, res, next) => {
 
 const UserRegister = async (req, res) => {
   const { fullName, mobileNumber, emailId, designation, role, password, employment_status, department } = req.body;
-  const userRole = role || 'user';
+  const userRole = normalizeRole(role);
   const status = employment_status || 'active';
   const userDept = normalizeDepartmentName(department) || null;
 
