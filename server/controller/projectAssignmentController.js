@@ -1909,20 +1909,24 @@ const directAssignTaskOwner = (req, res) => {
     }
 
     // 2. Validate task belongs to this project
-    const taskSql = "SELECT id, project_id, category FROM task_owners WHERE id = ? AND project_id = ?";
+    const taskSql = "SELECT id, project_id, employee_id, status, category FROM task_owners WHERE id = ? AND project_id = ?";
     db.query(taskSql, [task_id, projectId], (tErr, tRows) => {
       if (tErr || tRows.length === 0) {
         return res.status(404).json({ success: false, message: "Task not found for this project" });
       }
 
       // 3. Update task_owners row directly with assigned_by_gm = 1
+      // If the employee is the same, preserve existing status (e.g. in_progress, review); if reassigned to a new person, set to 'pending'
+      const isSameEmployee = String(tRows[0].employee_id) === String(employee_id);
+      const updatedStatus = isSameEmployee ? (tRows[0].status || 'pending') : 'pending';
+
       const updateTaskSql = `
         UPDATE task_owners
-        SET employee_id = ?, assigned_by = ?, assigned_by_gm = 1, deadline = ?, description = COALESCE(?, description), status = 'pending'
+        SET employee_id = ?, assigned_by = ?, assigned_by_gm = 1, deadline = ?, description = COALESCE(?, description), status = ?
         WHERE id = ? AND project_id = ?
       `;
 
-      db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, task_id, projectId], (updErr) => {
+      db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, updatedStatus, task_id, projectId], (updErr) => {
         if (updErr) {
           console.error("[Direct Assign Task] Error updating task_owners:", updErr.message);
           return res.status(500).json({ success: false, message: "Database error", error: updErr.message });
@@ -2257,7 +2261,6 @@ module.exports = {
   getAdminReProjects,
   getAdminReProjectTasks,
   getAdminReTaskWorkLog,
-
   triggerReDailyDigest,
   triggerReEscalations,
   assignProjectDepartments,
