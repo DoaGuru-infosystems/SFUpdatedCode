@@ -317,6 +317,7 @@ function UserHome() {
   const [logProgressTask, setLogProgressTask] = useState(null);
   const [progressDesc, setProgressDesc] = useState("");
   const [progressStatus, setProgressStatus] = useState("pending");
+  const [progressDate, setProgressDate] = useState(moment().format("YYYY-MM-DD"));
   const [savingProgress, setSavingProgress] = useState(false);
 
   const handleOpenLogProgress = (task) => {
@@ -326,6 +327,7 @@ function UserHome() {
     });
     setProgressDesc("");
     setProgressStatus(task.status || "pending");
+    setProgressDate(moment().format("YYYY-MM-DD"));
   };
 
   const handleSaveProgress = async (e) => {
@@ -348,6 +350,7 @@ function UserHome() {
           {
             description: progressDesc.trim(),
             status: progressStatus,
+            task_date: progressDate,
           },
           { headers }
         );
@@ -357,6 +360,7 @@ function UserHome() {
           {
             description: progressDesc.trim(),
             status: progressStatus,
+            task_date: progressDate,
           },
           { headers }
         );
@@ -383,7 +387,13 @@ function UserHome() {
         setProgressDesc("");
         // Trigger background refresh of tasks & activity ledger
         fetchMyReTasks();
-        if (typeof fetchTasks === "function") {
+        if (progressDate) {
+          const selectedDateObj = new Date(progressDate);
+          setDate(selectedDateObj);
+          if (typeof fetchTasks === "function") {
+            fetchTasks(selectedDateObj);
+          }
+        } else if (typeof fetchTasks === "function") {
           fetchTasks(date);
         }
       } else {
@@ -654,6 +664,11 @@ function UserHome() {
       });
       setProgressDesc(task.TaskDescription || "");
       setProgressStatus(task.entry_status || matchingReTask?.status || "pending");
+      setProgressDate(
+        task.task_date
+          ? moment(task.task_date).format("YYYY-MM-DD")
+          : moment().format("YYYY-MM-DD")
+      );
       return;
     }
 
@@ -1187,28 +1202,31 @@ function UserHome() {
       <div className="max-w-[1400px] mx-auto space-y-4">
         {/* ═══ Quick Switch for Team Lead to Leader Dashboard & RE Projects ═══ */}
         {(user?.role === "team_lead" || user?.role === "leader" || user?.designation?.toLowerCase().includes("lead") || user?.id === 39 || user?.id === 62) && (
-          <div className="bg-linear-to-r from-indigo-800 via-indigo-600 to-purple-600 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-indigo-400/30">
+          <div
+            className="rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg border border-indigo-900/50"
+            style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)" }}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-xl shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 backdrop-blur-xs flex items-center justify-center text-xl shrink-0 shadow-inner">
                 👑
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-sm font-black text-white tracking-wide">
                     Team Leader Workspace & Revenue Engine Projects
                   </h2>
-                  <span className="text-[10px] bg-amber-400 text-slate-900 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="text-[10px] bg-amber-400 text-slate-900 font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
                     TL Active
                   </span>
                 </div>
-                <p className="text-xs text-indigo-100 font-medium mt-0.5">
+                <p className="text-xs text-indigo-200 font-medium mt-1">
                   Revenue Engine se naye synced projects dekhne, Project Owners aur Task Owners assign karne ke liye Team Leader Dashboard par switch karein.
                 </p>
               </div>
             </div>
             <Link
               to="/task/TeamLeaderDashboard"
-              className="shrink-0 bg-white hover:bg-indigo-50 text-indigo-700 font-black px-5 py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 border border-white/50"
+              className="shrink-0 bg-white hover:bg-slate-100 text-indigo-950 font-black px-5 py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 border border-white/40"
             >
               <span>Open Leader Dashboard & RE Projects</span>
               <span>→</span>
@@ -1676,26 +1694,43 @@ function UserHome() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Task Status <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={progressStatus}
-                    onChange={(e) => setProgressStatus(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="review">Review</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                  <p className="text-[11px] text-slate-400">
-                    {logProgressTask.log_id
-                      ? "Update the status for this log entry and task."
-                      : "Pre-filled with task's current status. Submitting records an immutable progress snapshot with this status and updates the task."}
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      Task Status <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={progressStatus}
+                      onChange={(e) => setProgressStatus(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="review">Review</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                      <span>Work Date <span className="text-rose-500">*</span></span>
+                      <span className="text-[10px] text-indigo-600 font-bold">Admin/TL Sync</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={progressDate}
+                      onChange={(e) => setProgressDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                    />
+                  </div>
                 </div>
+
+                <p className="text-[11px] text-slate-400">
+                  {logProgressTask.log_id
+                    ? "Updating this entry will update the progress date, description, and sync the status for Admin, GM, and Team Lead."
+                    : "Pre-filled with task's current status and today's date. Submitting records an immutable progress snapshot on the selected date visible to Admin, GM, and Team Lead."}
+                </p>
 
                 {/* Actions */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">

@@ -1976,7 +1976,7 @@ const logReTaskProgress = (req, res) => {
   }
 
   const { task_owners_id } = req.params;
-  const { description, status } = req.body;
+  const { description, status, task_date } = req.body;
 
   if (!description || typeof description !== "string" || !description.trim()) {
     return res.status(400).json({ success: false, message: "Task description is required" });
@@ -2027,7 +2027,11 @@ const logReTaskProgress = (req, res) => {
       statusSnapshot = status;
     }
 
-    const todayDate = moment().tz("Asia/Kolkata").format("YYYY-MM-DD");
+    const entryDate =
+      task_date && moment(task_date, ["YYYY-MM-DD", moment.ISO_8601]).isValid()
+        ? moment(task_date).format("YYYY-MM-DD")
+        : moment().tz("Asia/Kolkata").format("YYYY-MM-DD");
+
     const employeeName = user.full_name || user.name || taskRow.employee_name || "Employee";
     const clientName = taskRow.client_name || taskRow.project_name || `RE Project #${taskRow.project_id}`;
     const categoryName = taskRow.category || "General";
@@ -2062,7 +2066,7 @@ const logReTaskProgress = (req, res) => {
       categoryName,
       subCategoryName,
       description.trim(),
-      todayDate,
+      entryDate,
     ];
 
     db.query(insertTaskSql, insertParams, (insErr, insResult) => {
@@ -2107,7 +2111,7 @@ const logReTaskProgress = (req, res) => {
             entry_status: statusSnapshot,
             task_owners_status: statusSnapshot,
             description: description.trim(),
-            task_date: todayDate,
+            task_date: entryDate,
             employee_name: employeeName,
             task_name: taskRow.re_item_name,
           },
@@ -2126,7 +2130,7 @@ const updateReTaskProgress = (req, res) => {
   }
 
   const { id } = req.params;
-  const { description, status } = req.body;
+  const { description, status, task_date } = req.body;
 
   if (!description || typeof description !== "string" || !description.trim()) {
     return res.status(400).json({ success: false, message: "Task description is required" });
@@ -2141,6 +2145,7 @@ const updateReTaskProgress = (req, res) => {
       t.user_id,
       t.task_owners_id,
       t.entry_status,
+      t.task_date,
       tow.project_id,
       tow.employee_id
     FROM tasks t
@@ -2166,15 +2171,20 @@ const updateReTaskProgress = (req, res) => {
     }
 
     const newStatus = status && validStatuses.includes(status) ? status : (logRow.entry_status || "pending");
+    const entryDate =
+      task_date && moment(task_date, ["YYYY-MM-DD", moment.ISO_8601]).isValid()
+        ? moment(task_date).format("YYYY-MM-DD")
+        : null;
 
     // 2. Update tasks table row
-    const updateTaskSql = `
-      UPDATE tasks 
-      SET TaskDescription = ?, entry_status = ? 
-      WHERE id = ?
-    `;
+    const updateTaskSql = entryDate
+      ? `UPDATE tasks SET TaskDescription = ?, entry_status = ?, task_date = ? WHERE id = ?`
+      : `UPDATE tasks SET TaskDescription = ?, entry_status = ? WHERE id = ?`;
+    const updateParams = entryDate
+      ? [description.trim(), newStatus, entryDate, id]
+      : [description.trim(), newStatus, id];
 
-    db.query(updateTaskSql, [description.trim(), newStatus, id], (uErr) => {
+    db.query(updateTaskSql, updateParams, (uErr) => {
       if (uErr) {
         console.error("[Update Progress] Error updating task:", uErr.message);
         return res.status(500).json({ success: false, message: "Failed to update task", error: uErr.message });
@@ -2213,6 +2223,7 @@ const updateReTaskProgress = (req, res) => {
               task_owners_id: Number(logRow.task_owners_id),
               entry_status: newStatus,
               description: description.trim(),
+              task_date: entryDate || logRow.task_date,
             },
           });
         });
@@ -2224,6 +2235,7 @@ const updateReTaskProgress = (req, res) => {
             id: Number(id),
             entry_status: newStatus,
             description: description.trim(),
+            task_date: entryDate || logRow.task_date,
           },
         });
       }
