@@ -22,6 +22,7 @@ import {
   X,
   ArrowLeft,
   ChevronRight,
+  ChevronDown,
   ExternalLink,
   FileText,
   RotateCcw,
@@ -104,7 +105,15 @@ export default function RevenueEngineProjects() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectTasks, setProjectTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
-  const [projectSubTab, setProjectSubTab] = useState("calendar"); // 'calendar' | 'tasks'
+  const [projectSubTab, setProjectSubTab] = useState("tasks"); // 'tasks' (default) | 'calendar'
+  const [expandedTaskMap, setExpandedTaskMap] = useState({});
+
+  const toggleTaskExpand = (taskOwnersId) => {
+    setExpandedTaskMap((prev) => ({
+      ...prev,
+      [taskOwnersId]: !prev[taskOwnersId],
+    }));
+  };
 
   // Work log drilldown
   const [selectedTask, setSelectedTask] = useState(null);
@@ -415,7 +424,8 @@ export default function RevenueEngineProjects() {
   const handleOpenProject = (project) => {
     setPopoverProject(null);
     setSelectedProject(project);
-    setProjectSubTab("calendar");
+    setProjectSubTab("tasks");
+    setExpandedTaskMap({});
     fetchProjectTasks(project.project_id);
   };
 
@@ -824,15 +834,19 @@ export default function RevenueEngineProjects() {
                   return (
                     <div
                       key={p.project_id}
-                      className={`bg-white rounded-xl border transition-all duration-200 hover:shadow-md flex flex-col justify-between ${
-                        p.is_active ? "border-slate-200" : "border-slate-200 bg-slate-50/70 opacity-80"
+                      className={`bg-white rounded-xl border transition-all duration-200 hover:shadow-md flex flex-col justify-between group ${
+                        p.is_active ? "border-slate-200 hover:border-blue-300" : "border-slate-200 bg-slate-50/70 opacity-80"
                       }`}
                     >
-                      <div className="p-5">
+                      <div
+                        className="p-5 cursor-pointer hover:bg-slate-50/50 transition-colors rounded-t-xl"
+                        onClick={() => handleOpenProject(p)}
+                        title="Click card to open task list drill-down"
+                      >
                         {/* Header: Client & Status */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <h3 className="font-semibold text-base text-slate-900 truncate" title={p.client_name}>
+                            <h3 className="font-semibold text-base text-slate-900 group-hover:text-blue-600 transition-colors truncate" title={p.client_name}>
                               {p.client_name}
                             </h3>
                             <div className="flex items-center space-x-2 text-xs text-slate-400 mt-0.5">
@@ -886,7 +900,10 @@ export default function RevenueEngineProjects() {
                             )}
                           </div>
                           <button
-                            onClick={() => handleOpenDeptModal(p)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDeptModal(p);
+                            }}
                             className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 hover:underline"
                           >
                             {p.assigned_departments && p.assigned_departments.length > 0 ? "Edit" : "+ Assign"}
@@ -912,7 +929,10 @@ export default function RevenueEngineProjects() {
                             )}
                           </div>
                           <button
-                            onClick={() => handleOpenPoModal(p)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenPoModal(p);
+                            }}
                             className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 hover:underline"
                           >
                             {p.project_owner ? "Change" : "+ Assign PO"}
@@ -966,10 +986,11 @@ export default function RevenueEngineProjects() {
                       <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 rounded-b-xl flex items-center justify-between">
                         <button
                           onClick={() => handleOpenProject(p)}
-                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center transition"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-lg shadow-xs transition"
                         >
-                          <Eye className="w-3.5 h-3.5 mr-1" />
-                          View Calendar & Tasks
+                          <Layers className="w-3.5 h-3.5" />
+                          View Tasks Drill-Down
+                          <ChevronRight className="w-3 h-3 -ml-0.5" />
                         </button>
 
                         {p.is_active ? (
@@ -1192,20 +1213,9 @@ export default function RevenueEngineProjects() {
               </button>
             </div>
 
-            {/* Sub-Tabs: Project Calendar vs Department Task Breakdown */}
+            {/* Sub-Tabs: Project Tasks vs Calendar */}
             <div className="px-6 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setProjectSubTab("calendar")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center ${
-                    projectSubTab === "calendar"
-                      ? "bg-white text-blue-600 shadow-xs"
-                      : "text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
-                  Task Deadline Calendar
-                </button>
                 <button
                   onClick={() => setProjectSubTab("tasks")}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center ${
@@ -1216,6 +1226,17 @@ export default function RevenueEngineProjects() {
                 >
                   <Layers className="w-3.5 h-3.5 mr-1.5" />
                   All Department Tasks ({projectTasks.length})
+                </button>
+                <button
+                  onClick={() => setProjectSubTab("calendar")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center ${
+                    projectSubTab === "calendar"
+                      ? "bg-white text-blue-600 shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
+                  Deadline Overview (Calendar)
                 </button>
               </div>
 
@@ -1275,7 +1296,7 @@ export default function RevenueEngineProjects() {
                   </div>
                 </div>
               ) : (
-                /* Cross-Department Tasks Table */
+                /* Cross-Department Tasks Table with Expandable Daily Activity Logs */
                 <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
                   <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead className="bg-slate-50 text-slate-600 font-semibold">
@@ -1284,95 +1305,218 @@ export default function RevenueEngineProjects() {
                         <th className="px-4 py-3">Department / Cat</th>
                         <th className="px-4 py-3">Assignee</th>
                         <th className="px-4 py-3">Deadline</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3 text-right">Work Log</th>
+                        <th className="px-4 py-3">Current Status</th>
+                        <th className="px-4 py-3 text-right">Daily Logs / Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
-                      {projectTasks.map((t) => (
-                        <tr key={t.task_owners_id} className="hover:bg-slate-50 transition">
-                          <td className="px-4 py-3">
-                            <div className="font-semibold text-slate-900">{t.task_name}</div>
-                            {t.description && (
-                              <div className="text-[11px] text-slate-400 truncate max-w-xs">
-                                {t.description}
-                              </div>
-                            )}
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                              SF: {t.sf_task_id || `ID #${t.task_owners_id}`}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
-                              {t.category || t.assignee_department || "General"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            {t.assignee_name ? (
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className="font-medium text-slate-900 flex items-center">
-                                    <User className="w-3 h-3 mr-1 text-slate-400" />
-                                    {t.assignee_name}
-                                    {t.assigned_by_gm && (
-                                      <span className="ml-1.5 bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-300">
-                                        ⚡ GM
-                                      </span>
+                      {projectTasks.map((t) => {
+                        const isExpanded = Boolean(expandedTaskMap[t.task_owners_id]);
+                        const logs = t.work_logs || [];
+
+                        return (
+                          <React.Fragment key={t.task_owners_id}>
+                            <tr className={`hover:bg-slate-50 transition ${isExpanded ? "bg-slate-50/70" : ""}`}>
+                              <td className="px-4 py-3">
+                                <div className="flex items-start gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleTaskExpand(t.task_owners_id)}
+                                    title={isExpanded ? "Collapse daily logs" : "Expand daily logs"}
+                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-200 rounded transition mt-0.5"
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronDown className="w-4 h-4 text-blue-600" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                  <div>
+                                    <div className="font-semibold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                                      <span>{t.task_name}</span>
+                                      {logs.length > 0 && (
+                                        <span className="text-[10px] font-bold px-1.5 py-0.2 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+                                          {logs.length} {logs.length === 1 ? "log" : "logs"}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {t.description && (
+                                      <div className="text-[11px] text-slate-500 line-clamp-1 max-w-xs mt-0.5">
+                                        {t.description}
+                                      </div>
+                                    )}
+                                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                      SF: {t.sf_task_id || `ID #${t.task_owners_id}`}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                                  {t.category || t.assignee_department || "General"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                {t.assignee_name ? (
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-slate-900 flex items-center">
+                                        <User className="w-3 h-3 mr-1 text-slate-400" />
+                                        {t.assignee_name}
+                                        {t.assigned_by_gm && (
+                                          <span className="ml-1.5 bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-300">
+                                            ⚡ GM
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px] text-slate-400">
+                                        {t.assignee_role || t.assignee_department || "Staff"}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 ml-2">
+                                      <button
+                                        disabled
+                                        title="Task is already assigned to someone"
+                                        className="text-[10px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1 rounded cursor-not-allowed opacity-60"
+                                      >
+                                        Assign
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
+                                        className="text-[10px] font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition"
+                                      >
+                                        Reassign
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded text-[11px]">
+                                      Unassigned
+                                    </span>
+                                    <button
+                                      onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
+                                      className="ml-2 inline-flex items-center text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded shadow-xs transition"
+                                    >
+                                      <Zap className="w-3 h-3 mr-1" />
+                                      Assign
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 font-mono text-slate-600">
+                                {t.deadline || "None"}
+                              </td>
+                              <td className="px-4 py-3">
+                                <StatusBadge status={t.status} />
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleTaskExpand(t.task_owners_id)}
+                                    className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                                      isExpanded
+                                        ? "bg-blue-600 text-white shadow-xs"
+                                        : "text-blue-600 bg-blue-50 hover:bg-blue-100"
+                                    }`}
+                                  >
+                                    <FileText className="w-3.5 h-3.5 mr-1" />
+                                    {isExpanded ? "Hide Logs" : `Logs (${logs.length})`}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* ─── Expandable Daily Activity Logs Drilldown ─── */}
+                            {isExpanded && (
+                              <tr key={`expanded-${t.task_owners_id}`} className="bg-slate-50/80">
+                                <td colSpan="6" className="p-4 border-y border-slate-200">
+                                  <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs space-y-3">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                      <div className="flex items-center gap-2">
+                                        <FileText className="w-4 h-4 text-indigo-600" />
+                                        <span className="font-bold text-slate-800 text-xs">
+                                          Daily Activity Logs for: <span className="text-indigo-600">{t.task_name}</span>
+                                        </span>
+                                        <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">
+                                          {logs.length} {logs.length === 1 ? "entry" : "entries"}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenWorkLog(t)}
+                                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                        Detailed Modal View
+                                      </button>
+                                    </div>
+
+                                    {logs.length > 0 ? (
+                                      <div className="space-y-2.5">
+                                        {logs.map((log, lIdx) => (
+                                          <div
+                                            key={log.task_log_id || lIdx}
+                                            className="p-3 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col sm:flex-row sm:items-start justify-between gap-3 text-xs"
+                                          >
+                                            <div className="space-y-1.5 flex-1">
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-slate-900 flex items-center">
+                                                  <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                                                  {log.task_date || "N/A"}
+                                                </span>
+                                                <span className="text-slate-300">•</span>
+                                                <span className="font-medium text-slate-700 flex items-center">
+                                                  <User className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                                                  {log.employee_name || t.assignee_name || "Staff"}
+                                                </span>
+                                              </div>
+                                              <p className="text-slate-700 font-normal whitespace-pre-wrap">
+                                                {log.description}
+                                              </p>
+                                              {log.task_image && (
+                                                <div className="mt-2">
+                                                  <img
+                                                    src={
+                                                      log.task_image.startsWith("http")
+                                                        ? log.task_image
+                                                        : `${getApiBase()}/${log.task_image.replace(/^\/+/, "")}`
+                                                    }
+                                                    alt="Task attachment"
+                                                    className="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition"
+                                                    onClick={() =>
+                                                      setPreviewImage(
+                                                        log.task_image.startsWith("http")
+                                                          ? log.task_image
+                                                          : `${getApiBase()}/${log.task_image.replace(/^\/+/, "")}`
+                                                      )
+                                                    }
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="shrink-0 flex items-center gap-1.5 self-start bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                                              <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                                                Status on this date:
+                                              </span>
+                                              <StatusBadge status={log.entry_status} />
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="p-4 text-center text-slate-400 text-xs italic bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                                        No daily progress logged yet for this task.
+                                      </div>
                                     )}
                                   </div>
-                                  <div className="text-[11px] text-slate-400">
-                                    {t.assignee_role || t.assignee_department || "Staff"}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1.5 ml-2">
-                                  {/* Disabled Assign button because task is already assigned */}
-                                  <button
-                                    disabled
-                                    title="Task is already assigned to someone"
-                                    className="text-[10px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1 rounded cursor-not-allowed opacity-60"
-                                  >
-                                    Assign
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
-                                    className="text-[10px] font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded transition"
-                                  >
-                                    Reassign
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-between">
-                                <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded text-[11px]">
-                                  Unassigned
-                                </span>
-                                <button
-                                  onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
-                                  className="ml-2 inline-flex items-center text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded shadow-xs transition"
-                                >
-                                  <Zap className="w-3 h-3 mr-1" />
-                                  Assign
-                                </button>
-                              </div>
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-slate-600">
-                            {t.deadline || "None"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge status={t.status} />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => handleOpenWorkLog(t)}
-                              className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition"
-                            >
-                              <FileText className="w-3.5 h-3.5 mr-1" />
-                              Work Log
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

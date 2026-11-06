@@ -23,6 +23,8 @@ import {
   FaMapMarkerAlt,
   FaHistory,
   FaChevronDown,
+  FaClipboardList,
+  FaTimes,
 } from "react-icons/fa";
 import moment from "moment";
 import SundayApprovalModal from "../../components/SundayApprovalModal";
@@ -311,35 +313,61 @@ function UserHome() {
     }
   };
 
-  const handleSelectReTask = (e) => {
-    const selectedId = e.target.value;
-    if (!selectedId) {
-      setFormData((prev) => ({
-        ...prev,
-        task_owners_id: null,
-      }));
+  // ── Phase H: Dedicated RE Task Progress Logging ───────────────────────────
+  const [logProgressTask, setLogProgressTask] = useState(null);
+  const [progressDesc, setProgressDesc] = useState("");
+  const [progressStatus, setProgressStatus] = useState("pending");
+  const [savingProgress, setSavingProgress] = useState(false);
+
+  const handleOpenLogProgress = (task) => {
+    setLogProgressTask(task);
+    setProgressDesc("");
+    setProgressStatus(task.status || "pending");
+  };
+
+  const handleSaveProgress = async (e) => {
+    e.preventDefault();
+    if (!logProgressTask) return;
+    if (!progressDesc.trim()) {
+      toast.error("Please enter a description of the work done today");
       return;
     }
-    const selectedTask = myReTasks.find((t) => String(t.task_owners_id) === String(selectedId));
-    if (selectedTask) {
-      const combinedName = `${selectedTask.client_name} — ${selectedTask.task_name}`;
-      setIsOtherProject(false);
-      setSelectedProjects(selectedTask.client_name || "RE_Project");
-      setFormData((prev) => ({
-        ...prev,
-        task_owners_id: selectedTask.task_owners_id,
-        ProjectOrClientName: combinedName,
-      }));
 
-      if (categorys.length === 0) {
-        axios
-          .get(`${API_BASE}/api/category-list?projects_id=${encodeURIComponent(selectedTask.client_name || "")}`)
-          .then((res) => {
-            setAllCategory(res.data);
-            setCategory(res.data);
-          })
-          .catch(() => {});
+    try {
+      setSavingProgress(true);
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res = await axios.post(
+        `${API_BASE}/api/employee/re-task/${logProgressTask.task_owners_id}/log-progress`,
+        {
+          description: progressDesc.trim(),
+          status: progressStatus,
+        },
+        { headers }
+      );
+
+      if (res.data?.success) {
+        toast.success("Progress logged successfully!");
+        const updatedStatus = res.data.data?.task_owners_status || progressStatus;
+        setMyReTasks((prev) =>
+          prev.map((t) =>
+            t.task_owners_id === logProgressTask.task_owners_id ? { ...t, status: updatedStatus } : t
+          )
+        );
+        setLogProgressTask(null);
+        setProgressDesc("");
+        // Trigger background refresh of tasks & activity ledger
+        fetchMyReTasks();
+        if (typeof fetchTasks === "function") {
+          fetchTasks(date);
+        }
       }
+    } catch (err) {
+      console.error("Error logging progress:", err);
+      toast.error(err.response?.data?.message || "Failed to log progress");
+    } finally {
+      setSavingProgress(false);
     }
   };
   const [cameraFacing, setCameraFacing] = useState("environment");
@@ -1526,23 +1554,114 @@ function UserHome() {
                     </div>
 
                     <div className="pt-3 border-t border-slate-200/60 flex items-center justify-between gap-3">
-                      <label className="text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">
-                        Update Status:
-                      </label>
-                      <select
-                        value={t.status || "pending"}
-                        onChange={(e) => handleUpdateTaskStatus(t.task_owners_id, e.target.value)}
-                        className="bg-white border border-slate-200 text-xs font-bold text-slate-800 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Current:</span>
+                        <span className="text-xs font-bold text-slate-700 capitalize">
+                          {t.status ? t.status.replace("_", " ") : "pending"}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenLogProgress(t)}
+                        className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 px-3 rounded-xl shadow-xs transition"
                       >
-                        <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="review">Review</option>
-                        <option value="completed">Completed</option>
-                      </select>
+                        <FaClipboardList className="w-3 h-3" />
+                        Log Progress
+                      </button>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* ─── PHASE H: Dedicated RE Task Log Progress Modal ─── */}
+        {logProgressTask && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+              {/* Header */}
+              <div className="p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-start justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                    {logProgressTask.client_name}
+                  </span>
+                  <h3 className="text-base font-bold text-white mt-0.5">
+                    Log Progress: {logProgressTask.task_name}
+                  </h3>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                    <span>Category: {logProgressTask.category || "General"}</span>
+                    {logProgressTask.deadline && (
+                      <>
+                        <span>•</span>
+                        <span>Due: {logProgressTask.deadline}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLogProgressTask(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg transition"
+                >
+                  <FaTimes className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSaveProgress} className="p-6 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">
+                    What work was done on this task today? <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={progressDesc}
+                    onChange={(e) => setProgressDesc(e.target.value)}
+                    placeholder="Describe what you worked on today for this task..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">
+                    Task Status <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={progressStatus}
+                    onChange={(e) => setProgressStatus(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">Review</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                  <p className="text-[11px] text-slate-400">
+                    Pre-filled with task's current status. Submitting records an immutable progress snapshot with this status and updates the task.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLogProgressTask(null)}
+                    disabled={savingProgress}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingProgress}
+                    className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition"
+                  >
+                    {savingProgress ? "Saving..." : "Submit Progress"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -1723,38 +1842,6 @@ function UserHome() {
                   onSubmit={!isUpdate ? handleSubmit : updateTask}
                   className="grid grid-cols-1 md:grid-cols-2 gap-5"
                 >
-                  {/* Optional: Log work against an assigned RE task */}
-                  {myReTasks && myReTasks.length > 0 && (
-                    <div className="md:col-span-2 p-3.5 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-indigo-700">
-                          Log work against an assigned RE task (Optional)
-                        </label>
-                        {formData.task_owners_id && (
-                          <span className="text-[9px] font-black uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">
-                            RE Linked #{formData.task_owners_id}
-                          </span>
-                        )}
-                      </div>
-                      <select
-                        value={formData.task_owners_id || ""}
-                        onChange={handleSelectReTask}
-                        className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none"
-                      >
-                        <option value="">-- None (Standard Project / Custom Work) --</option>
-                        {myReTasks.map((t) => (
-                          <option key={t.task_owners_id} value={t.task_owners_id}>
-                            {t.client_name} — {t.task_name} ({t.status || "pending"})
-                          </option>
-                        ))}
-                      </select>
-                      <input type="hidden" name="task_owners_id" value={formData.task_owners_id || ""} />
-                      <p className="text-[10px] text-indigo-600/70 font-medium">
-                        Selecting an RE task auto-fills Project/Client Name. Category & Process Pillar remain freely selectable below.
-                      </p>
-                    </div>
-                  )}
-
                   <div className="space-y-1.5 focus-within:text-indigo-600 transition-colors">
                     <label className="text-[10px] font-black uppercase tracking-widest ml-1">
                       Project/Client

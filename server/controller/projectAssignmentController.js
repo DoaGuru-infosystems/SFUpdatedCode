@@ -290,7 +290,7 @@ const assignProjectOwner = (req, res) => {
         const insertPoSql = `
           INSERT INTO project_owners (project_id, employee_id, assigned_by, status)
           VALUES (?, ?, ?, 'active')
-          ON DUPLICATE KEY UPDATE status = 'active', assigned_by = VALUES(assigned_by)
+          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), status = 'active', assigned_by = VALUES(assigned_by)
         `;
 
         db.query(insertPoSql, [project_id, employee_id, user.id], (insErr, insResult) => {
@@ -308,10 +308,12 @@ const assignProjectOwner = (req, res) => {
             tlUserId: user.id,
           }).catch((wErr) => console.error("[Assign PO] WhatsApp dispatch error:", wErr.message));
 
+          const finalPoId = (insResult && insResult.insertId) ? insResult.insertId : (existingRows[0] ? existingRows[0].id : 0);
+
           return res.status(200).json({
             success: true,
             message: "Project Owner assigned",
-            data: { id: insResult.insertId },
+            data: { id: finalPoId },
           });
         });
       });
@@ -1505,40 +1507,88 @@ const getAdminReProjectTasks = (req, res) => {
               ? (typeof proj.end_date === "string" ? proj.end_date.substring(0, 10) : new Date(proj.end_date).toISOString().split("T")[0])
               : null;
 
-            const formattedTasks = taskRows.map((t) => ({
-              task_owners_id     : t.task_owners_id,
-              sf_task_id         : t.sf_task_id,
-              task_name          : t.task_name,
-              category           : t.category,
-              description        : t.description,
-              quantity           : t.quantity,
-              status             : t.status,
-              deadline           : t.deadline
-                ? (typeof t.deadline === "string" ? t.deadline.substring(0, 10) : new Date(t.deadline).toISOString().split("T")[0])
-                : null,
-              employee_id        : t.employee_id,
-              assigned_by_gm     : Boolean(t.assigned_by_gm === 1),
-              assigned_by_name   : t.assigned_by_name || null,
-              assignee_name      : t.assignee_name || null,
-              assignee_role      : t.assignee_role || null,
-              assignee_department: t.assignee_department || null,
-            }));
+            const taskIds = taskRows.map((t) => t.task_owners_id).filter(Boolean);
 
-            return res.status(200).json({
-              success: true,
-              data: {
-                project_id         : Number(proj.project_id),
-                re_proforma_id     : proj.re_proforma_id,
-                re_proforma_number : proj.re_proforma_number || null,
-                client_name        : proj.client_name,
-                start_date         : sDate,
-                end_date           : eDate,
-                current_status     : currentStatus,
-                is_active          : Boolean(proj.is_active !== 0),
-                project_owner      : activePo,
-                assigned_departments: assignedDepts,
-                tasks              : formattedTasks,
-              },
+            const sendTasksResponse = (workLogsGrouped = {}) => {
+              const formattedTasks = taskRows.map((t) => ({
+                task_owners_id     : t.task_owners_id,
+                sf_task_id         : t.sf_task_id,
+                task_name          : t.task_name,
+                category           : t.category,
+                description        : t.description,
+                quantity           : t.quantity,
+                status             : t.status,
+                deadline           : t.deadline
+                  ? (typeof t.deadline === "string" ? t.deadline.substring(0, 10) : new Date(t.deadline).toISOString().split("T")[0])
+                  : null,
+                employee_id        : t.employee_id,
+                assigned_by_gm     : Boolean(t.assigned_by_gm === 1),
+                assigned_by_name   : t.assigned_by_name || null,
+                assignee_name      : t.assignee_name || null,
+                assignee_role      : t.assignee_role || null,
+                assignee_department: t.assignee_department || null,
+                work_logs          : workLogsGrouped[t.task_owners_id] || [],
+              }));
+
+              return res.status(200).json({
+                success: true,
+                data: {
+                  project_id         : Number(proj.project_id),
+                  re_proforma_id     : proj.re_proforma_id,
+                  re_proforma_number : proj.re_proforma_number || null,
+                  client_name        : proj.client_name,
+                  start_date         : sDate,
+                  end_date           : eDate,
+                  current_status     : currentStatus,
+                  is_active          : Boolean(proj.is_active !== 0),
+                  project_owner      : activePo,
+                  assigned_departments: assignedDepts,
+                  tasks              : formattedTasks,
+                },
+              });
+            };
+
+            if (taskIds.length === 0) {
+              return sendTasksResponse({});
+            }
+
+            const batchLogsSql = `
+              SELECT 
+                t.id AS task_log_id,
+                t.task_owners_id,
+                t.user_id AS employee_id,
+                t.name AS employee_name,
+                t.entry_status,
+                t.TaskDescription AS description,
+                t.task_image,
+                t.ConsumingTimeInMin AS consuming_time_min,
+                t.task_date
+              FROM tasks t
+              WHERE t.task_owners_id IN (?)
+              ORDER BY t.task_date ASC, t.id ASC
+            `;
+
+            db.query(batchLogsSql, [taskIds], (blErr, blRows) => {
+              const grouped = {};
+              if (!blErr && Array.isArray(blRows)) {
+                blRows.forEach((r) => {
+                  if (!grouped[r.task_owners_id]) grouped[r.task_owners_id] = [];
+                  grouped[r.task_owners_id].push({
+                    task_log_id       : r.task_log_id,
+                    task_owners_id    : r.task_owners_id,
+                    employee_id       : r.employee_id,
+                    employee_name     : r.employee_name,
+                    entry_status      : r.entry_status || "pending",
+                    description       : r.description,
+                    task_image        : r.task_image,
+                    consuming_time_min: r.consuming_time_min,
+                    task_date         : r.task_date
+                      ? (typeof r.task_date === "string" ? r.task_date.substring(0, 10) : new Date(r.task_date).toISOString().split("T")[0])
+                      : null,
+                  });
+                });
+              }
+              return sendTasksResponse(grouped);
             });
           });
         });
@@ -1566,6 +1616,7 @@ const getAdminReTaskWorkLog = (req, res) => {
       t.task_owners_id,
       t.user_id,
       t.name AS employee_name,
+      t.entry_status,
       t.ProjectOrClientName,
       t.Category,
       t.SubCategory,
@@ -1575,8 +1626,11 @@ const getAdminReTaskWorkLog = (req, res) => {
       t.postCount,
       t.videoCount,
       t.shootCount,
-      t.task_date
+      t.task_date,
+      to_tab.re_item_name AS task_name,
+      to_tab.status AS current_task_status
     FROM tasks t
+    LEFT JOIN task_owners to_tab ON to_tab.id = t.task_owners_id
     WHERE t.task_owners_id = ?
     ORDER BY t.task_date ASC, t.id ASC
   `;
@@ -1592,6 +1646,9 @@ const getAdminReTaskWorkLog = (req, res) => {
       task_owners_id    : r.task_owners_id,
       user_id           : r.user_id,
       employee_name     : r.employee_name,
+      task_name         : r.task_name || r.SubCategory,
+      entry_status      : r.entry_status || r.current_task_status || "pending",
+      current_task_status: r.current_task_status,
       project_name      : r.ProjectOrClientName,
       category          : r.Category,
       sub_category      : r.SubCategory,
@@ -1766,7 +1823,7 @@ const directAssignProjectOwner = (req, res) => {
       const insertPoSql = `
         INSERT INTO project_owners (project_id, employee_id, assigned_by, assigned_by_gm, status)
         VALUES (?, ?, ?, 1, 'active')
-        ON DUPLICATE KEY UPDATE status = 'active', assigned_by = VALUES(assigned_by), assigned_by_gm = 1
+        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), status = 'active', assigned_by = VALUES(assigned_by), assigned_by_gm = 1
       `;
 
       db.query(insertPoSql, [projectId, employee_id, user.id], (insErr, insResult) => {
@@ -1775,33 +1832,50 @@ const directAssignProjectOwner = (req, res) => {
           return res.status(500).json({ success: false, message: "Database error", error: insErr.message });
         }
 
-        console.log(`[Direct Assign PO] ✅ Employee ${employee_id} directly assigned as PO for project ${projectId} by GM/MD ${user.id}`);
+        const sendDirectPoResponse = (realId) => {
+          console.log(`[Direct Assign PO] ✅ Employee ${employee_id} directly assigned as PO (id: ${realId}) for project ${projectId} by GM/MD ${user.id}`);
 
-        // Notify PO via WhatsApp
-        notifyProjectOwnerAssigned({
-          projectId: Number(projectId),
-          employeeId: Number(employee_id),
-          tlUserId: user.id,
-        }).catch((wErr) => console.error("[Direct Assign PO] WhatsApp error:", wErr.message));
+          // Notify PO via WhatsApp
+          notifyProjectOwnerAssigned({
+            projectId: Number(projectId),
+            employeeId: Number(employee_id),
+            tlUserId: user.id,
+          }).catch((wErr) => console.error("[Direct Assign PO] WhatsApp error:", wErr.message));
 
-        const io = socketUtil.getIO();
-        if (io) {
-          io.to("admin_room").emit("re:po_assigned", {
-            project_id: Number(projectId),
-            employee_id: Number(employee_id),
-            assigned_by_gm: true,
+          const io = socketUtil.getIO();
+          if (io) {
+            io.to("admin_room").emit("re:po_assigned", {
+              project_id: Number(projectId),
+              employee_id: Number(employee_id),
+              assigned_by_gm: true,
+            });
+          }
+
+          return res.status(200).json({
+            success: true,
+            message: "Project Owner directly assigned by GM/MD",
+            data: {
+              id: Number(realId),
+              project_id: Number(projectId),
+              employee_id: Number(employee_id),
+            },
           });
+        };
+
+        const resolvedId = insResult && insResult.insertId ? insResult.insertId : null;
+        if (resolvedId) {
+          return sendDirectPoResponse(resolvedId);
         }
 
-        return res.status(200).json({
-          success: true,
-          message: "Project Owner directly assigned by GM/MD",
-          data: {
-            project_id: Number(projectId),
-            employee_id: Number(employee_id),
-            id: insResult.insertId,
-          },
-        });
+        // Fallback: If insertId is 0 or falsy, fetch the matching row's auto-increment id from DB
+        db.query(
+          "SELECT id FROM project_owners WHERE project_id = ? AND employee_id = ? ORDER BY id DESC LIMIT 1",
+          [projectId, employee_id],
+          (selErr, selRows) => {
+            const finalId = (!selErr && selRows && selRows.length > 0) ? selRows[0].id : 0;
+            return sendDirectPoResponse(finalId);
+          }
+        );
       });
     });
   });
@@ -1892,6 +1966,156 @@ const directAssignTaskOwner = (req, res) => {
   });
 };
 
+// ── PHASE H: Employee Progress Logging for RE Task ───────────────────────────
+// POST /api/employee/re-task/:task_owners_id/log-progress
+const logReTaskProgress = (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) {
+    return res.status(401).json({ success: false, message: "Unauthorized: Missing or invalid token" });
+  }
+
+  const { task_owners_id } = req.params;
+  const { description, status } = req.body;
+
+  if (!description || typeof description !== "string" || !description.trim()) {
+    return res.status(400).json({ success: false, message: "Task description is required" });
+  }
+
+  const validStatuses = ["pending", "in_progress", "review", "completed"];
+
+  // 1. Fetch task details & project context
+  const getTaskSql = `
+    SELECT 
+      t.id AS task_owners_id,
+      t.project_id,
+      t.employee_id,
+      t.re_item_name,
+      t.category,
+      t.status AS current_status,
+      p.name AS project_name,
+      rsp.client_name,
+      u.full_name AS employee_name
+    FROM task_owners t
+    LEFT JOIN projects p ON p.id = t.project_id
+    LEFT JOIN re_synced_projects rsp ON rsp.project_id = t.project_id
+    LEFT JOIN task_users u ON u.id = t.employee_id
+    WHERE t.id = ?
+  `;
+
+  db.query(getTaskSql, [task_owners_id], (tErr, tRows) => {
+    if (tErr) {
+      console.error("[Log Progress] Error fetching task context:", tErr.message);
+      return res.status(500).json({ success: false, message: "Database error", error: tErr.message });
+    }
+
+    if (tRows.length === 0) {
+      return res.status(404).json({ success: false, message: "RE task not found" });
+    }
+
+    const taskRow = tRows[0];
+    const isOwner = String(taskRow.employee_id) === String(user.id);
+    const isAdminOrGm = isCallerAdminOrGm(user);
+
+    if (!isOwner && !isAdminOrGm) {
+      return res.status(403).json({ success: false, message: "Forbidden: You are not assigned to this task" });
+    }
+
+    // Determine the immutable status snapshot for this log entry
+    let statusSnapshot = taskRow.current_status || "pending";
+    if (status && validStatuses.includes(status)) {
+      statusSnapshot = status;
+    }
+
+    const todayDate = moment().tz("Asia/Kolkata").format("YYYY-MM-DD");
+    const employeeName = user.full_name || user.name || taskRow.employee_name || "Employee";
+    const clientName = taskRow.client_name || taskRow.project_name || `RE Project #${taskRow.project_id}`;
+    const categoryName = taskRow.category || "General";
+    const subCategoryName = taskRow.re_item_name || taskRow.category || "General";
+
+    // 2. Insert ONE NEW ROW into tasks table (immutable snapshot)
+    const insertTaskSql = `
+      INSERT INTO tasks (
+        user_id,
+        task_owners_id,
+        entry_status,
+        name,
+        ProjectOrClientName,
+        Category,
+        SubCategory,
+        TaskDescription,
+        postCount,
+        videoCount,
+        ConsumingTimeInMin,
+        TotalConsumingTime,
+        task_date,
+        shootCount
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '0', '0', 0, 0, ?, 0)
+    `;
+
+    const insertParams = [
+      user.id,
+      task_owners_id,
+      statusSnapshot,
+      employeeName,
+      clientName,
+      categoryName,
+      subCategoryName,
+      description.trim(),
+      todayDate,
+    ];
+
+    db.query(insertTaskSql, insertParams, (insErr, insResult) => {
+      if (insErr) {
+        console.error("[Log Progress] Error inserting into tasks:", insErr.message);
+        return res.status(500).json({ success: false, message: "Failed to record task progress", error: insErr.message });
+      }
+
+      const newLogId = insResult.insertId;
+      console.log(`[Log Progress] ✅ Progress logged for task #${task_owners_id} (log #${newLogId}, status: ${statusSnapshot}) by user ${user.id}`);
+
+      // 3. SEPARATELY update task_owners.status to match whatever status was just submitted
+      const updateTaskOwnerSql = "UPDATE task_owners SET status = ? WHERE id = ?";
+      db.query(updateTaskOwnerSql, [statusSnapshot, task_owners_id], (updErr) => {
+        if (updErr) {
+          console.error("[Log Progress] Warning: Failed to update task_owners.status:", updErr.message);
+        } else {
+          console.log(`[Log Progress] ✅ task_owners #${task_owners_id} status updated to '${statusSnapshot}'`);
+        }
+
+        // Outbound RE Webhook sync
+        sendStatusUpdateToRE(taskRow.project_id, user.id).catch((e) =>
+          console.error("[Log Progress] RE sync error:", e.message)
+        );
+
+        // Socket.io emit
+        const io = socketUtil.getIO();
+        if (io) {
+          io.to("admin_room").emit("re:task_status_changed", {
+            task_owners_id: Number(task_owners_id),
+            status: statusSnapshot,
+            project_id: Number(taskRow.project_id),
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Progress logged successfully",
+          data: {
+            task_log_id: newLogId,
+            task_owners_id: Number(task_owners_id),
+            entry_status: statusSnapshot,
+            task_owners_status: statusSnapshot,
+            description: description.trim(),
+            task_date: todayDate,
+            employee_name: employeeName,
+            task_name: taskRow.re_item_name,
+          },
+        });
+      });
+    });
+  });
+};
+
 module.exports = {
   getLeaderReProjects,
   assignProjectOwner,
@@ -1912,5 +2136,6 @@ module.exports = {
   assignProjectDepartments,
   directAssignProjectOwner,
   directAssignTaskOwner,
+  logReTaskProgress,
 };
 

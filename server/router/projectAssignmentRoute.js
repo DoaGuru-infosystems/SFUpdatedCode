@@ -24,6 +24,7 @@ const {
   assignProjectDepartments,
   directAssignProjectOwner,
   directAssignTaskOwner,
+  logReTaskProgress,
 } = require("../controller/projectAssignmentController");
 
 // Team Lead routes (Phase 3 & Phase 5)
@@ -37,9 +38,10 @@ router.get("/api/employee/owned-projects", getEmployeeOwnedProjects);
 router.post("/api/employee/assign-task-owner", assignTaskOwner);
 router.post("/api/employee/reassign-task", reassignTaskOwner);
 
-// Employee Assigned Tasks routes (Phase 4)
+// Employee Assigned Tasks routes (Phase 4 & Phase H)
 router.get("/api/employee/my-re-tasks", getMyReTasks);
 router.patch("/api/employee/task-status/:task_owners_id", updateTaskStatus);
+router.post("/api/employee/re-task/:task_owners_id/log-progress", logReTaskProgress);
 
 // Admin / GM routes (Phase 6 & Phase 7)
 router.post("/api/admin/re-project/:project_id/mark-inactive", markProjectInactive);

@@ -101,10 +101,6 @@ const ProtectedRoute = () => {
 const Commonjs = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [render, setRender] = useState(false);
-  const [page, setPage] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-
   const getLoggedInUser = () => {
     try {
       const userStr = localStorage.getItem("user");
@@ -114,6 +110,17 @@ const Commonjs = () => {
     }
   };
   const currentUser = getLoggedInUser();
+
+  const [render, setRender] = useState(false);
+  const [page, setPage] = useState(() => {
+    const path = window.location.pathname;
+    if (path.includes("sales")) return "sales";
+    if (path.includes("task")) return "task";
+    return null;
+  });
+  const [userRole, setUserRole] = useState(() => {
+    return currentUser ? currentUser.role : null;
+  });
   const isLettersAuthorized = currentUser && (
     currentUser.role === "admin" ||
     currentUser.role === "gm" ||
@@ -159,7 +166,7 @@ const Commonjs = () => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (user) {
       setUserRole(user.role);
-      if (path === "/") {
+      if (path === "/" || path === "/task/login") {
         if (user.role === "admin" || user.role === "gm") {
           navigate("/task/Admin-Home-page");
         } else if (user.role === "team_lead") {
@@ -301,7 +308,7 @@ const Commonjs = () => {
         <Route
           path="/task/re-projects"
           element={
-            userRole === "admin" || userRole === "gm" ? (
+            (userRole === "admin" || userRole === "gm" || currentUser?.role === "admin" || currentUser?.role === "gm") ? (
               <RevenueEngineProjects />
             ) : (
               <Navigate to="/task/login" />
@@ -311,7 +318,7 @@ const Commonjs = () => {
         <Route
           path="/task/departments"
           element={
-            userRole === "admin" || userRole === "gm" ? (
+            (userRole === "admin" || userRole === "gm" || currentUser?.role === "admin" || currentUser?.role === "gm") ? (
               <DepartmentsPage />
             ) : (
               <Navigate to="/task/login" />
