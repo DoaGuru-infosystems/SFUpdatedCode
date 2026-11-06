@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import moment from "moment";
 import { Calendar, momentLocalizer } from "react-big-calendar";
@@ -1149,7 +1150,10 @@ export default function RevenueEngineProjects() {
 
       {/* ─── MODAL 2: FULL PER-PROJECT DRILLDOWN ─── */}
       {selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4 overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4 overflow-y-auto"
+          style={{ zIndex: 50 }}
+        >
           <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             {/* Modal Header */}
             <div className="p-6 bg-slate-900 text-white flex items-start justify-between">
@@ -1537,29 +1541,37 @@ export default function RevenueEngineProjects() {
       )}
 
       {/* ─── MODAL 3: WORK LOG DRILLDOWN ─── */}
-      {selectedTask && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
-            {/* Header */}
-            <div className="p-5 bg-slate-900 text-white flex items-start justify-between">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-lg font-bold">{selectedTask.task_name}</h3>
-                  <StatusBadge status={selectedTask.status} />
+      {selectedTask &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/60 p-4"
+            style={{ zIndex: 60 }}
+            onClick={() => setSelectedTask(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-5 bg-slate-900 text-white flex items-start justify-between">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-bold">{selectedTask.task_name}</h3>
+                    <StatusBadge status={selectedTask.status} />
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center space-x-2">
+                    <span>Assignee: {selectedTask.assignee_name || "Unassigned"}</span>
+                    <span>•</span>
+                    <span>Deadline: {selectedTask.deadline || "N/A"}</span>
+                  </div>
                 </div>
-                <div className="text-xs text-slate-400 mt-1 flex items-center space-x-2">
-                  <span>Assignee: {selectedTask.assignee_name || "Unassigned"}</span>
-                  <span>•</span>
-                  <span>Deadline: {selectedTask.deadline || "N/A"}</span>
-                </div>
+                <button
+                  onClick={() => setSelectedTask(null)}
+                  className="text-slate-400 hover:text-white p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedTask(null)}
-                className="text-slate-400 hover:text-white p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
             {/* Work Log Body */}
             <div className="p-6 overflow-y-auto flex-1 space-y-4">
@@ -1683,13 +1695,22 @@ export default function RevenueEngineProjects() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── MODAL 5: ASSIGN DEPARTMENTS (GM/MD) ─── */}
-      {deptModalProject && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      {deptModalProject &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+            style={{ zIndex: 60 }}
+            onClick={() => setDeptModalProject(null)}
+          >
+            <div
+              className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base text-slate-900 flex items-center">
@@ -1757,188 +1778,210 @@ export default function RevenueEngineProjects() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── MODAL 6: DIRECT ASSIGN PROJECT OWNER (GM/MD) ─── */}
-      {poModalProject && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 flex items-center">
-                  <UserPlus className="w-4 h-4 mr-2 text-blue-600" />
-                  Direct Assign Project Owner (PO)
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">{poModalProject.client_name}</p>
-              </div>
-              <button
-                onClick={() => setPoModalProject(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <p className="text-xs text-slate-600">
-                As GM/MD, you can directly assign an employee from <strong>any department</strong> to be the Project Owner (PO), bypassing TL bottlenecks.
-              </p>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Select Employee:
-                </label>
-                <select
-                  value={selectedPoEmpId}
-                  onChange={(e) => setSelectedPoEmpId(e.target.value)}
-                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      {poModalProject &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+            style={{ zIndex: 60 }}
+            onClick={() => setPoModalProject(null)}
+          >
+            <div
+              className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 flex items-center">
+                    <UserPlus className="w-4 h-4 mr-2 text-blue-600" />
+                    Direct Assign Project Owner (PO)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{poModalProject.client_name}</p>
+                </div>
+                <button
+                  onClick={() => setPoModalProject(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
                 >
-                  <option value="">-- Select Active Employee --</option>
-                  {availableEmployees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.full_name} ({emp.department || "No Dept"} • {emp.designation || emp.role})
-                    </option>
-                  ))}
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <p className="text-xs text-slate-600">
+                  As GM/MD, you can directly assign an employee from <strong>any department</strong> to be the Project Owner (PO), bypassing TL bottlenecks.
+                </p>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Select Employee:
+                  </label>
+                  <select
+                    value={selectedPoEmpId}
+                    onChange={(e) => setSelectedPoEmpId(e.target.value)}
+                    className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select Active Employee --</option>
+                    {availableEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name} ({emp.department || "No Dept"} • {emp.designation || emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  onClick={() => setPoModalProject(null)}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSavePo}
+                  disabled={savingPo || !selectedPoEmpId}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
+                >
+                  {savingPo ? "Assigning..." : "Assign as PO"}
+                </button>
               </div>
             </div>
-
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
-              <button
-                onClick={() => setPoModalProject(null)}
-                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSavePo}
-                disabled={savingPo || !selectedPoEmpId}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
-              >
-                {savingPo ? "Assigning..." : "Assign as PO"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* ─── MODAL 7: DIRECT ASSIGN / REASSIGN TASK OWNER (GM/MD) ─── */}
-      {taskModalTask && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 flex items-center">
-                  <Zap className="w-4 h-4 mr-2 text-amber-500" />
-                  Direct Assign Task Owner
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">{taskModalTask.task_name}</p>
+      {taskModalTask &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+            style={{ zIndex: 60 }}
+            onClick={() => setTaskModalTask(null)}
+          >
+            <div
+              className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 flex items-center">
+                    <Zap className="w-4 h-4 mr-2 text-amber-500" />
+                    Direct Assign Task Owner
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{taskModalTask.task_name}</p>
+                </div>
+                <button
+                  onClick={() => setTaskModalTask(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
+
+              <div className="p-5 space-y-4">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Category:</span>
+                    <span className="font-semibold text-slate-700">{taskModalTask.category || "General"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Current Assignee:</span>
+                    <span className="font-semibold text-slate-700">{taskModalTask.assignee_name || "Unassigned"}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Assign To (Any Department):
+                  </label>
+                  <select
+                    value={selectedTaskEmpId}
+                    onChange={(e) => setSelectedTaskEmpId(e.target.value)}
+                    className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select Active Employee --</option>
+                    {availableEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name} ({emp.department || "No Dept"} • {emp.designation || emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Task Deadline:
+                  </label>
+                  <input
+                    type="date"
+                    value={taskDeadline}
+                    onChange={(e) => setTaskDeadline(e.target.value)}
+                    className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Task Description / Instructions:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={taskDescription}
+                    onChange={(e) => setTaskDescription(e.target.value)}
+                    placeholder="Enter task guidelines, scope or notes..."
+                    className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  onClick={() => setTaskModalTask(null)}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTask}
+                  disabled={savingTask || !selectedTaskEmpId}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
+                >
+                  {savingTask ? "Saving..." : "Save Assignment"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ─── MODAL 4: FULLSCREEN IMAGE PREVIEW ─── */}
+      {previewImage &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/80 p-4"
+            style={{ zIndex: 70 }}
+            onClick={() => setPreviewImage(null)}
+          >
+            <div className="relative max-w-4xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <button
-                onClick={() => setTaskModalTask(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black transition"
               >
                 <X className="w-5 h-5" />
               </button>
+              <img
+                src={previewImage}
+                alt="Full preview"
+                className="max-h-[85vh] w-auto rounded-lg shadow-2xl object-contain"
+              />
             </div>
-
-            <div className="p-5 space-y-4">
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Category:</span>
-                  <span className="font-semibold text-slate-700">{taskModalTask.category || "General"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Current Assignee:</span>
-                  <span className="font-semibold text-slate-700">{taskModalTask.assignee_name || "Unassigned"}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Assign To (Any Department):
-                </label>
-                <select
-                  value={selectedTaskEmpId}
-                  onChange={(e) => setSelectedTaskEmpId(e.target.value)}
-                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Select Active Employee --</option>
-                  {availableEmployees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.full_name} ({emp.department || "No Dept"} • {emp.designation || emp.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Task Deadline:
-                </label>
-                <input
-                  type="date"
-                  value={taskDeadline}
-                  onChange={(e) => setTaskDeadline(e.target.value)}
-                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Task Description / Instructions:
-                </label>
-                <textarea
-                  rows={3}
-                  value={taskDescription}
-                  onChange={(e) => setTaskDescription(e.target.value)}
-                  placeholder="Enter task guidelines, scope or notes..."
-                  className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
-              <button
-                onClick={() => setTaskModalTask(null)}
-                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveTask}
-                disabled={savingTask || !selectedTaskEmpId}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
-              >
-                {savingTask ? "Saving..." : "Save Assignment"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL 4: FULLSCREEN IMAGE PREVIEW ─── */}
-      {previewImage && (
-        <div
-          className="fixed inset-0 z-70 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black transition"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <img
-              src={previewImage}
-              alt="Full preview"
-              className="max-h-[85vh] w-auto rounded-lg shadow-2xl object-contain"
-            />
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

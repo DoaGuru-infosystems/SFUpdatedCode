@@ -111,15 +111,15 @@ const TaskReportDownload = () => {
 
   useEffect(() => {
     axios
-      .get(window.API_BASE + "/api/users")
+      .get(API_BASE + "/api/users")
       .then((response) => setUsers(response.data))
       .catch((error) => console.error("Error fetching users:", error));
-  }, []);
+  }, [API_BASE]);
 
   useEffect(() => {
     if (selectedUserId) {
       setIsLoading(true);
-      let url = `${window.API_BASE}/api/getUserTasks/${selectedUserId}`;
+      let url = `${API_BASE}/api/getUserTasks/${selectedUserId}`;
       const params = new URLSearchParams();
       if (month) params.append("month", month);
       if (year) params.append("year", year);
@@ -136,18 +136,18 @@ const TaskReportDownload = () => {
         .catch((error) => console.error("Error fetching tasks:", error))
         .finally(() => setIsLoading(false));
     }
-  }, [selectedUserId, month, year, dateRange]);
+  }, [selectedUserId, month, year, dateRange, API_BASE]);
 
   const graphicsTasksRaw = useMemo(() => {
     return tasks
       .filter(task => ["Other Graphic Design", "POST Create ", "Video Edittor"].includes(task.SubCategory))
-      .slice().reverse();
+      .slice();
   }, [tasks]);
 
   const commonTasksRaw = useMemo(() => {
     return tasks
       .filter(task => !["Other Graphic Design", "POST Create ", "Video Edittor"].includes(task.SubCategory))
-      .slice().reverse();
+      .slice();
   }, [tasks]);
 
   const graphicsPaginated = graphicsTasksRaw.slice((graphicsPage - 1) * rowsPerPage, graphicsPage * rowsPerPage);
@@ -191,7 +191,7 @@ const TaskReportDownload = () => {
 
   const handleDownload = () => {
     if (!selectedUserId) return alert('Select a user first');
-    let downloadUrl = `${window.API_BASE}/api/downloadUserTasks/${selectedUserId}`;
+    let downloadUrl = `${API_BASE}/api/downloadUserTasks/${selectedUserId}`;
     const params = new URLSearchParams();
     if (month) params.append("month", month);
     if (year) params.append("year", year);
@@ -217,7 +217,7 @@ const TaskReportDownload = () => {
 
   const currentFormattedDate = moment().tz("Asia/Kolkata").format("DD-MM-YYYY");
   useEffect(() => {
-    axios.get(`${window.API_BASE}/api/checkNoTaskEmployee/${currentFormattedDate}`)
+    axios.get(`${API_BASE}/api/checkNoTaskEmployee/${currentFormattedDate}`)
       .then(res => setDefaulter(res.data))
       .catch(e => console.log(e));
   }, []);

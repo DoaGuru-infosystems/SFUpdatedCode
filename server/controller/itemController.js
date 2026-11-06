@@ -1283,14 +1283,15 @@ const getUserTasks = (req, res) => {
   const { userId } = req.params;
   const { month, startDate, endDate, year } = req.query; // Add month and year to the query parameters
 
+  const isAll = String(userId).toLowerCase() === "all";
   let query = `
     SELECT *
     FROM tasks
-    WHERE user_id = ?
+    WHERE ${isAll ? "1=1" : "user_id = ?"}
   `;
 
   // Filter by month if provided
-  const queryParams = [userId];
+  const queryParams = isAll ? [] : [userId];
   if (month) {
     query += ` AND MONTH(task_date) = ?`;
     queryParams.push(month);
@@ -1305,6 +1306,8 @@ const getUserTasks = (req, res) => {
     query += ` AND task_date BETWEEN ? AND ?`;
     queryParams.push(startDate, endDate);
   }
+
+  query += ` ORDER BY task_date DESC, id DESC`;
 
   db.query(query, queryParams, (err, results) => {
     if (err) {
