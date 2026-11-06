@@ -61,24 +61,11 @@ const buildNavigation = (userObj, profileObj) => {
     // 1. Direct top-level button for Leader Dashboard & RE Projects
     items.push({
       name: "⚡ RE Projects (TL)",
-      href: "/task/TeamLeaderDashboard",
+      href: "/task/TeamLeaderDashboard?tab=re_projects",
       highlight: true,
     });
 
-    // 2. Team Lead Actions Dropdown
-    items.push({
-      name: "Lead Actions",
-      children: [
-        { name: "⚡ RE Projects (New from RE)", href: "/task/TeamLeaderDashboard?tab=dashboard" },
-        { name: "📊 Team Overview & Stats", href: "/task/TeamLeaderDashboard?tab=dashboard" },
-        { name: "📋 Team Tasks", href: "/task/TeamLeaderDashboard?tab=team_tasks" },
-        { name: "👥 Team Members", href: "/task/TeamLeaderDashboard?tab=team" },
-        { name: "➕ Assign Task", href: "/task/TeamLeaderDashboard?tab=assign" },
-        { name: "📌 Assigned Tasks", href: "/task/TeamLeaderDashboard?tab=assigned_tasks" },
-      ],
-    });
-
-    // 3. Personal Work
+    // 2. Personal Work
     items.push({ name: "My Work", href: "/task/UserHome" });
   } else {
     items.push({ name: "Dashboard", href: "/task/UserHome" });

@@ -418,18 +418,22 @@ const LeaderDashboard = () => {
     return [...devs, ...tgts];
   }, [assignedTasks]);
 
-  // Calculations for Stats (Overview Page)
+  // Calculations for Stats (Overview Page - accurately categorizes status buckets)
   const stats = useMemo(() => {
     let myTasks = 0;
     let completed = 0;
     let inProgress = 0;
+    let pending = 0;
 
     allAssignedTasks.forEach((t) => {
       if (String(t.userId) === String(leader?.id)) myTasks++;
-      if (t.normalizedStatus.toLowerCase() === "completed" || t.normalizedStatus.toLowerCase() === "done") {
+      const status = t.normalizedStatus.toLowerCase();
+      if (status === "completed" || status === "done") {
         completed++;
-      } else {
+      } else if (status === "in progress" || status === "working" || status === "in_progress") {
         inProgress++;
+      } else {
+        pending++;
       }
     });
 
@@ -437,7 +441,8 @@ const LeaderDashboard = () => {
       total: allAssignedTasks.length,
       myTasks,
       completed,
-      inProgress
+      inProgress,
+      pending
     };
   }, [allAssignedTasks, leader]);
 
@@ -455,7 +460,7 @@ const LeaderDashboard = () => {
     });
   }, [teamMembers, allAssignedTasks]);
 
-  // Donut Chart Data
+  // Donut Chart Data (Uses same accurate status buckets as Stats)
   const donutChartData = useMemo(() => {
     let completed = 0;
     let inProgress = 0;
@@ -467,7 +472,7 @@ const LeaderDashboard = () => {
       const status = t.normalizedStatus.toLowerCase();
       if (status === "completed" || status === "done") {
         completed++;
-      } else if (status === "in progress" || status === "working") {
+      } else if (status === "in progress" || status === "working" || status === "in_progress") {
         inProgress++;
       } else if (status === "in pipeline") {
         inPipeline++;
@@ -704,7 +709,7 @@ const LeaderDashboard = () => {
               <span>TeamFlow</span>
               <span>&gt;</span>
               <span className="text-indigo-600 capitalize">
-                {activeTab.replace("_", " ")}
+                {activeTab === "re_projects" ? "Revenue Engine Projects" : activeTab.replace("_", " ")}
               </span>
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Team Dashboard</h1>
@@ -743,6 +748,83 @@ const LeaderDashboard = () => {
           </div>
         </div>
 
+        {/* Reconciled Navigation Tabs Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => setActiveTab("dashboard")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === "dashboard"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <FaChartBar size={12} /> Overview & Stats
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("re_projects")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === "re_projects"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <FaProjectDiagram size={12} /> ⚡ RE Projects
+            {reProjects.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                activeTab === "re_projects" ? "bg-white text-indigo-700" : "bg-indigo-100 text-indigo-700"
+              }`}>
+                {reProjects.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("team_tasks")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === "team_tasks"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <FaTasks size={12} /> Team Daily Logs
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("team")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === "team"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <FaUsers size={12} /> Team Members
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("assign")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === "assign"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <FaPlus size={10} /> Assign Task
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("assigned_tasks")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === "assigned_tasks"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <FaFolder size={12} /> Assigned Tasks Overview
+          </button>
+        </div>
+
         {/* Tab View Contents */}
         <AnimatePresence mode="wait">
 
@@ -761,7 +843,7 @@ const LeaderDashboard = () => {
                   <div className="space-y-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Tasks</p>
                     <h3 className="text-3xl font-extrabold text-slate-900">{stats.total}</h3>
-                    <p className="text-[10px] text-slate-400 font-bold">Across all members</p>
+                    <p className="text-[10px] text-slate-400 font-bold">Internal department tasks</p>
                   </div>
                   <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-sm">
                     <FaFolder />
@@ -796,12 +878,39 @@ const LeaderDashboard = () => {
                   <div className="space-y-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">In Progress</p>
                     <h3 className="text-3xl font-extrabold text-slate-900">{stats.inProgress}</h3>
-                    <p className="text-[10px] text-slate-400 font-bold">Active right now</p>
+                    <p className="text-[10px] text-slate-400 font-bold">Active right now ({stats.pending} pending)</p>
                   </div>
                   <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-sm">
                     <FaClock />
                   </div>
                 </div>
+              </div>
+
+              {/* Compact RE Summary Card on Overview */}
+              <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-5 rounded-2xl shadow-sm border border-indigo-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-amber-400 text-lg font-black">
+                    <FaProjectDiagram />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-extrabold text-sm tracking-tight text-white">Revenue Engine Deliverables</h4>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                        TL Active
+                      </span>
+                    </div>
+                    <p className="text-xs text-indigo-200 mt-0.5">
+                      {reProjects.length} Synced Client {reProjects.length === 1 ? 'Project' : 'Projects'} • {reProjects.reduce((acc, p) => acc + (p.tasks?.length || 0), 0)} Department Tasks ({leader?.department || 'Department'})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("re_projects")}
+                  className="px-4 py-2 bg-white text-indigo-950 hover:bg-indigo-50 font-black text-xs rounded-xl transition shadow-xs flex items-center gap-2 shrink-0 self-start sm:self-auto cursor-pointer active:scale-95"
+                >
+                  Open RE Projects & Tasks →
+                </button>
               </div>
 
               {/* Graphs Row */}
@@ -870,181 +979,11 @@ const LeaderDashboard = () => {
                 </div>
               </div>
 
-              {/* Recent Tasks List */}
+              {/* Recent Tasks List (Restored Clean Baseline View) */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-100">
                   <h3 className="font-bold text-slate-800 text-sm">Recent Tasks</h3>
                   <button onClick={() => setActiveTab("team_tasks")} className="text-xs font-black text-indigo-600 hover:text-indigo-700">View All</button>
-                </div>
-
-                {/* ── Revenue Engine Synced Projects (Phase 3) ── */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
-                        <FaProjectDiagram />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-800 text-sm">Revenue Engine Projects</h3>
-                        <p className="text-slate-400 text-xs">Tasks synced from RE matching your department ({leader?.department || "Department"})</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full self-start sm:self-auto">
-                      {reProjects.length} Synced {reProjects.length === 1 ? 'Project' : 'Projects'}
-                    </span>
-                  </div>
-
-                  {reProjects.length === 0 ? (
-                    <div className="py-6 text-center text-slate-400 text-xs font-bold">
-                      No Revenue Engine projects found for your department.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-4">
-                      {reProjects.map((proj) => (
-                        <div key={proj.project_id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="text-sm font-bold text-slate-900">{proj.client_name}</h4>
-                                {proj.project_owner_name ? (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1">
-                                    👑 PO: {proj.project_owner_name}
-                                    {proj.po_assigned_by_gm && <span className="text-amber-600 font-extrabold">(by GM)</span>}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                                    No PO Assigned
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                Timeline: {proj.start_date || "N/A"} → {proj.end_date || "N/A"} • Project ID: #{proj.project_id}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <button
-                                onClick={() => {
-                                  setSelectedPoModal(proj);
-                                  setSelectedPoEmp("");
-                                }}
-                                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2"
-                              >
-                                <FaUserPlus size={11} /> Mark PO
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedReassignPoModal(proj);
-                                  setReassignPoEmpId("");
-                                  setReassignPoReason("");
-                                }}
-                                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2"
-                              >
-                                <FaUserPlus size={11} /> Reassign PO
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100 overflow-hidden">
-                            <div className="p-2.5 bg-slate-50 flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
-                              <span>Department Tasks ({proj.tasks?.length || 0})</span>
-                              <span>Category & Assignment</span>
-                            </div>
-                            {proj.tasks && proj.tasks.length > 0 ? (
-                              proj.tasks.map((t) => (
-                                <div key={t.task_owners_id} className="p-3 flex items-center justify-between gap-3 text-xs">
-                                  <div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-bold text-slate-800">{t.task_name}</span>
-                                      <span className="text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                                        {t.category}
-                                      </span>
-                                      {t.assigned_by_gm && (
-                                        <span className="text-[9px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
-                                          ⚡ Assigned by GM{t.assigned_by_name ? ` (${t.assigned_by_name})` : ""}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-[11px] text-slate-500 font-medium mt-1 flex items-center gap-1">
-                                      <span>📅 Deadline:</span>
-                                      <span className={t.is_strict_department && t.deadline ? "font-bold text-slate-800" : "italic text-slate-400"}>
-                                        {t.deadline_display || (t.deadline ? String(t.deadline).substring(0, 10) : "No fixed deadline")}
-                                      </span>
-                                    </div>
-                                    {t.description && (
-                                      <div className="text-[11px] text-slate-500 font-normal mt-0.5 italic line-clamp-1" title={t.description}>
-                                        📝 {t.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {t.employee_name ? (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-bold text-slate-700">
-                                          👤 {t.employee_name}
-                                        </span>
-                                        {/* Disabled Assign button because task is already assigned to someone */}
-                                        <button
-                                          disabled
-                                          title="Task is already assigned to someone"
-                                          className="px-2 py-0.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-md text-[10px] font-bold cursor-not-allowed opacity-60"
-                                        >
-                                          Assign
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setSelectedReassignTaskModal({
-                                              ...t,
-                                              project_id: proj.project_id,
-                                              client_name: proj.client_name,
-                                            });
-                                            setReassignTaskEmpId("");
-                                            setReassignTaskReason("");
-                                          }}
-                                          className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-md text-[10px] font-bold transition shadow-sm"
-                                        >
-                                          Reassign
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                          Unassigned
-                                        </span>
-                                        <button
-                                          onClick={() => {
-                                            setSelectedAssignTaskModal({
-                                              ...t,
-                                              project_id: proj.project_id,
-                                              client_name: proj.client_name,
-                                            });
-                                            setAssignTaskEmpId("");
-                                            setAssignTaskDeadline(proj.end_date ? String(proj.end_date).substring(0, 10) : "");
-                                            setAssignTaskDescription(t.description || "");
-                                          }}
-                                          className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-bold transition shadow-sm"
-                                        >
-                                          Assign
-                                        </button>
-                                      </div>
-                                    )}
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                      t.status === 'completed'
-                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                        : 'bg-amber-50 text-amber-600 border-amber-100'
-                                    }`}>
-                                      {t.status}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="p-3 text-center text-xs text-slate-400">No matching tasks for your department.</div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="divide-y divide-slate-100">
@@ -1079,6 +1018,189 @@ const LeaderDashboard = () => {
                     );
                   })}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB: DEDICATED REVENUE ENGINE PROJECTS WORKSPACE */}
+          {activeTab === "re_projects" && (
+            <motion.div
+              key="tab-re-projects"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              {/* RE Header Banner */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                      <FaProjectDiagram />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">Revenue Engine Projects</h3>
+                      <p className="text-slate-400 text-xs">
+                        Tasks synced from RE matching your department ({leader?.department || "Department"}). Manage Project Owners and assign Task Owners.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100 px-3.5 py-1.5 rounded-full self-start sm:self-auto">
+                    {reProjects.length} Synced {reProjects.length === 1 ? 'Project' : 'Projects'} • {reProjects.reduce((acc, p) => acc + (p.tasks?.length || 0), 0)} Department Tasks
+                  </span>
+                </div>
+
+                {reProjects.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs font-bold space-y-2">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                      <FaProjectDiagram size={20} />
+                    </div>
+                    <p>No Revenue Engine projects found for your department.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-5">
+                    {reProjects.map((proj) => (
+                      <div key={proj.project_id} className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/60 space-y-4 shadow-2xs">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <h4 className="text-base font-extrabold text-slate-900">{proj.client_name}</h4>
+                              {proj.project_owner_name ? (
+                                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1">
+                                  👑 PO: {proj.project_owner_name}
+                                  {proj.po_assigned_by_gm && <span className="text-amber-600 font-extrabold">(by GM)</span>}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                                  No PO Assigned
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 font-bold mt-1">
+                              Timeline: {proj.start_date || "N/A"} → {proj.end_date || "N/A"} • Proforma: {proj.re_proforma_number || `#${proj.project_id}`} • Project ID: #{proj.project_id}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => {
+                                setSelectedPoModal(proj);
+                                setSelectedPoEmp("");
+                              }}
+                              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
+                            >
+                              <FaUserPlus size={11} /> Mark PO
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedReassignPoModal(proj);
+                                setReassignPoEmpId("");
+                                setReassignPoReason("");
+                              }}
+                              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
+                            >
+                              <FaUserPlus size={11} /> Reassign PO
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-2xs">
+                          <div className="p-3 bg-slate-50/80 flex items-center justify-between text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                            <span>Department Tasks ({proj.tasks?.length || 0})</span>
+                            <span>Category & Assignment</span>
+                          </div>
+                          {proj.tasks && proj.tasks.length > 0 ? (
+                            proj.tasks.map((t) => (
+                              <div key={t.task_owners_id} className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs hover:bg-slate-50/50 transition">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-slate-800 text-sm">{t.task_name}</span>
+                                    <span className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-100">
+                                      {t.category}
+                                    </span>
+                                    {t.assigned_by_gm && (
+                                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
+                                        ⚡ Assigned by GM{t.assigned_by_name ? ` (${t.assigned_by_name})` : ""}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                                    <span>📅 Deadline:</span>
+                                    <span className={t.is_strict_department && t.deadline ? "font-bold text-slate-800" : "italic text-slate-400"}>
+                                      {t.deadline_display || (t.deadline ? String(t.deadline).substring(0, 10) : "No fixed deadline")}
+                                    </span>
+                                  </div>
+                                  {t.description && (
+                                    <div className="text-[11px] text-slate-500 font-normal italic line-clamp-1" title={t.description}>
+                                      📝 {t.description}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  {t.employee_name ? (
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="text-xs font-bold text-slate-700">
+                                        👤 {t.employee_name}
+                                      </span>
+                                      {/* Single Clean Extend / Reassign Action Button */}
+                                      <button
+                                        onClick={() => {
+                                          setSelectedAssignTaskModal({
+                                            ...t,
+                                            project_id: proj.project_id,
+                                            client_name: proj.client_name,
+                                          });
+                                          setAssignTaskEmpId(t.employee_id || "");
+                                          setAssignTaskDeadline(t.deadline ? String(t.deadline).substring(0, 10) : "");
+                                          setAssignTaskDescription(t.description || "");
+                                        }}
+                                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[10px] font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                                        title="Click to extend deadline or reassign task"
+                                      >
+                                        Extend / Reassign
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                        Unassigned
+                                      </span>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedAssignTaskModal({
+                                            ...t,
+                                            project_id: proj.project_id,
+                                            client_name: proj.client_name,
+                                          });
+                                          setAssignTaskEmpId("");
+                                          setAssignTaskDeadline(proj.end_date ? String(proj.end_date).substring(0, 10) : "");
+                                          setAssignTaskDescription(t.description || "");
+                                        }}
+                                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition shadow-xs cursor-pointer"
+                                      >
+                                        Assign
+                                      </button>
+                                    </div>
+                                  )}
+                                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                                    t.status === 'completed'
+                                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                      : t.status === 'in_progress'
+                                      ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                                      : 'bg-amber-50 text-amber-600 border-amber-100'
+                                  }`}>
+                                    {t.status}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-xs text-slate-400">No matching tasks for your department.</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -2126,7 +2248,9 @@ const LeaderDashboard = () => {
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Assign Task Owner</h3>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    {selectedAssignTaskModal.employee_id ? "Extend Deadline / Reassign Task" : "Assign Task Owner"}
+                  </h3>
                   <p className="text-[11px] text-slate-400 font-bold">Task: {selectedAssignTaskModal.task_name}</p>
                 </div>
                 <button
@@ -2155,7 +2279,10 @@ const LeaderDashboard = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">Deadline (Optional)</label>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5 flex items-center justify-between">
+                    <span>Deadline (Optional)</span>
+                    <span className="text-[10px] text-blue-600 font-bold lowercase">Select future date to extend</span>
+                  </label>
                   <input
                     type="date"
                     value={assignTaskDeadline}
@@ -2188,7 +2315,11 @@ const LeaderDashboard = () => {
                     disabled={assignTaskLoading}
                     className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50"
                   >
-                    {assignTaskLoading ? "Assigning..." : "Confirm Assignment"}
+                    {assignTaskLoading
+                      ? "Saving..."
+                      : selectedAssignTaskModal.employee_id
+                      ? "Update Deadline / Assignment"
+                      : "Confirm Assignment"}
                   </button>
                 </div>
               </form>
