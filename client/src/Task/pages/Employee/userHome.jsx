@@ -320,7 +320,10 @@ function UserHome() {
   const [savingProgress, setSavingProgress] = useState(false);
 
   const handleOpenLogProgress = (task) => {
-    setLogProgressTask(task);
+    setLogProgressTask({
+      ...task,
+      log_id: null,
+    });
     setProgressDesc("");
     setProgressStatus(task.status || "pending");
   };
@@ -338,21 +341,42 @@ function UserHome() {
       const token = localStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      const res = await axios.post(
-        `${API_BASE}/api/employee/re-task/${logProgressTask.task_owners_id}/log-progress`,
-        {
-          description: progressDesc.trim(),
-          status: progressStatus,
-        },
-        { headers }
-      );
+      let res;
+      if (logProgressTask.log_id) {
+        res = await axios.put(
+          `${API_BASE}/api/employee/re-task-log/${logProgressTask.log_id}`,
+          {
+            description: progressDesc.trim(),
+            status: progressStatus,
+          },
+          { headers }
+        );
+      } else {
+        res = await axios.post(
+          `${API_BASE}/api/employee/re-task/${logProgressTask.task_owners_id}/log-progress`,
+          {
+            description: progressDesc.trim(),
+            status: progressStatus,
+          },
+          { headers }
+        );
+      }
 
       if (res.data?.success) {
-        toast.success("Progress logged successfully!");
-        const updatedStatus = res.data.data?.task_owners_status || progressStatus;
+        toast.success(
+          logProgressTask.log_id
+            ? "Progress updated successfully!"
+            : "Progress logged successfully!"
+        );
+        const updatedStatus =
+          res.data.data?.task_owners_status ||
+          res.data.data?.entry_status ||
+          progressStatus;
         setMyReTasks((prev) =>
           prev.map((t) =>
-            t.task_owners_id === logProgressTask.task_owners_id ? { ...t, status: updatedStatus } : t
+            Number(t.task_owners_id) === Number(logProgressTask.task_owners_id)
+              ? { ...t, status: updatedStatus }
+              : t
           )
         );
         setLogProgressTask(null);
@@ -362,10 +386,12 @@ function UserHome() {
         if (typeof fetchTasks === "function") {
           fetchTasks(date);
         }
+      } else {
+        toast.error(res.data?.message || "Failed to save progress");
       }
     } catch (err) {
-      console.error("Error logging progress:", err);
-      toast.error(err.response?.data?.message || "Failed to log progress");
+      console.error("Error logging/updating progress:", err);
+      toast.error(err.response?.data?.message || "Failed to save progress");
     } finally {
       setSavingProgress(false);
     }
@@ -606,6 +632,31 @@ function UserHome() {
   };
 
   const handleEditTask = (task) => {
+    // ── Dedicated RE Task Log Edit Flow ──
+    if (task.task_owners_id) {
+      const matchingReTask = (myReTasks || []).find(
+        (t) => Number(t.task_owners_id) === Number(task.task_owners_id)
+      );
+      setLogProgressTask({
+        task_owners_id: task.task_owners_id,
+        client_name:
+          matchingReTask?.client_name ||
+          task.ProjectOrClientName?.replace(/—.*$/, "").trim() ||
+          "RE Project",
+        task_name:
+          matchingReTask?.task_name ||
+          task.SubCategory ||
+          "Task",
+        category: matchingReTask?.category || task.Category || "General",
+        deadline: matchingReTask?.deadline || "",
+        status: task.entry_status || matchingReTask?.status || "pending",
+        log_id: task.id,
+      });
+      setProgressDesc(task.TaskDescription || "");
+      setProgressStatus(task.entry_status || matchingReTask?.status || "pending");
+      return;
+    }
+
     setIsUpdate(true);
     setIsOtherProject(false);
     const taskData = {
@@ -1587,7 +1638,8 @@ function UserHome() {
                     {logProgressTask.client_name}
                   </span>
                   <h3 className="text-base font-bold text-white mt-0.5">
-                    Log Progress: {logProgressTask.task_name}
+                    {logProgressTask.log_id ? "Edit Progress: " : "Log Progress: "}
+                    {logProgressTask.task_name}
                   </h3>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                     <span>Category: {logProgressTask.category || "General"}</span>
@@ -1639,7 +1691,9 @@ function UserHome() {
                     <option value="completed">Completed</option>
                   </select>
                   <p className="text-[11px] text-slate-400">
-                    Pre-filled with task's current status. Submitting records an immutable progress snapshot with this status and updates the task.
+                    {logProgressTask.log_id
+                      ? "Update the status for this log entry and task."
+                      : "Pre-filled with task's current status. Submitting records an immutable progress snapshot with this status and updates the task."}
                   </p>
                 </div>
 
@@ -1658,7 +1712,11 @@ function UserHome() {
                     disabled={savingProgress}
                     className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition"
                   >
-                    {savingProgress ? "Saving..." : "Submit Progress"}
+                    {savingProgress
+                      ? "Saving..."
+                      : logProgressTask.log_id
+                      ? "Update Progress"
+                      : "Submit Progress"}
                   </button>
                 </div>
               </form>
@@ -1715,9 +1773,16 @@ function UserHome() {
                     className="hover:bg-slate-50 transition-colors group"
                   >
                     <td className="px-4 py-3">
-                      <p className="text-xs font-black text-slate-700">
-                        {task.ProjectOrClientName}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-xs font-black text-slate-700">
+                          {task.ProjectOrClientName}
+                        </p>
+                        {task.task_owners_id && (
+                          <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                            RE Task
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
                         Category: {task.Category}
                       </p>

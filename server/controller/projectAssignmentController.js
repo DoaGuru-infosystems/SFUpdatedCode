@@ -2117,6 +2117,120 @@ const logReTaskProgress = (req, res) => {
   });
 };
 
+// ── Employee Update Progress for RE Task Log ───────────────────────────
+// PUT /api/employee/re-task-log/:id
+const updateReTaskProgress = (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) {
+    return res.status(401).json({ success: false, message: "Unauthorized: Missing or invalid token" });
+  }
+
+  const { id } = req.params;
+  const { description, status } = req.body;
+
+  if (!description || typeof description !== "string" || !description.trim()) {
+    return res.status(400).json({ success: false, message: "Task description is required" });
+  }
+
+  const validStatuses = ["pending", "in_progress", "review", "completed"];
+
+  // 1. Fetch existing task log
+  const getLogSql = `
+    SELECT 
+      t.id,
+      t.user_id,
+      t.task_owners_id,
+      t.entry_status,
+      tow.project_id,
+      tow.employee_id
+    FROM tasks t
+    LEFT JOIN task_owners tow ON tow.id = t.task_owners_id
+    WHERE t.id = ?
+  `;
+
+  db.query(getLogSql, [id], (err, rows) => {
+    if (err) {
+      console.error("[Update Progress] Error fetching log:", err.message);
+      return res.status(500).json({ success: false, message: "Database error", error: err.message });
+    }
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Task entry not found" });
+    }
+
+    const logRow = rows[0];
+    const isOwner = String(logRow.user_id) === String(user.id);
+    const isAdminOrGm = isCallerAdminOrGm(user);
+
+    if (!isOwner && !isAdminOrGm) {
+      return res.status(403).json({ success: false, message: "Forbidden: Not your task entry" });
+    }
+
+    const newStatus = status && validStatuses.includes(status) ? status : (logRow.entry_status || "pending");
+
+    // 2. Update tasks table row
+    const updateTaskSql = `
+      UPDATE tasks 
+      SET TaskDescription = ?, entry_status = ? 
+      WHERE id = ?
+    `;
+
+    db.query(updateTaskSql, [description.trim(), newStatus, id], (uErr) => {
+      if (uErr) {
+        console.error("[Update Progress] Error updating task:", uErr.message);
+        return res.status(500).json({ success: false, message: "Failed to update task", error: uErr.message });
+      }
+
+      // 3. Update task_owners status if task_owners_id is linked
+      if (logRow.task_owners_id) {
+        const updateOwnerSql = "UPDATE task_owners SET status = ? WHERE id = ?";
+        db.query(updateOwnerSql, [newStatus, logRow.task_owners_id], (oErr) => {
+          if (oErr) {
+            console.error("[Update Progress] Warning: Failed to update task_owners:", oErr.message);
+          } else {
+            console.log(`[Update Progress] ✅ task_owners #${logRow.task_owners_id} status updated to '${newStatus}'`);
+          }
+
+          if (logRow.project_id) {
+            sendStatusUpdateToRE(logRow.project_id, user.id).catch((e) =>
+              console.error("[Update Progress] RE sync error:", e.message)
+            );
+          }
+
+          const io = socketUtil.getIO();
+          if (io) {
+            io.to("admin_room").emit("re:task_status_changed", {
+              task_owners_id: Number(logRow.task_owners_id),
+              status: newStatus,
+              project_id: Number(logRow.project_id),
+            });
+          }
+
+          return res.status(200).json({
+            success: true,
+            message: "Progress updated successfully",
+            data: {
+              id: Number(id),
+              task_owners_id: Number(logRow.task_owners_id),
+              entry_status: newStatus,
+              description: description.trim(),
+            },
+          });
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          message: "Task updated successfully",
+          data: {
+            id: Number(id),
+            entry_status: newStatus,
+            description: description.trim(),
+          },
+        });
+      }
+    });
+  });
+};
+
 module.exports = {
   getLeaderReProjects,
   assignProjectOwner,
@@ -2138,5 +2252,6 @@ module.exports = {
   directAssignProjectOwner,
   directAssignTaskOwner,
   logReTaskProgress,
+  updateReTaskProgress,
 };
 
