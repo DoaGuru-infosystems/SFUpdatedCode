@@ -345,11 +345,11 @@ function UserHome() {
 
       let res;
       if (logProgressTask.log_id) {
+        // IMMUTABILITY CONTRACT: Edit only changes description and work date; status snapshot is never changed.
         res = await axios.put(
           `${API_BASE}/api/employee/re-task-log/${logProgressTask.log_id}`,
           {
             description: progressDesc.trim(),
-            status: progressStatus,
             task_date: progressDate,
           },
           { headers }
@@ -369,20 +369,23 @@ function UserHome() {
       if (res.data?.success) {
         toast.success(
           logProgressTask.log_id
-            ? "Progress updated successfully!"
+            ? "Log entry updated (description & work date)!"
             : "Progress logged successfully!"
         );
-        const updatedStatus =
-          res.data.data?.task_owners_status ||
-          res.data.data?.entry_status ||
-          progressStatus;
-        setMyReTasks((prev) =>
-          prev.map((t) =>
-            Number(t.task_owners_id) === Number(logProgressTask.task_owners_id)
-              ? { ...t, status: updatedStatus }
-              : t
-          )
-        );
+        // Only genuinely NEW log progress submissions advance task_owners status
+        if (!logProgressTask.log_id) {
+          const updatedStatus =
+            res.data.data?.task_owners_status ||
+            res.data.data?.entry_status ||
+            progressStatus;
+          setMyReTasks((prev) =>
+            prev.map((t) =>
+              Number(t.task_owners_id) === Number(logProgressTask.task_owners_id)
+                ? { ...t, status: updatedStatus }
+                : t
+            )
+          );
+        }
         setLogProgressTask(null);
         setProgressDesc("");
         // Trigger background refresh of tasks & activity ledger
@@ -1695,21 +1698,34 @@ function UserHome() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">
-                      Task Status <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={progressStatus}
-                      onChange={(e) => setProgressStatus(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="review">Review</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </div>
+                  {logProgressTask.log_id ? (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                        <span>Status Snapshot</span>
+                        <span className="text-[10px] text-amber-600 font-bold">Immutable Record</span>
+                      </label>
+                      <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 flex items-center justify-between">
+                        <span className="capitalize">{logProgressTask.status || progressStatus || "in_progress"}</span>
+                        <span className="text-[10px] font-normal text-slate-400">Snapshot locked</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700">
+                        Task Status <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={progressStatus}
+                        onChange={(e) => setProgressStatus(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="review">Review</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
@@ -1728,7 +1744,7 @@ function UserHome() {
 
                 <p className="text-[11px] text-slate-400">
                   {logProgressTask.log_id
-                    ? "Updating this entry will update the progress date, description, and sync the status for Admin, GM, and Team Lead."
+                    ? "Editing corrects descriptions and work dates. The status snapshot is permanently preserved in the historical ledger; create a new progress entry to change task status."
                     : "Pre-filled with task's current status and today's date. Submitting records an immutable progress snapshot on the selected date visible to Admin, GM, and Team Lead."}
                 </p>
 

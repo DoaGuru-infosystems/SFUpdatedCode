@@ -520,13 +520,17 @@ const assignTaskOwner = (req, res) => {
         }
 
         // 3. Update existing task_owners row
+        // If same employee, preserve status (e.g. in_progress, review); if reassigned to new employee, reset to 'pending'
+        const isSameEmployee = String(tRows[0].employee_id) === String(employee_id);
+        const updatedStatus = isSameEmployee ? (tRows[0].status || 'pending') : 'pending';
+
         const updateTaskSql = `
           UPDATE task_owners
-          SET employee_id = ?, assigned_by = ?, deadline = ?, description = COALESCE(?, description), status = 'pending'
+          SET employee_id = ?, assigned_by = ?, deadline = ?, description = COALESCE(?, description), status = ?
           WHERE id = ?
         `;
 
-        db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, task_owners_id], (updErr) => {
+        db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, updatedStatus, task_owners_id], (updErr) => {
           if (updErr) {
             console.error("[Assign Task] Error updating task_owners:", updErr.message);
             return res.status(500).json({ success: false, message: "Database error", error: updErr.message });
@@ -2127,6 +2131,12 @@ const logReTaskProgress = (req, res) => {
 
 // ── Employee Update Progress for RE Task Log ───────────────────────────
 // PUT /api/employee/re-task-log/:id
+// IMMUTABILITY CONTRACT:
+// Log entries in `tasks` table are permanent historical snapshots.
+// Editing an existing log entry is ONLY allowed for correcting description typos
+// or work dates (task_date).
+// The historical `entry_status` snapshot is strictly IMMUTABLE and MUST NEVER change.
+// `task_owners.status` also MUST NEVER be altered by an edit (only new progress logs can advance task status).
 const updateReTaskProgress = (req, res) => {
   const user = getAuthUser(req);
   if (!user) {
@@ -2134,13 +2144,11 @@ const updateReTaskProgress = (req, res) => {
   }
 
   const { id } = req.params;
-  const { description, status, task_date } = req.body;
+  const { description, task_date } = req.body;
 
   if (!description || typeof description !== "string" || !description.trim()) {
     return res.status(400).json({ success: false, message: "Task description is required" });
   }
-
-  const validStatuses = ["pending", "in_progress", "review", "completed"];
 
   // 1. Fetch existing task log
   const getLogSql = `
@@ -2174,19 +2182,19 @@ const updateReTaskProgress = (req, res) => {
       return res.status(403).json({ success: false, message: "Forbidden: Not your task entry" });
     }
 
-    const newStatus = status && validStatuses.includes(status) ? status : (logRow.entry_status || "pending");
     const entryDate =
       task_date && moment(task_date, ["YYYY-MM-DD", moment.ISO_8601]).isValid()
         ? moment(task_date).format("YYYY-MM-DD")
         : null;
 
-    // 2. Update tasks table row
+    // 2. Update ONLY TaskDescription and task_date in tasks table.
+    // entry_status is intentionally omitted to guarantee historical snapshot immutability.
     const updateTaskSql = entryDate
-      ? `UPDATE tasks SET TaskDescription = ?, entry_status = ?, task_date = ? WHERE id = ?`
-      : `UPDATE tasks SET TaskDescription = ?, entry_status = ? WHERE id = ?`;
+      ? `UPDATE tasks SET TaskDescription = ?, task_date = ? WHERE id = ?`
+      : `UPDATE tasks SET TaskDescription = ? WHERE id = ?`;
     const updateParams = entryDate
-      ? [description.trim(), newStatus, entryDate, id]
-      : [description.trim(), newStatus, id];
+      ? [description.trim(), entryDate, id]
+      : [description.trim(), id];
 
     db.query(updateTaskSql, updateParams, (uErr) => {
       if (uErr) {
@@ -2194,55 +2202,21 @@ const updateReTaskProgress = (req, res) => {
         return res.status(500).json({ success: false, message: "Failed to update task", error: uErr.message });
       }
 
-      // 3. Update task_owners status if task_owners_id is linked
-      if (logRow.task_owners_id) {
-        const updateOwnerSql = "UPDATE task_owners SET status = ? WHERE id = ?";
-        db.query(updateOwnerSql, [newStatus, logRow.task_owners_id], (oErr) => {
-          if (oErr) {
-            console.error("[Update Progress] Warning: Failed to update task_owners:", oErr.message);
-          } else {
-            console.log(`[Update Progress] ✅ task_owners #${logRow.task_owners_id} status updated to '${newStatus}'`);
-          }
+      console.log(
+        `[Update Progress] ✅ Task log #${id} description/date updated. entry_status '${logRow.entry_status}' preserved unchanged.`
+      );
 
-          if (logRow.project_id) {
-            sendStatusUpdateToRE(logRow.project_id, user.id).catch((e) =>
-              console.error("[Update Progress] RE sync error:", e.message)
-            );
-          }
-
-          const io = socketUtil.getIO();
-          if (io) {
-            io.to("admin_room").emit("re:task_status_changed", {
-              task_owners_id: Number(logRow.task_owners_id),
-              status: newStatus,
-              project_id: Number(logRow.project_id),
-            });
-          }
-
-          return res.status(200).json({
-            success: true,
-            message: "Progress updated successfully",
-            data: {
-              id: Number(id),
-              task_owners_id: Number(logRow.task_owners_id),
-              entry_status: newStatus,
-              description: description.trim(),
-              task_date: entryDate || logRow.task_date,
-            },
-          });
-        });
-      } else {
-        return res.status(200).json({
-          success: true,
-          message: "Task updated successfully",
-          data: {
-            id: Number(id),
-            entry_status: newStatus,
-            description: description.trim(),
-            task_date: entryDate || logRow.task_date,
-          },
-        });
-      }
+      return res.status(200).json({
+        success: true,
+        message: "Task log updated successfully (description and work date only)",
+        data: {
+          id: Number(id),
+          task_owners_id: logRow.task_owners_id ? Number(logRow.task_owners_id) : null,
+          entry_status: logRow.entry_status, // Immutable snapshot preserved
+          description: description.trim(),
+          task_date: entryDate || logRow.task_date,
+        },
+      });
     });
   });
 };
