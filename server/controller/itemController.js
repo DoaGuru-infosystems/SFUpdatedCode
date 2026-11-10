@@ -988,19 +988,16 @@ const UpdateEmployeeAPI = (req, res) => {
     department,
   } = req.body;
 
-  // Dynamically generate the base URL
-  const baseURL = `${req.protocol}://${req.get("host")}`;
+  // Base URL from environment variable or request host
+  const baseURL =
+    process.env.APP_ORIGIN ||
+    process.env.BASE_URL ||
+    `${req.protocol}://${req.get("host")}`;
 
   // Check if a new profile picture is uploaded and update the URL
   let profilePictureUrl = req.body.profilePicture; // Retain old URL if no new file is uploaded
   if (req.file) {
     profilePictureUrl = `${baseURL}/uploads/${req.file.filename}`;
-    if (profilePictureUrl.startsWith("http://sf.doaguru.com")) {
-      profilePictureUrl = profilePictureUrl.replace(
-        "http://sf.doaguru.com",
-        "http://localhost:3000",
-      );
-    }
   }
 
   const query = `

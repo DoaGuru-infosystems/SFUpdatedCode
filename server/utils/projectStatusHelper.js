@@ -182,7 +182,7 @@ function deriveProjectStatus(taskRows, departments = null) {
       typeof t.deadline === "string"
         ? t.deadline.substring(0, 10)
         : new Date(t.deadline).toISOString().split("T")[0];
-    return dStr < todayStr && t.status !== "completed";
+    return dStr < todayStr && t.status !== "completed" && t.status !== "scheduled_for_posting";
   }
 
   // 2. Blocked: Sirf strict deadline tracking wale tasks me se koi overdue hai
@@ -199,6 +199,8 @@ function deriveProjectStatus(taskRows, departments = null) {
     if (
       t.status === "in_progress" ||
       t.status === "review" ||
+      t.status === "waiting_for_approval" ||
+      t.status === "scheduled_for_posting" ||
       t.status === "completed"
     ) {
       return true;

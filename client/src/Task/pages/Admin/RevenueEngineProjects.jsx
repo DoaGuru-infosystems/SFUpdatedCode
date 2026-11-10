@@ -61,6 +61,30 @@ const STATUS_CONFIG = {
     dot: "bg-blue-500",
     calColor: "#3b82f6",
   },
+  waiting_for_approval: {
+    label: "Waiting for Approval",
+    bg: "bg-amber-100",
+    text: "text-amber-800",
+    border: "border-amber-300",
+    dot: "bg-amber-500",
+    calColor: "#f59e0b",
+  },
+  scheduled_for_posting: {
+    label: "Scheduled for Posting",
+    bg: "bg-purple-100",
+    text: "text-purple-800",
+    border: "border-purple-300",
+    dot: "bg-purple-500",
+    calColor: "#8b5cf6",
+  },
+  review: {
+    label: "Under Review",
+    bg: "bg-indigo-100",
+    text: "text-indigo-800",
+    border: "border-indigo-300",
+    dot: "bg-indigo-500",
+    calColor: "#6366f1",
+  },
   blocked: {
     label: "Blocked",
     bg: "bg-rose-100",
@@ -71,6 +95,14 @@ const STATUS_CONFIG = {
   },
   assigned: {
     label: "Assigned",
+    bg: "bg-slate-100",
+    text: "text-slate-700",
+    border: "border-slate-300",
+    dot: "bg-slate-400",
+    calColor: "#64748b",
+  },
+  pending: {
+    label: "Pending",
     bg: "bg-slate-100",
     text: "text-slate-700",
     border: "border-slate-300",
@@ -745,8 +777,8 @@ export default function RevenueEngineProjects() {
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-16">
       {/* Top Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-3.5 sm:py-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3.5">
             <div>
               <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
                 <Link to="/task/Admin-Home-page" className="hover:text-blue-600 flex items-center">
@@ -755,9 +787,9 @@ export default function RevenueEngineProjects() {
                 <span>/</span>
                 <span className="text-slate-800 font-medium">RE Projects</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center">
-                  <Layers className="w-6 h-6 mr-2 text-blue-600" />
+              <div className="flex items-center space-x-2.5 sm:space-x-3 flex-wrap gap-y-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center">
+                  <Layers className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600 shrink-0" />
                   Revenue Engine Projects
                 </h1>
                 <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200">
@@ -776,33 +808,33 @@ export default function RevenueEngineProjects() {
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex items-center space-x-2 self-start md:self-auto">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 self-start md:self-auto w-full md:w-auto">
               <button
                 onClick={() => setActiveTab("list")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
+                className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center shrink-0 ${
                   activeTab === "list"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
-                <Briefcase className="w-4 h-4 mr-1.5" />
+                <Briefcase className="w-4 h-4 mr-1.5 shrink-0" />
                 Projects List
               </button>
               <button
                 onClick={() => setActiveTab("calendar")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
+                className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all flex items-center shrink-0 ${
                   activeTab === "calendar"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
-                <CalendarIcon className="w-4 h-4 mr-1.5" />
+                <CalendarIcon className="w-4 h-4 mr-1.5 shrink-0" />
                 Global Monthly Calendar
               </button>
               <button
                 onClick={() => fetchProjects(true)}
                 title="Refresh Projects"
-                className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition shrink-0"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
@@ -811,9 +843,9 @@ export default function RevenueEngineProjects() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-5 sm:space-y-6">
         {/* KPI Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
           <div
             onClick={() => {
               setStatusFilter("all");
@@ -901,21 +933,21 @@ export default function RevenueEngineProjects() {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="relative w-full md:w-96">
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="relative w-full md:w-80 lg:w-96">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by client name, proforma ID, or project ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-medium text-slate-500">Status:</span>
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto justify-between md:justify-end">
+            <div className="flex items-center space-x-2 flex-1 sm:flex-initial">
+              <span className="text-xs font-medium text-slate-500 shrink-0">Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => {
@@ -925,7 +957,7 @@ export default function RevenueEngineProjects() {
                     setIncludeArchived(true);
                   }
                 }}
-                className="text-xs py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="text-xs py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
               >
                 <option value="all">All Active Statuses</option>
                 <option value="assigned">Assigned</option>
@@ -936,7 +968,7 @@ export default function RevenueEngineProjects() {
               </select>
             </div>
 
-            <label className="flex items-center space-x-2 text-xs font-medium text-slate-600 cursor-pointer select-none bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+            <label className="flex items-center space-x-2 text-xs font-medium text-slate-600 cursor-pointer select-none bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition shrink-0">
               <input
                 type="checkbox"
                 checked={includeArchived}
@@ -1209,11 +1241,11 @@ export default function RevenueEngineProjects() {
 
         {/* ─── TAB 2: GLOBAL MONTHLY CALENDAR ─── */}
         {activeTab === "calendar" && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 sm:p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 flex items-center">
-                  <CalendarIcon className="w-5 h-5 mr-2 text-blue-600" />
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center">
+                  <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 shrink-0" />
                   Monthly Executive Schedule
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -1222,34 +1254,42 @@ export default function RevenueEngineProjects() {
               </div>
 
               {/* Status Color Legend */}
-              <div className="flex flex-wrap items-center gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs">
                 <span className="flex items-center">
-                  <span className="w-3 h-3 rounded bg-slate-500 mr-1.5" /> Assigned
+                  <span className="w-2.5 h-2.5 rounded bg-slate-500 mr-1.5" /> Assigned
                 </span>
                 <span className="flex items-center">
-                  <span className="w-3 h-3 rounded bg-blue-500 mr-1.5" /> In Progress
+                  <span className="w-2.5 h-2.5 rounded bg-blue-500 mr-1.5" /> In Progress
                 </span>
                 <span className="flex items-center">
-                  <span className="w-3 h-3 rounded bg-emerald-500 mr-1.5" /> Completed
+                  <span className="w-2.5 h-2.5 rounded bg-emerald-500 mr-1.5" /> Completed
                 </span>
                 <span className="flex items-center">
-                  <span className="w-3 h-3 rounded bg-rose-500 mr-1.5" /> Blocked
+                  <span className="w-2.5 h-2.5 rounded bg-rose-500 mr-1.5" /> Blocked
                 </span>
               </div>
             </div>
 
-            <div style={{ height: "640px" }} className="re-global-calendar">
-              <Calendar
-                localizer={localizer}
-                events={globalCalendarEvents}
-                startAccessor="start"
-                endAccessor="end"
-                defaultView="month"
-                views={["month", "agenda"]}
-                eventPropGetter={projectEventPropGetter}
-                onSelectEvent={(event) => setPopoverProject(event.resource)}
-                popup
-              />
+            {/* Mobile swipe hint */}
+            <div className="md:hidden text-[11px] text-slate-500 flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5 font-medium">
+              <span>👉</span>
+              <span>Scroll horizontally to view all calendar columns</span>
+            </div>
+
+            <div className="w-full overflow-x-auto pb-2">
+              <div style={{ minWidth: "680px", height: "580px" }} className="re-global-calendar">
+                <Calendar
+                  localizer={localizer}
+                  events={globalCalendarEvents}
+                  startAccessor="start"
+                  endAccessor="end"
+                  defaultView="month"
+                  views={["month", "agenda"]}
+                  eventPropGetter={projectEventPropGetter}
+                  onSelectEvent={(event) => setPopoverProject(event.resource)}
+                  popup
+                />
+              </div>
             </div>
           </div>
         )}
@@ -1336,12 +1376,12 @@ export default function RevenueEngineProjects() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4 overflow-y-auto"
           style={{ zIndex: 50 }}
         >
-          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[94vh] sm:max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             {/* Modal Header */}
-            <div className="p-6 bg-slate-900 text-white flex items-start justify-between">
-              <div>
-                <div className="flex items-center space-x-3">
-                  <h2 className="text-xl font-bold tracking-tight">{selectedProject.client_name}</h2>
+            <div className="p-4 sm:p-6 bg-slate-900 text-white flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
+                  <h2 className="text-lg sm:text-xl font-bold tracking-tight truncate max-w-md">{selectedProject.client_name}</h2>
                   <StatusBadge status={selectedProject.current_status} />
                   {!selectedProject.is_active && (
                     <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">
@@ -1349,7 +1389,7 @@ export default function RevenueEngineProjects() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center space-x-3 text-xs text-slate-400 mt-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400 mt-1">
                   <span>{selectedProject.re_proforma_number ? selectedProject.re_proforma_number : `Proforma #${selectedProject.re_proforma_id}`}</span>
                   <span>•</span>
                   <span>SF #{selectedProject.project_id}</span>
@@ -1359,7 +1399,7 @@ export default function RevenueEngineProjects() {
                   </span>
                 </div>
               
-                <div className="flex flex-wrap items-center gap-3 text-xs mt-2 pt-2 border-t border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs mt-2.5 pt-2.5 border-t border-slate-800">
                   <div className="flex items-center space-x-2 flex-wrap gap-1">
                     <span className="text-slate-400">POs:</span>
                     {selectedProject.project_owners && selectedProject.project_owners.length > 0 ? (
@@ -1389,8 +1429,8 @@ export default function RevenueEngineProjects() {
                       + Assign PO
                     </button>
                   </div>
-                  <span>•</span>
-                  <div className="flex items-center space-x-1.5">
+                  <span className="hidden sm:inline text-slate-600">•</span>
+                  <div className="flex items-center space-x-1.5 flex-wrap">
                     <span className="text-slate-400">Departments:</span>
                     <span className="text-slate-300">
                       {(selectedProject.assigned_departments || []).map((d) => d.department_name).join(", ") || "Auto-derived"}
@@ -1402,21 +1442,22 @@ export default function RevenueEngineProjects() {
                       Manage
                     </button>
                   </div>
-                </div></div>
+                </div>
+              </div>
               <button
                 onClick={() => setSelectedProject(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg transition"
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Sub-Tabs: Project Tasks vs Calendar */}
-            <div className="px-6 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
+            <div className="px-4 sm:px-6 py-2.5 bg-slate-100 border-b border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
                 <button
                   onClick={() => setProjectSubTab("tasks")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center shrink-0 ${
                     projectSubTab === "tasks"
                       ? "bg-white text-blue-600 shadow-xs"
                       : "text-slate-600 hover:bg-slate-200"
@@ -1427,7 +1468,7 @@ export default function RevenueEngineProjects() {
                 </button>
                 <button
                   onClick={() => setProjectSubTab("calendar")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center shrink-0 ${
                     projectSubTab === "calendar"
                       ? "bg-white text-blue-600 shadow-xs"
                       : "text-slate-600 hover:bg-slate-200"
@@ -1440,7 +1481,7 @@ export default function RevenueEngineProjects() {
 
               <button
                 onClick={() => fetchProjectTasks(selectedProject.project_id)}
-                className="text-xs text-slate-500 hover:text-slate-800 flex items-center"
+                className="text-xs text-slate-500 hover:text-slate-800 flex items-center self-end sm:self-auto shrink-0"
               >
                 <RefreshCw className={`w-3.5 h-3.5 mr-1 ${loadingTasks ? "animate-spin" : ""}`} />
                 Refresh
@@ -1448,7 +1489,7 @@ export default function RevenueEngineProjects() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+            <div className="p-3.5 sm:p-6 overflow-y-auto flex-1 space-y-4">
               {loadingTasks ? (
                 <div className="p-16 text-center text-slate-400">
                   <RefreshCw className="w-8 h-8 mx-auto animate-spin mb-3 text-blue-500" />
@@ -1462,26 +1503,26 @@ export default function RevenueEngineProjects() {
               ) : projectSubTab === "calendar" ? (
                 /* Per-Project Deadline Calendar */
                 <div className="space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl px-4 py-2.5 text-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl p-3 sm:px-4 sm:py-2.5 text-xs">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                        📅 Project Schedule Window:
+                        📅 Schedule Window:
                       </span>
-                      <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                      <span className="font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 flex items-center gap-1 text-[11px]">
                         <span>🚩 Start:</span>
                         <span>{selectedProject?.start_date ? moment(selectedProject.start_date).format("DD MMM YYYY") : "N/A"}</span>
                       </span>
                       <span className="text-slate-400 font-bold">→</span>
-                      <span className="font-black text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 flex items-center gap-1">
+                      <span className="font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 flex items-center gap-1 text-[11px]">
                         <span>🏁 Target End:</span>
                         <span>{selectedProject?.end_date ? moment(selectedProject.end_date).format("DD MMM YYYY") : "N/A"}</span>
                       </span>
-                      <span className="text-[11px] text-indigo-600 bg-indigo-50 font-bold px-2 py-0.5 rounded border border-indigo-100">
+                      <span className="text-[10px] sm:text-[11px] text-indigo-600 bg-indigo-50 font-bold px-2 py-0.5 rounded border border-indigo-100">
                         Active Window Highlighted
                       </span>
                     </div>
 
-                    <div className="flex items-center space-x-3 text-[11px] font-semibold shrink-0">
+                    <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-semibold shrink-0 flex-wrap">
                       <span className="flex items-center gap-1 text-slate-600">
                         <span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Completed
                       </span>
@@ -1489,31 +1530,45 @@ export default function RevenueEngineProjects() {
                         <span className="w-2.5 h-2.5 rounded bg-blue-500" /> In Progress
                       </span>
                       <span className="flex items-center gap-1 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded bg-amber-500" /> Waiting for Approval
+                      </span>
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded bg-purple-500" /> Scheduled for Posting
+                      </span>
+                      <span className="flex items-center gap-1 text-slate-600">
                         <span className="w-2.5 h-2.5 rounded bg-rose-500" /> Blocked
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ height: "500px" }}>
-                    <Calendar
-                      localizer={localizer}
-                      events={perProjectCalendarEvents}
-                      startAccessor="start"
-                      endAccessor="end"
-                      defaultView="month"
-                      views={["month", "agenda"]}
-                      defaultDate={selectedProject?.start_date ? moment(selectedProject.start_date, "YYYY-MM-DD").toDate() : new Date()}
-                      eventPropGetter={taskEventPropGetter}
-                      dayPropGetter={perProjectDayPropGetter}
-                      onSelectEvent={(event) => event.resource && handleOpenWorkLog(event.resource)}
-                      popup
-                    />
+                  {/* Mobile swipe hint */}
+                  <div className="md:hidden text-[11px] text-slate-500 flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5 font-medium">
+                    <span>👉</span>
+                    <span>Scroll horizontally to view full calendar schedule</span>
+                  </div>
+
+                  <div className="w-full overflow-x-auto pb-2">
+                    <div style={{ minWidth: "620px", height: "480px" }}>
+                      <Calendar
+                        localizer={localizer}
+                        events={perProjectCalendarEvents}
+                        startAccessor="start"
+                        endAccessor="end"
+                        defaultView="month"
+                        views={["month", "agenda"]}
+                        defaultDate={selectedProject?.start_date ? moment(selectedProject.start_date, "YYYY-MM-DD").toDate() : new Date()}
+                        eventPropGetter={taskEventPropGetter}
+                        dayPropGetter={perProjectDayPropGetter}
+                        onSelectEvent={(event) => event.resource && handleOpenWorkLog(event.resource)}
+                        popup
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
                 /* Cross-Department Tasks Table with Expandable Daily Activity Logs */
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-                  <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
+                  <table className="min-w-[720px] w-full divide-y divide-slate-200 text-left text-xs">
                     <thead className="bg-slate-50 text-slate-600 font-semibold">
                       <tr>
                         <th className="px-4 py-3">Task / RE Item</th>

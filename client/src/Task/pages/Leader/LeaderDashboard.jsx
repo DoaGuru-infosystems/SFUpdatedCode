@@ -702,11 +702,11 @@ const LeaderDashboard = () => {
   const showDevForm = isDevLeader || isDevMember;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 lg:p-10 font-sans text-slate-800">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50/50 p-3.5 sm:p-6 lg:p-10 font-sans text-slate-800">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
 
         {/* Breadcrumb Header Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
               <span>TeamFlow</span>
@@ -715,20 +715,20 @@ const LeaderDashboard = () => {
                 {activeTab === "re_projects" ? "Revenue Engine Projects" : activeTab.replace("_", " ")}
               </span>
             </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Team Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Team Dashboard</h1>
             <p className="text-slate-500 text-xs">
               Welcome back, {leader.full_name}. Monitor efforts, view tasks, and assign targets.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
               <FaCalendarAlt className="absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500" size={12} />
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                className="w-full sm:w-auto bg-white border border-slate-200 rounded-xl pl-10 pr-3.5 py-2 sm:py-2.5 text-xs font-bold text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
               />
             </div>
 
@@ -737,14 +737,14 @@ const LeaderDashboard = () => {
                 setNewProjectForm({ name: "", department: leader?.department || "" });
                 setShowProjectModal(true);
               }}
-              className="bg-white hover:bg-slate-100 text-indigo-600 border border-slate-200 text-xs font-black px-4 py-3 rounded-xl flex items-center gap-2 shadow-sm transition-all duration-200"
+              className="bg-white hover:bg-slate-100 text-indigo-600 border border-slate-200 text-xs font-black px-3.5 py-2 sm:py-2.5 rounded-xl flex items-center gap-2 shadow-2xs transition-all duration-200 shrink-0"
             >
               <FaProjectDiagram size={12} /> Department Projects
             </button>
 
             <button
               onClick={() => setActiveTab("assign")}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm transition-all duration-200"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-2 sm:py-2.5 rounded-xl flex items-center gap-2 shadow-2xs transition-all duration-200 shrink-0"
             >
               <FaPlus size={10} /> New Task
             </button>
@@ -752,7 +752,7 @@ const LeaderDashboard = () => {
         </div>
 
         {/* Reconciled Navigation Tabs Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200/80">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1.5 border-b border-slate-200/80 -mx-1 px-1">
           <button
             type="button"
             onClick={() => setActiveTab("dashboard")}
@@ -1116,7 +1116,7 @@ const LeaderDashboard = () => {
                           </div>
                           {proj.tasks && proj.tasks.length > 0 ? (
                             proj.tasks.map((t) => (
-                              <div key={t.task_owners_id} className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs hover:bg-slate-50/50 transition">
+                              <div key={t.task_owners_id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-50/50 transition">
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-bold text-slate-800 text-sm">{t.task_name}</span>
@@ -1129,7 +1129,7 @@ const LeaderDashboard = () => {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                                  <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 flex-wrap">
                                     <span>📅 Deadline:</span>
                                     <span className={t.is_strict_department && t.deadline ? "font-bold text-slate-800" : "italic text-slate-400"}>
                                       {t.deadline_display || (t.deadline ? String(t.deadline).substring(0, 10) : "No fixed deadline")}
@@ -1141,9 +1141,9 @@ const LeaderDashboard = () => {
                                     </div>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0">
+                                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 sm:shrink-0">
                                   {t.employee_name ? (
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <span className="text-xs font-bold text-slate-700">
                                         👤 {t.employee_name}
                                       </span>
@@ -1194,14 +1194,24 @@ const LeaderDashboard = () => {
                                       </button>
                                     </div>
                                   )}
-                                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${
                                     t.status === 'completed'
-                                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
                                       : t.status === 'in_progress'
-                                      ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                                      : 'bg-amber-50 text-amber-600 border-amber-100'
+                                      ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                      : t.status === 'waiting_for_approval'
+                                      ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                      : t.status === 'scheduled_for_posting'
+                                      ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                      : t.status === 'review'
+                                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                                      : 'bg-slate-50 text-slate-600 border-slate-200'
                                   }`}>
-                                    {t.status}
+                                    {t.status === 'waiting_for_approval'
+                                      ? 'Waiting for Approval'
+                                      : t.status === 'scheduled_for_posting'
+                                      ? 'Scheduled for Posting'
+                                      : t.status ? t.status.replace(/_/g, ' ') : 'pending'}
                                   </span>
                                 </div>
                               </div>
@@ -1273,7 +1283,7 @@ const LeaderDashboard = () => {
               ) : (
                 <div className="bg-white rounded-2xl border border-slate-150 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="min-w-[700px] w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                           <th className="p-4 pl-6">Member</th>
@@ -1408,7 +1418,7 @@ const LeaderDashboard = () => {
               ) : (
                 <div className="bg-white rounded-2xl border border-slate-150 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="min-w-[700px] w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                           <th className="p-4 pl-6">Member</th>
@@ -1733,7 +1743,7 @@ const LeaderDashboard = () => {
                     <div>
                       <h3 className="text-sm font-bold text-indigo-700 mb-3 border-b border-indigo-100 pb-2">Development Tasks</h3>
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="min-w-[650px] w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
                               <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Employee</th>
@@ -1818,7 +1828,7 @@ const LeaderDashboard = () => {
                     <div>
                       <h3 className="text-sm font-bold text-indigo-700 mb-3 border-b border-indigo-100 pb-2">Target Tasks (Marketing/SEO)</h3>
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="min-w-[650px] w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
                               <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Employee</th>

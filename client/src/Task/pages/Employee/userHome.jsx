@@ -430,6 +430,16 @@ function UserHome() {
 
   let user = JSON.parse(localStorage.getItem("user"));
 
+  const CANONICAL_DM_DEPARTMENT = "digital marketing";
+  const CANONICAL_DM_DEPT_ID = 2;
+  const isDigitalMarketingEmployee = Boolean(
+    (user?.department_id && Number(user.department_id) === CANONICAL_DM_DEPT_ID) ||
+    (() => {
+      const dept = (user?.department || "").trim().toLowerCase();
+      return dept === CANONICAL_DM_DEPARTMENT || dept === "dm" || dept === "digital_marketing";
+    })()
+  );
+
   // ═══ Live Timer Logic ═══
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -1590,11 +1600,19 @@ function UserHome() {
               {myReTasks.map((t) => {
                 const statusColors = {
                   completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
-                  in_progress: "bg-amber-50 text-amber-700 border-amber-200",
-                  review: "bg-blue-50 text-blue-700 border-blue-200",
+                  in_progress: "bg-blue-50 text-blue-700 border-blue-200",
+                  review: "bg-indigo-50 text-indigo-700 border-indigo-200",
+                  waiting_for_approval: "bg-amber-100 text-amber-800 border-amber-300",
+                  scheduled_for_posting: "bg-purple-100 text-purple-800 border-purple-300",
                   pending: "bg-slate-50 text-slate-700 border-slate-200",
                 };
                 const statusBadgeClass = statusColors[t.status] || "bg-slate-50 text-slate-700 border-slate-200";
+
+                const formatStatusText = (st) => {
+                  if (st === "waiting_for_approval") return "Waiting for Approval";
+                  if (st === "scheduled_for_posting") return "Scheduled for Posting";
+                  return st ? st.replace(/_/g, " ") : "pending";
+                };
 
                 return (
                   <div
@@ -1612,7 +1630,7 @@ function UserHome() {
                           </h3>
                         </div>
                         <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${statusBadgeClass}`}>
-                          {t.status ? t.status.replace("_", " ") : "pending"}
+                          {formatStatusText(t.status)}
                         </span>
                       </div>
 
@@ -1640,7 +1658,7 @@ function UserHome() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Current:</span>
                         <span className="text-xs font-bold text-slate-700 capitalize">
-                          {t.status ? t.status.replace("_", " ") : "pending"}
+                          {formatStatusText(t.status)}
                         </span>
                       </div>
                       <button
@@ -1716,7 +1734,13 @@ function UserHome() {
                         <span className="text-[10px] text-amber-600 font-bold">Immutable Record</span>
                       </label>
                       <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 flex items-center justify-between">
-                        <span className="capitalize">{logProgressTask.status || progressStatus || "in_progress"}</span>
+                        <span className="capitalize">
+                          {logProgressTask.status === "waiting_for_approval"
+                            ? "Waiting for Client Approval"
+                            : logProgressTask.status === "scheduled_for_posting"
+                            ? "Scheduled for Posting"
+                            : logProgressTask.status?.replace(/_/g, " ") || progressStatus?.replace(/_/g, " ") || "in progress"}
+                        </span>
                         <span className="text-[10px] font-normal text-slate-400">Snapshot locked</span>
                       </div>
                     </div>
@@ -1733,6 +1757,12 @@ function UserHome() {
                         <option value="pending">Pending</option>
                         <option value="in_progress">In Progress</option>
                         <option value="review">Review</option>
+                        {isDigitalMarketingEmployee && (
+                          <>
+                            <option value="waiting_for_approval">Waiting for Client Approval</option>
+                            <option value="scheduled_for_posting">Scheduled for Posting</option>
+                          </>
+                        )}
                         <option value="completed">Completed</option>
                       </select>
                     </div>

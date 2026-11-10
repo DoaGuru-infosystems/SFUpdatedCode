@@ -104,6 +104,28 @@ const UpdateEmployeeDetails = (req, res) => {
         });
       }
 
+      // Auto-sync department Team Lead mapping in departments table
+      const targetDept = req.body.department;
+      if (targetDept) {
+        syncDepartmentTeamLead(
+          { employeeId: id, role: role || "user", department: targetDept, employmentStatus },
+          (sErr) => {
+            if (sErr) console.error("[UpdateEmployeeDetails] Error syncing department TL:", sErr.message);
+          }
+        );
+      } else {
+        // Fetch employee's current department from task_users if not provided in request body
+        db.query("SELECT department FROM task_users WHERE id = ? LIMIT 1", [id], (deptErr, deptRows) => {
+          const dept = (deptRows && deptRows[0]?.department) || null;
+          syncDepartmentTeamLead(
+            { employeeId: id, role: role || "user", department: dept, employmentStatus },
+            (sErr) => {
+              if (sErr) console.error("[UpdateEmployeeDetails] Error syncing department TL:", sErr.message);
+            }
+          );
+        });
+      }
+
       // ----------- Salary update/insert logic -----------
       const checkSalaryQuery = `
         SELECT salary_id FROM emp_salary WHERE employee_id = ?

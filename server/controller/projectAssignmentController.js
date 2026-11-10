@@ -664,7 +664,14 @@ const updateTaskStatus = (req, res) => {
   const { task_owners_id } = req.params;
   const { status } = req.body;
 
-  const validStatuses = ["pending", "in_progress", "review", "completed"];
+  const validStatuses = [
+    "pending",
+    "in_progress",
+    "review",
+    "waiting_for_approval",
+    "scheduled_for_posting",
+    "completed",
+  ];
   if (!status || !validStatuses.includes(status)) {
     return res.status(400).json({
       success: false,
@@ -2101,7 +2108,14 @@ const logReTaskProgress = (req, res) => {
     return res.status(400).json({ success: false, message: "Task description is required" });
   }
 
-  const validStatuses = ["pending", "in_progress", "review", "completed"];
+  const validStatuses = [
+    "pending",
+    "in_progress",
+    "review",
+    "waiting_for_approval",
+    "scheduled_for_posting",
+    "completed",
+  ];
 
   // 1. Fetch task details & project context
   const getTaskSql = `
