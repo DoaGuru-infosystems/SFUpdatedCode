@@ -33,7 +33,7 @@ import {
 } from "react-icons/fa";
 
 const LeaderDashboard = () => {
-  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || (typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com");
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -60,6 +60,7 @@ const LeaderDashboard = () => {
   const [selectedReassignTaskModal, setSelectedReassignTaskModal] = useState(null);
   const [reassignTaskEmpId, setReassignTaskEmpId] = useState("");
   const [reassignTaskReason, setReassignTaskReason] = useState("");
+  const [reassignTaskDeadline, setReassignTaskDeadline] = useState("");
   const [reassignTaskLoading, setReassignTaskLoading] = useState(false);
 
   // Direct Task Assignment states (TL assignment of unassigned tasks)
@@ -123,6 +124,7 @@ const LeaderDashboard = () => {
           task_owners_id: selectedReassignTaskModal.task_owners_id,
           new_employee_id: reassignTaskEmpId,
           reason: reassignTaskReason || null,
+          deadline: reassignTaskDeadline || null,
         },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
@@ -131,6 +133,7 @@ const LeaderDashboard = () => {
         setSelectedReassignTaskModal(null);
         setReassignTaskEmpId("");
         setReassignTaskReason("");
+        setReassignTaskDeadline("");
         fetchReProjects();
       } else {
         toast.error(res.data?.message || "Failed to reassign task");
@@ -1081,25 +1084,28 @@ const LeaderDashboard = () => {
                             </p>
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <button
-                              onClick={() => {
-                                setSelectedPoModal(proj);
-                                setSelectedPoEmp("");
-                              }}
-                              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
-                            >
-                              <FaUserPlus size={11} /> Mark PO
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedReassignPoModal(proj);
-                                setReassignPoEmpId("");
-                                setReassignPoReason("");
-                              }}
-                              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
-                            >
-                              <FaUserPlus size={11} /> Reassign PO
-                            </button>
+                            {!proj.project_owner_name ? (
+                              <button
+                                onClick={() => {
+                                  setSelectedPoModal(proj);
+                                  setSelectedPoEmp("");
+                                }}
+                                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
+                              >
+                                <FaUserPlus size={11} /> Mark PO
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setSelectedReassignPoModal(proj);
+                                  setReassignPoEmpId("");
+                                  setReassignPoReason("");
+                                }}
+                                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
+                              >
+                                <FaUserPlus size={11} /> Reassign PO
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -1137,26 +1143,33 @@ const LeaderDashboard = () => {
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
                                   {t.employee_name ? (
-                                    <div className="flex items-center gap-2.5">
+                                    <div className="flex items-center gap-2">
                                       <span className="text-xs font-bold text-slate-700">
                                         👤 {t.employee_name}
                                       </span>
-                                      {/* Single Clean Extend / Reassign Action Button */}
+                                      {/* Disabled Assign button because task is already assigned to someone */}
+                                      <button
+                                        disabled
+                                        title="Task is already assigned to someone"
+                                        className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 rounded-lg text-[10px] font-bold cursor-not-allowed opacity-60"
+                                      >
+                                        Assign
+                                      </button>
                                       <button
                                         onClick={() => {
-                                          setSelectedAssignTaskModal({
+                                          setSelectedReassignTaskModal({
                                             ...t,
                                             project_id: proj.project_id,
                                             client_name: proj.client_name,
                                           });
-                                          setAssignTaskEmpId(t.employee_id || "");
-                                          setAssignTaskDeadline(t.deadline ? String(t.deadline).substring(0, 10) : "");
-                                          setAssignTaskDescription(t.description || "");
+                                          setReassignTaskEmpId("");
+                                          setReassignTaskReason("");
+                                          setReassignTaskDeadline(t.deadline ? String(t.deadline).substring(0, 10) : "");
                                         }}
-                                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[10px] font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                                        title="Click to extend deadline or reassign task"
+                                        className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold transition shadow-xs cursor-pointer"
+                                        title="Reassign task to your department member"
                                       >
-                                        Extend / Reassign
+                                        Reassign
                                       </button>
                                     </div>
                                   ) : (
@@ -1194,7 +1207,7 @@ const LeaderDashboard = () => {
                               </div>
                             ))
                           ) : (
-                            <div className="p-4 text-center text-xs text-slate-400">No matching tasks for your department.</div>
+                            <div className="p-4 text-center text-xs text-slate-400">No tasks found for this project.</div>
                           )}
                         </div>
                       </div>
@@ -2203,6 +2216,18 @@ const LeaderDashboard = () => {
                       <option key={m.id} value={m.id}>{m.full_name} ({m.designation || m.department})</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                    Deadline Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={reassignTaskDeadline}
+                    onChange={(e) => setReassignTaskDeadline(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
                 </div>
 
                 <div>

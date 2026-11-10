@@ -87,10 +87,11 @@ const getLeaderReProjects = (req, res) => {
       db.query(explicitSql, [tlDeptId || 0], (expErr, expRows) => {
         const explicitProjectIds = new Set((expRows || []).map((r) => r.project_id));
 
-        // Fetch active project owners with assigner information
+        // Fetch active project owners scoped to this TL's department
         const poSql = `
           SELECT 
             po.project_id,
+            po.department_id,
             po.employee_id,
             po.assigned_by_gm,
             u.full_name AS po_name,
@@ -98,9 +99,10 @@ const getLeaderReProjects = (req, res) => {
           FROM project_owners po
           JOIN task_users u ON po.employee_id = u.id
           WHERE po.status = 'active'
+            AND po.department_id = ?
         `;
 
-        db.query(poSql, (poErr, poRows) => {
+        db.query(poSql, [tlDeptId || 0], (poErr, poRows) => {
           const poByProject = new Map();
           (poRows || []).forEach((po) => {
             poByProject.set(po.project_id, po);
@@ -143,9 +145,26 @@ const getLeaderReProjects = (req, res) => {
               return res.status(500).json({ success: false, message: "Database error", error: projErr.message });
             }
 
-            const projectMap = new Map();
-
+            // 1. Identify which projects qualify for this TL:
+            //    - Explicitly assigned to TL department, OR
+            //    - Has at least one task matching TL department, OR
+            //    - Has at least one task assigned to TL department employee, OR
+            //    - Has an active PO assigned for this TL's department
+            const qualifyingProjectIds = new Set(explicitProjectIds);
             rows.forEach((row) => {
+              const catMatches = matchesCategoryAndDepartment(row.category, tlDepartment);
+              const empMatches = row.employee_department && matchesCategoryAndDepartment(row.employee_department, tlDepartment);
+              const poMatches = poByProject.has(row.project_id);
+              if (catMatches || empMatches || poMatches) {
+                qualifyingProjectIds.add(row.project_id);
+              }
+            });
+
+            // 2. For all qualifying projects, include ALL tasks (cross-department full view)
+            const projectMap = new Map();
+            rows.forEach((row) => {
+              if (!qualifyingProjectIds.has(row.project_id)) return;
+
               if (!projectMap.has(row.project_id)) {
                 const poInfo = poByProject.get(row.project_id);
                 projectMap.set(row.project_id, {
@@ -155,6 +174,8 @@ const getLeaderReProjects = (req, res) => {
                   client_name        : row.client_name,
                   start_date         : row.start_date,
                   end_date           : row.end_date,
+                  department_id      : tlDeptId,
+                  department_name    : matchedDept ? matchedDept.name : tlDepartment,
                   project_owner_id   : poInfo ? poInfo.employee_id : null,
                   project_owner_name : poInfo ? poInfo.po_name : null,
                   po_assigned_by_gm  : Boolean(poInfo?.assigned_by_gm === 1),
@@ -162,45 +183,29 @@ const getLeaderReProjects = (req, res) => {
                 });
               }
 
-              // Department inclusion check for TL:
-              // 1. Task category matches TL department, OR
-              // 2. Project explicitly assigned to this TL's department, OR
-              // 3. Task assigned to employee belonging to this TL's department
-              const catMatches = matchesCategoryAndDepartment(row.category, tlDepartment);
-              const isExplicit = explicitProjectIds.has(row.project_id);
-              const empMatches = row.employee_department && matchesCategoryAndDepartment(row.employee_department, tlDepartment);
+              const isStrict = isStrictDepartment({ category: row.category }, deptsList);
+              const deadlineDisplay = isStrict
+                ? (row.deadline ? moment(row.deadline).format("DD-MM-YYYY") : "Deadline Pending")
+                : "No fixed deadline";
 
-              if (catMatches || isExplicit || empMatches) {
-                const isStrict = isStrictDepartment({ category: row.category }, deptsList);
-                const deadlineDisplay = isStrict
-                  ? (row.deadline ? moment(row.deadline).format("DD-MM-YYYY") : "Deadline Pending")
-                  : "No fixed deadline";
-
-                projectMap.get(row.project_id).tasks.push({
-                  task_owners_id       : row.task_owners_id,
-                  task_name            : row.task_name,
-                  category             : row.category,
-                  description          : row.description || null,
-                  status               : row.status,
-                  employee_id          : row.employee_id,
-                  employee_name        : row.employee_name || null,
-                  deadline             : row.deadline || null,
-                  deadline_display     : deadlineDisplay,
-                  is_strict_department : isStrict,
-                  assigned_by_gm       : Boolean(row.assigned_by_gm === 1),
-                  assigned_by_name     : row.assigner_name || null,
-                });
-              }
+              projectMap.get(row.project_id).tasks.push({
+                task_owners_id       : row.task_owners_id,
+                task_name            : row.task_name,
+                category             : row.category,
+                description          : row.description || null,
+                status               : row.status,
+                employee_id          : row.employee_id,
+                employee_name        : row.employee_name || null,
+                employee_department  : row.employee_department || null,
+                deadline             : row.deadline || null,
+                deadline_display     : deadlineDisplay,
+                is_strict_department : isStrict,
+                assigned_by_gm       : Boolean(row.assigned_by_gm === 1),
+                assigned_by_name     : row.assigner_name || null,
+              });
             });
 
-            // Filter: Keep only projects that have at least one matching task OR explicit department assignment
-            const result = [];
-            projectMap.forEach((proj) => {
-              if (proj.tasks.length > 0 || explicitProjectIds.has(proj.project_id)) {
-                result.push(proj);
-              }
-            });
-
+            const result = Array.from(projectMap.values());
             return res.status(200).json({
               success: true,
               data: result,
@@ -267,54 +272,69 @@ const assignProjectOwner = (req, res) => {
         });
       }
 
-      // 3. Check if active row already exists
-      const checkExistingSql = `
-        SELECT id FROM project_owners
-        WHERE project_id = ? AND employee_id = ? AND status = 'active'
-      `;
-
-      db.query(checkExistingSql, [project_id, employee_id], (chkErr, existingRows) => {
-        if (chkErr) {
-          console.error("[Assign PO] Error checking existing assignment:", chkErr.message);
-          return res.status(500).json({ success: false, message: "Database error", error: chkErr.message });
+      // 3. Resolve department_id from departments table
+      const getDeptIdSql = "SELECT id, name FROM departments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))";
+      db.query(getDeptIdSql, [leaderDept], (dErr, dRows) => {
+        if (dErr || !dRows || dRows.length === 0) {
+          console.error("[Assign PO] Error resolving department id:", dErr?.message);
+          return res.status(500).json({ success: false, message: "Leader department not configured in departments table" });
         }
+        const leaderDeptId = dRows[0].id;
 
-        if (existingRows.length > 0) {
-          return res.status(200).json({
-            success: true,
-            message: "Project Owner already assigned",
-            data: { id: existingRows[0].id },
-          });
-        }
-
-        // 4. Insert or reactivate row
-        const insertPoSql = `
-          INSERT INTO project_owners (project_id, employee_id, assigned_by, status)
-          VALUES (?, ?, ?, 'active')
-          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), status = 'active', assigned_by = VALUES(assigned_by)
+        // 4. Check if active row already exists for this (project_id, department_id)
+        const checkExistingSql = `
+          SELECT id, employee_id FROM project_owners
+          WHERE project_id = ? AND department_id = ? AND status = 'active'
         `;
 
-        db.query(insertPoSql, [project_id, employee_id, user.id], (insErr, insResult) => {
-          if (insErr) {
-            console.error("[Assign PO] Error inserting project_owner:", insErr.message);
-            return res.status(500).json({ success: false, message: "Database error", error: insErr.message });
+        db.query(checkExistingSql, [project_id, leaderDeptId], (chkErr, existingRows) => {
+          if (chkErr) {
+            console.error("[Assign PO] Error checking existing assignment:", chkErr.message);
+            return res.status(500).json({ success: false, message: "Database error", error: chkErr.message });
           }
 
-          console.log(`[Assign PO] ✅ Employee ${employee_id} assigned as PO for project ${project_id} by TL ${user.id}`);
+          if (existingRows.length > 0 && Number(existingRows[0].employee_id) === Number(employee_id)) {
+            return res.status(200).json({
+              success: true,
+              message: "Project Owner already assigned",
+              data: { id: existingRows[0].id, department_id: leaderDeptId },
+            });
+          }
 
-          // Asynchronously notify assigned Project Owner via WhatsApp
-          notifyProjectOwnerAssigned({
-            projectId: project_id,
-            employeeId: employee_id,
-            tlUserId: user.id,
-          }).catch((wErr) => console.error("[Assign PO] WhatsApp dispatch error:", wErr.message));
+          // 5. Insert or reactivate row with department_id
+          const insertPoSql = `
+            INSERT INTO project_owners (project_id, employee_id, department_id, assigned_by, assigned_by_gm, status)
+            VALUES (?, ?, ?, ?, 0, 'active')
+            ON DUPLICATE KEY UPDATE 
+              id = LAST_INSERT_ID(id),
+              employee_id = VALUES(employee_id),
+              assigned_by = VALUES(assigned_by),
+              assigned_by_gm = 0,
+              status = 'active'
+          `;
 
-          const finalPoId = (insResult && insResult.insertId) ? insResult.insertId : (existingRows[0] ? existingRows[0].id : 0);
+          db.query(insertPoSql, [project_id, employee_id, leaderDeptId, user.id], (insErr, insResult) => {
+            if (insErr) {
+              console.error("[Assign PO] Error inserting project_owner:", insErr.message);
+              return res.status(500).json({ success: false, message: "Database error", error: insErr.message });
+            }
 
-          return res.status(200).json({
-            success: true,
-            message: "Project Owner assigned",
-            data: { id: finalPoId },
+            console.log(`[Assign PO] ✅ Employee ${employee_id} assigned as PO for project ${project_id} (dept ${leaderDeptId}) by TL ${user.id}`);
+
+            // Asynchronously notify assigned Project Owner via WhatsApp
+            notifyProjectOwnerAssigned({
+              projectId: project_id,
+              employeeId: employee_id,
+              tlUserId: user.id,
+            }).catch((wErr) => console.error("[Assign PO] WhatsApp dispatch error:", wErr.message));
+
+            const finalPoId = (insResult && insResult.insertId) ? insResult.insertId : (existingRows[0] ? existingRows[0].id : 0);
+
+            return res.status(200).json({
+              success: true,
+              message: "Project Owner assigned",
+              data: { id: finalPoId, department_id: leaderDeptId },
+            });
           });
         });
       });
@@ -413,26 +433,23 @@ const getEmployeeOwnedProjects = (req, res) => {
           tasksByProject.get(t.project_id).push(t);
         });
 
-        // Assemble response
+        // Assemble response: include ALL tasks for full cross-department visibility
         const result = poRows.map((p) => {
           const allProjectTasks = tasksByProject.get(p.project_id) || [];
           const overallStatus = deriveProjectStatus(allProjectTasks, deptListEmp);
 
-          // ONLY include tasks matching this employee's department
-          const departmentTasks = allProjectTasks
-            .filter((t) => matchesCategoryAndDepartment(t.category, empDepartment))
-            .map((t) => ({
-              task_owners_id: t.task_owners_id,
-              sf_task_id    : t.sf_task_id,
-              task_name     : t.task_name,
-              category      : t.category,
-              description   : t.description,
-              quantity      : t.quantity,
-              status        : t.status,
-              employee_id   : t.employee_id,
-              employee_name : t.employee_name || null,
-              deadline      : t.deadline || null,
-            }));
+          const projectTasks = allProjectTasks.map((t) => ({
+            task_owners_id: t.task_owners_id,
+            sf_task_id    : t.sf_task_id,
+            task_name     : t.task_name,
+            category      : t.category,
+            description   : t.description,
+            quantity      : t.quantity,
+            status        : t.status,
+            employee_id   : t.employee_id,
+            employee_name : t.employee_name || null,
+            deadline      : t.deadline || null,
+          }));
 
           return {
             project_id         : p.project_id,
@@ -442,7 +459,7 @@ const getEmployeeOwnedProjects = (req, res) => {
             start_date         : p.start_date || null,
             end_date           : p.end_date || null,
             overall_status     : overallStatus,
-            tasks              : departmentTasks,
+            tasks              : projectTasks,
           };
         });
 
@@ -508,9 +525,7 @@ const assignTaskOwner = (req, res) => {
 
       const checkTlSql = "SELECT department, role FROM task_users WHERE id = ?";
       db.query(checkTlSql, [user.id], (tlErr, tlRows) => {
-        const isTl = (user.role === "team_lead" || (tlRows && tlRows.length > 0 && tlRows[0].role === "team_lead")) &&
-                     tlRows && tlRows.length > 0 &&
-                     matchesCategoryAndDepartment(tRows[0].category, tlRows[0].department);
+        const isTl = user.role === "team_lead" || (tlRows && tlRows.length > 0 && tlRows[0].role === "team_lead");
 
         if (!isPo && !isTl && !isAdminOrGm) {
           return res.status(403).json({
@@ -519,44 +534,69 @@ const assignTaskOwner = (req, res) => {
           });
         }
 
-        // 3. Update existing task_owners row
-        // If same employee, preserve status (e.g. in_progress, review); if reassigned to new employee, reset to 'pending'
-        const isSameEmployee = String(tRows[0].employee_id) === String(employee_id);
-        const updatedStatus = isSameEmployee ? (tRows[0].status || 'pending') : 'pending';
-
-        const updateTaskSql = `
-          UPDATE task_owners
-          SET employee_id = ?, assigned_by = ?, deadline = ?, description = COALESCE(?, description), status = ?
-          WHERE id = ?
-        `;
-
-        db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, updatedStatus, task_owners_id], (updErr) => {
-          if (updErr) {
-            console.error("[Assign Task] Error updating task_owners:", updErr.message);
-            return res.status(500).json({ success: false, message: "Database error", error: updErr.message });
+        // Validate that assigned employee exists and belongs to caller's department (unless GM/Admin)
+        const getEmpSql = "SELECT id, full_name, department, employment_status FROM task_users WHERE id = ?";
+        db.query(getEmpSql, [employee_id], (empErr, empRows) => {
+          if (empErr) {
+            console.error("[Assign Task] Error checking employee:", empErr.message);
+            return res.status(500).json({ success: false, message: "Database error", error: empErr.message });
           }
 
-          console.log(`[Assign Task] ✅ Task ${task_owners_id} assigned to employee ${employee_id} by user ${user.id}`);
+          if (empRows.length === 0) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+          }
 
-          // Asynchronously notify assigned Task Owner via WhatsApp
-          notifyTaskOwnerAssigned({
-            taskOwnersId: task_owners_id,
-            employeeId: employee_id,
-            poUserId: user.id,
-            deadline: deadline || null,
-          }).catch((wErr) => console.error("[Assign Task] WhatsApp dispatch error:", wErr.message));
+          const emp = empRows[0];
+          const callerDept = tlRows && tlRows.length > 0 ? tlRows[0].department : null;
 
-          // Outbound RE Webhook sync (Phase 6)
-          sendStatusUpdateToRE(projectId, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
+          if (!isAdminOrGm) {
+            if (callerDept && emp.department && callerDept.trim().toLowerCase() !== emp.department.trim().toLowerCase()) {
+              return res.status(403).json({
+                success: false,
+                message: "Forbidden: You can only assign tasks to employees of your own department",
+              });
+            }
+          }
 
-          return res.status(200).json({
-            success: true,
-            message: "Task Owner assigned",
-            data: {
-              task_owners_id: Number(task_owners_id),
-              employee_id: Number(employee_id),
+          // 3. Update existing task_owners row
+          // If same employee, preserve status (e.g. in_progress, review); if reassigned to new employee, reset to 'pending'
+          const isSameEmployee = String(tRows[0].employee_id) === String(employee_id);
+          const updatedStatus = isSameEmployee ? (tRows[0].status || 'pending') : 'pending';
+
+          const updateTaskSql = `
+            UPDATE task_owners
+            SET employee_id = ?, assigned_by = ?, deadline = ?, description = COALESCE(?, description), status = ?
+            WHERE id = ?
+          `;
+
+          db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, updatedStatus, task_owners_id], (updErr) => {
+            if (updErr) {
+              console.error("[Assign Task] Error updating task_owners:", updErr.message);
+              return res.status(500).json({ success: false, message: "Database error", error: updErr.message });
+            }
+
+            console.log(`[Assign Task] ✅ Task ${task_owners_id} assigned to employee ${employee_id} by user ${user.id}`);
+
+            // Asynchronously notify assigned Task Owner via WhatsApp
+            notifyTaskOwnerAssigned({
+              taskOwnersId: task_owners_id,
+              employeeId: employee_id,
+              poUserId: user.id,
               deadline: deadline || null,
-            },
+            }).catch((wErr) => console.error("[Assign Task] WhatsApp dispatch error:", wErr.message));
+
+            // Outbound RE Webhook sync (Phase 6)
+            sendStatusUpdateToRE(projectId, user.id).catch((e) => console.error("[RE Sync Trigger] Error:", e.message));
+
+            return res.status(200).json({
+              success: true,
+              message: "Task Owner assigned",
+              data: {
+                task_owners_id: Number(task_owners_id),
+                employee_id: Number(employee_id),
+                deadline: deadline || null,
+              },
+            });
           });
         });
       });
@@ -680,7 +720,7 @@ const reassignTaskOwner = (req, res) => {
     return res.status(401).json({ success: false, message: "Unauthorized: Missing or invalid token" });
   }
 
-  const { task_owners_id, new_employee_id, reason } = req.body;
+  const { task_owners_id, new_employee_id, reason, deadline } = req.body;
   if (!task_owners_id || !new_employee_id) {
     return res.status(400).json({ success: false, message: "task_owners_id and new_employee_id are required" });
   }
@@ -734,16 +774,14 @@ const reassignTaskOwner = (req, res) => {
           return res.status(500).json({ success: false, message: "Database error", error: tlErr.message });
         }
 
-        const isTL = (user.role === "team_lead" || (tlRows.length > 0 && tlRows[0].role === "team_lead")) &&
-                     tlRows.length > 0 &&
-                     matchesCategoryAndDepartment(task.category, tlRows[0].department);
+        const isTL = user.role === "team_lead" || (tlRows && tlRows.length > 0 && tlRows[0].role === "team_lead");
 
         const isAdminOrGm = isCallerAdminOrGm(user);
 
         if (!isAdminOrGm && !isPo && !isTL) {
           return res.status(403).json({
             success: false,
-            message: "Forbidden: You must be an active Project Owner or the department Team Lead to reassign this task",
+            message: "Forbidden: You must be an active Project Owner or Team Lead to reassign this task",
           });
         }
 
@@ -761,12 +799,14 @@ const reassignTaskOwner = (req, res) => {
 
           const newEmp = empRows[0];
 
-          // Department-match check: COMPLETELY SKIPPED for GM/MD, strictly enforced for TL/PO
+          // Department-match check: COMPLETELY SKIPPED for GM/MD, strictly enforced for TL/PO:
+          // new employee MUST belong to caller's department
           if (!isAdminOrGm) {
-            if (!matchesCategoryAndDepartment(task.category, newEmp.department)) {
+            const callerDept = tlRows && tlRows.length > 0 ? tlRows[0].department : null;
+            if (callerDept && newEmp.department && callerDept.trim().toLowerCase() !== newEmp.department.trim().toLowerCase()) {
               return res.status(403).json({
                 success: false,
-                message: "Forbidden: Employee belongs to a different department than the task category",
+                message: "Forbidden: You can only reassign to employees of your own department",
               });
             }
           }
@@ -804,13 +844,15 @@ const reassignTaskOwner = (req, res) => {
                     });
                   }
 
+                  const updatedDeadline = (deadline !== undefined && deadline !== null && deadline !== '') ? deadline : task.deadline;
+
                   const updateTaskSql = `
                     UPDATE task_owners
-                    SET employee_id = ?, assigned_by = ?, assigned_by_gm = ?, status = 'pending'
+                    SET employee_id = ?, assigned_by = ?, assigned_by_gm = ?, status = 'pending', deadline = ?
                     WHERE id = ?
                   `;
 
-                  conn.query(updateTaskSql, [new_employee_id, user.id, isAdminOrGm ? 1 : 0, task_owners_id], (updErr) => {
+                  conn.query(updateTaskSql, [new_employee_id, user.id, isAdminOrGm ? 1 : 0, updatedDeadline || null, task_owners_id], (updErr) => {
                     if (updErr) {
                       return conn.rollback(() => {
                         conn.release();
@@ -840,8 +882,8 @@ const reassignTaskOwner = (req, res) => {
                           });
                         }
 
-                        const deadlineStr = task.deadline
-                          ? (typeof task.deadline === "string" ? task.deadline.substring(0, 10) : new Date(task.deadline).toISOString().split("T")[0])
+                        const deadlineStr = updatedDeadline
+                          ? (typeof updatedDeadline === "string" ? updatedDeadline.substring(0, 10) : new Date(updatedDeadline).toISOString().split("T")[0])
                           : null;
 
                         const taskPayload = {
@@ -860,14 +902,14 @@ const reassignTaskOwner = (req, res) => {
                         console.warn("[Reassign Task] Socket emit warning:", sockErr.message);
                       }
 
-                      console.log(`[Reassign Task] ✅ Task ${task_owners_id} reassigned: ${old_employee_id} -> ${new_employee_id} by user ${user.id}`);
+                      console.log(`[Reassign Task] ✅ Task ${task_owners_id} reassigned: ${old_employee_id} -> ${new_employee_id} (deadline: ${updatedDeadline}) by user ${user.id}`);
 
                       // Asynchronously notify newly assigned Task Owner via WhatsApp
                       notifyTaskOwnerAssigned({
                         taskOwnersId: Number(task_owners_id),
                         employeeId: Number(new_employee_id),
                         poUserId: user.id,
-                        deadline: task.deadline || null,
+                        deadline: updatedDeadline || null,
                       }).catch((wErr) => console.error("[Reassign Task] WhatsApp dispatch error:", wErr.message));
 
                       // Outbound RE Webhook sync (Phase 6)
@@ -880,6 +922,7 @@ const reassignTaskOwner = (req, res) => {
                           task_owners_id: Number(task_owners_id),
                           old_employee_id: old_employee_id || null,
                           new_employee_id: Number(new_employee_id),
+                          deadline: updatedDeadline || null,
                         },
                       });
                     });
@@ -947,77 +990,108 @@ const reassignProjectOwner = (req, res) => {
         }
       }
 
-      // 3. Find current active PO if old_employee_id was not explicitly specified
-      const findOldPoSql = "SELECT id, employee_id FROM project_owners WHERE project_id = ? AND status = 'active'";
-      db.query(findOldPoSql, [project_id], (fErr, fRows) => {
-        if (fErr) {
-          console.error("[Reassign PO] Error finding existing PO:", fErr.message);
-          return res.status(500).json({ success: false, message: "Database error", error: fErr.message });
+      // Resolve target department_id for this PO reassignment
+      const deptNameToMatch = (!isAdminOrGm || !req.body.department_id)
+        ? (tlDepartment || newEmp.department)
+        : null;
+
+      const resolveDept = (cb) => {
+        if (req.body.department_id) {
+          return cb(null, Number(req.body.department_id));
+        }
+        db.query(
+          "SELECT id FROM departments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))",
+          [deptNameToMatch],
+          (dErr, dRows) => {
+            if (dErr || !dRows || dRows.length === 0) {
+              return cb(new Error("Department could not be resolved from departments table"));
+            }
+            cb(null, dRows[0].id);
+          }
+        );
+      };
+
+      resolveDept((resErr, targetDeptId) => {
+        if (resErr) {
+          return res.status(400).json({ success: false, message: resErr.message });
         }
 
-        const effectiveOldEmpId = old_employee_id || (fRows.length > 0 ? fRows[0].employee_id : null);
-
-        // 4. Run Transaction:
-        //    a) Update active project_owners row(s) to 'removed'
-        //    b) Insert or reactivate new project_owners row
-        //    c) Insert into assignment_history
-        db.getConnection((connErr, conn) => {
-          if (connErr) {
-            console.error("[Reassign PO] Connection error:", connErr.message);
-            return res.status(500).json({ success: false, message: "Database connection error" });
+        // 3. Find current active PO for this specific (project_id, department_id)
+        const findOldPoSql = "SELECT id, employee_id FROM project_owners WHERE project_id = ? AND department_id = ? AND status = 'active'";
+        db.query(findOldPoSql, [project_id, targetDeptId], (fErr, fRows) => {
+          if (fErr) {
+            console.error("[Reassign PO] Error finding existing PO:", fErr.message);
+            return res.status(500).json({ success: false, message: "Database error", error: fErr.message });
           }
 
-          conn.beginTransaction((txErr) => {
-            if (txErr) {
-              conn.release();
-              console.error("[Reassign PO] Transaction error:", txErr.message);
-              return res.status(500).json({ success: false, message: "Transaction start failed" });
+          const effectiveOldEmpId = old_employee_id || (fRows.length > 0 ? fRows[0].employee_id : null);
+
+          // 4. Run Transaction:
+          //    a) Update active project_owners row for THIS department ONLY to 'removed'
+          //    b) Insert or reactivate new project_owners row for THIS department
+          //    c) Insert into assignment_history
+          db.getConnection((connErr, conn) => {
+            if (connErr) {
+              console.error("[Reassign PO] Connection error:", connErr.message);
+              return res.status(500).json({ success: false, message: "Database connection error" });
             }
 
-            // a) Remove previous active PO
-            const removeOldPoSql = `
-              UPDATE project_owners 
-              SET status = 'removed' 
-              WHERE project_id = ? AND status = 'active'
-            `;
-
-            conn.query(removeOldPoSql, [project_id], (remErr) => {
-              if (remErr) {
-                return conn.rollback(() => {
-                  conn.release();
-                  console.error("[Reassign PO] Error removing old PO:", remErr.message);
-                  res.status(500).json({ success: false, message: "Failed to update old Project Owner" });
-                });
+            conn.beginTransaction((txErr) => {
+              if (txErr) {
+                conn.release();
+                console.error("[Reassign PO] Transaction error:", txErr.message);
+                return res.status(500).json({ success: false, message: "Transaction start failed" });
               }
 
-              // b) Insert or reactivate new PO (with assigned_by_gm)
-              const upsertNewPoSql = `
-                INSERT INTO project_owners (project_id, employee_id, assigned_by, assigned_by_gm, status)
-                VALUES (?, ?, ?, ?, 'active')
-                ON DUPLICATE KEY UPDATE status = 'active', assigned_by = VALUES(assigned_by), assigned_by_gm = VALUES(assigned_by_gm)
+              // a) Remove previous active PO for this specific department
+              const removeOldPoSql = `
+                UPDATE project_owners 
+                SET status = 'removed' 
+                WHERE project_id = ? AND department_id = ? AND status = 'active'
               `;
 
-              conn.query(upsertNewPoSql, [project_id, new_employee_id, user.id, isAdminOrGm ? 1 : 0], (insErr, insRes) => {
-                if (insErr) {
+              conn.query(removeOldPoSql, [project_id, targetDeptId], (remErr) => {
+                if (remErr) {
                   return conn.rollback(() => {
                     conn.release();
-                    console.error("[Reassign PO] Error inserting new PO:", insErr.message);
-                    res.status(500).json({ success: false, message: "Failed to assign new Project Owner" });
+                    console.error("[Reassign PO] Error removing old PO:", remErr.message);
+                    res.status(500).json({ success: false, message: "Failed to update old Project Owner" });
                   });
                 }
 
-                // Query affected project_owners.id
-                const getAffectedPoIdSql = `
-                  SELECT id FROM project_owners WHERE project_id = ? AND employee_id = ?
+                // b) Insert or reactivate new PO with uq_proj_dept (with assigned_by_gm)
+                const upsertNewPoSql = `
+                  INSERT INTO project_owners (project_id, employee_id, department_id, assigned_by, assigned_by_gm, status)
+                  VALUES (?, ?, ?, ?, ?, 'active')
+                  ON DUPLICATE KEY UPDATE 
+                    id = LAST_INSERT_ID(id),
+                    employee_id = VALUES(employee_id),
+                    assigned_by = VALUES(assigned_by),
+                    assigned_by_gm = VALUES(assigned_by_gm),
+                    status = 'active'
                 `;
-                conn.query(getAffectedPoIdSql, [project_id, new_employee_id], (idErr, idRows) => {
-                  if (idErr || idRows.length === 0) {
+
+                conn.query(upsertNewPoSql, [project_id, new_employee_id, targetDeptId, user.id, isAdminOrGm ? 1 : 0], (insErr, insRes) => {
+                  if (insErr) {
                     return conn.rollback(() => {
                       conn.release();
-                      console.error("[Reassign PO] Error getting PO id:", idErr?.message);
-                      res.status(500).json({ success: false, message: "Failed to retrieve Project Owner record" });
+                      console.error("[Reassign PO] Error inserting new PO:", insErr.message);
+                      res.status(500).json({ success: false, message: "Failed to assign new Project Owner" });
                     });
                   }
+
+                  // Query affected project_owners.id
+                  const getAffectedPoIdSql = `
+                    SELECT id FROM project_owners WHERE project_id = ? AND department_id = ?
+                  `;
+                  conn.query(getAffectedPoIdSql, [project_id, targetDeptId], (idErr, idRows) => {
+                    if (idErr || idRows.length === 0) {
+                      return conn.rollback(() => {
+                        conn.release();
+                        console.error("[Reassign PO] Error getting PO id:", idErr?.message);
+                        res.status(500).json({ success: false, message: "Failed to retrieve Project Owner record" });
+                      });
+                    }
 
                   const affectedPoId = idRows[0].id;
 
@@ -1095,6 +1169,7 @@ const reassignProjectOwner = (req, res) => {
         });
       });
     });
+  });
   });
 };
 
@@ -1305,11 +1380,18 @@ const getAdminReProjects = (req, res) => {
         tasksByProject.get(t.project_id).push(t);
       });
 
-      // Fetch active POs for these projects
+      // Fetch active POs for these projects with department context
       const poSql = `
-        SELECT po.project_id, po.employee_id, u.full_name AS employee_name, po.assigned_by_gm
+        SELECT 
+          po.project_id, 
+          po.department_id, 
+          d.name AS department_name, 
+          po.employee_id, 
+          u.full_name AS employee_name, 
+          po.assigned_by_gm
         FROM project_owners po
         JOIN task_users u ON po.employee_id = u.id
+        LEFT JOIN departments d ON po.department_id = d.id
         WHERE po.project_id IN (?) AND po.status = 'active'
       `;
 
@@ -1317,7 +1399,12 @@ const getAdminReProjects = (req, res) => {
         const poByProject = new Map();
         if (!poErr && Array.isArray(poRows)) {
           poRows.forEach((row) => {
-            poByProject.set(row.project_id, {
+            if (!poByProject.has(row.project_id)) {
+              poByProject.set(row.project_id, []);
+            }
+            poByProject.get(row.project_id).push({
+              department_id: row.department_id,
+              department_name: row.department_name,
               employee_id: row.employee_id,
               employee_name: row.employee_name,
               assigned_by_gm: Boolean(row.assigned_by_gm === 1),
@@ -1391,7 +1478,8 @@ const getAdminReProjects = (req, res) => {
                 unassigned_tasks   : unassignedTasks,
                 unassigned_tl_departments: Array.from(unassignedTlSet),
                 assigned_departments: deptsByProject.get(p.project_id) || [],
-                project_owner      : poByProject.get(p.project_id) || null,
+                project_owners     : poByProject.get(p.project_id) || [],
+                project_owner      : (poByProject.get(p.project_id) || [])[0] || null,
                 created_at         : p.created_at,
               };
             });
@@ -1473,21 +1561,29 @@ const getAdminReProjectTasks = (req, res) => {
         return res.status(500).json({ success: false, message: "Database error", error: tErr.message });
       }
 
-      // Fetch active PO for this project
+      // Fetch active POs for this project with department context
       const poSql = `
-        SELECT po.employee_id, u.full_name AS employee_name, po.assigned_by_gm
+        SELECT 
+          po.department_id, 
+          d.name AS department_name, 
+          po.employee_id, 
+          u.full_name AS employee_name, 
+          po.assigned_by_gm
         FROM project_owners po
         JOIN task_users u ON po.employee_id = u.id
+        LEFT JOIN departments d ON po.department_id = d.id
         WHERE po.project_id = ? AND po.status = 'active'
-        LIMIT 1
       `;
 
       db.query(poSql, [project_id], (poErr, poRows) => {
-        const activePo = (!poErr && poRows.length > 0) ? {
-          employee_id: poRows[0].employee_id,
-          employee_name: poRows[0].employee_name,
-          assigned_by_gm: Boolean(poRows[0].assigned_by_gm === 1),
-        } : null;
+        const activePos = (!poErr && Array.isArray(poRows)) ? poRows.map(r => ({
+          department_id: r.department_id,
+          department_name: r.department_name,
+          employee_id: r.employee_id,
+          employee_name: r.employee_name,
+          assigned_by_gm: Boolean(r.assigned_by_gm === 1),
+        })) : [];
+        const activePo = activePos.length > 0 ? activePos[0] : null;
 
         // Fetch explicitly assigned departments
         const deptsAssignedSql = `
@@ -1546,6 +1642,7 @@ const getAdminReProjectTasks = (req, res) => {
                   end_date           : eDate,
                   current_status     : currentStatus,
                   is_active          : Boolean(proj.is_active !== 0),
+                  project_owners     : activePos,
                   project_owner      : activePo,
                   assigned_departments: assignedDepts,
                   tasks              : formattedTasks,
@@ -1805,10 +1902,10 @@ const directAssignProjectOwner = (req, res) => {
   }
 
   const projectId = req.params.projectId || req.params.project_id;
-  const { employee_id } = req.body;
+  const { employee_id, department_id } = req.body;
 
-  if (!projectId || !employee_id) {
-    return res.status(400).json({ success: false, message: "projectId and employee_id are required" });
+  if (!projectId || !employee_id || !department_id) {
+    return res.status(400).json({ success: false, message: "projectId, employee_id, and department_id are required" });
   }
 
   // 1. Verify project exists
@@ -1817,70 +1914,84 @@ const directAssignProjectOwner = (req, res) => {
       return res.status(404).json({ success: false, message: "Project not found" });
     }
 
-    // 2. Validate employee exists and is active (no department restriction for GM/MD)
-    const empSql = "SELECT id, full_name, department, employment_status FROM task_users WHERE id = ? AND employment_status = 'active'";
-    db.query(empSql, [employee_id], (eErr, eRows) => {
-      if (eErr || eRows.length === 0) {
-        return res.status(404).json({ success: false, message: "Active employee not found" });
+    // 2. Verify department exists
+    db.query("SELECT id, name FROM departments WHERE id = ?", [department_id], (dErr, dRows) => {
+      if (dErr || !dRows || dRows.length === 0) {
+        return res.status(404).json({ success: false, message: "Department not found" });
       }
 
-      // 3. Upsert into project_owners with assigned_by_gm = 1
-      const insertPoSql = `
-        INSERT INTO project_owners (project_id, employee_id, assigned_by, assigned_by_gm, status)
-        VALUES (?, ?, ?, 1, 'active')
-        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), status = 'active', assigned_by = VALUES(assigned_by), assigned_by_gm = 1
-      `;
-
-      db.query(insertPoSql, [projectId, employee_id, user.id], (insErr, insResult) => {
-        if (insErr) {
-          console.error("[Direct Assign PO] Error inserting project_owner:", insErr.message);
-          return res.status(500).json({ success: false, message: "Database error", error: insErr.message });
+      // 3. Validate employee exists and is active (no department restriction for GM/MD)
+      const empSql = "SELECT id, full_name, department, employment_status FROM task_users WHERE id = ? AND employment_status = 'active'";
+      db.query(empSql, [employee_id], (eErr, eRows) => {
+        if (eErr || eRows.length === 0) {
+          return res.status(404).json({ success: false, message: "Active employee not found" });
         }
 
-        const sendDirectPoResponse = (realId) => {
-          console.log(`[Direct Assign PO] ✅ Employee ${employee_id} directly assigned as PO (id: ${realId}) for project ${projectId} by GM/MD ${user.id}`);
+        // 4. Upsert into project_owners with assigned_by_gm = 1 and department_id
+        const insertPoSql = `
+          INSERT INTO project_owners (project_id, employee_id, department_id, assigned_by, assigned_by_gm, status)
+          VALUES (?, ?, ?, ?, 1, 'active')
+          ON DUPLICATE KEY UPDATE 
+            id = LAST_INSERT_ID(id), 
+            employee_id = VALUES(employee_id),
+            assigned_by = VALUES(assigned_by),
+            assigned_by_gm = 1,
+            status = 'active'
+        `;
 
-          // Notify PO via WhatsApp
-          notifyProjectOwnerAssigned({
-            projectId: Number(projectId),
-            employeeId: Number(employee_id),
-            tlUserId: user.id,
-          }).catch((wErr) => console.error("[Direct Assign PO] WhatsApp error:", wErr.message));
+        db.query(insertPoSql, [projectId, employee_id, department_id, user.id], (insErr, insResult) => {
+          if (insErr) {
+            console.error("[Direct Assign PO] Error inserting project_owner:", insErr.message);
+            return res.status(500).json({ success: false, message: "Database error", error: insErr.message });
+          }
 
-          const io = socketUtil.getIO();
-          if (io) {
-            io.to("admin_room").emit("re:po_assigned", {
-              project_id: Number(projectId),
-              employee_id: Number(employee_id),
-              assigned_by_gm: true,
+          const sendDirectPoResponse = (realId) => {
+            console.log(`[Direct Assign PO] ✅ Employee ${employee_id} directly assigned as PO (id: ${realId}) for project ${projectId} (dept ${department_id}) by GM/MD ${user.id}`);
+
+            // Notify PO via WhatsApp
+            notifyProjectOwnerAssigned({
+              projectId: Number(projectId),
+              employeeId: Number(employee_id),
+              tlUserId: user.id,
+            }).catch((wErr) => console.error("[Direct Assign PO] WhatsApp error:", wErr.message));
+
+            const io = socketUtil.getIO();
+            if (io) {
+              io.to("admin_room").emit("re:po_assigned", {
+                project_id: Number(projectId),
+                department_id: Number(department_id),
+                employee_id: Number(employee_id),
+                assigned_by_gm: true,
+              });
+            }
+
+            return res.status(200).json({
+              success: true,
+              message: "Project Owner directly assigned by GM/MD",
+              data: {
+                id: Number(realId),
+                project_id: Number(projectId),
+                department_id: Number(department_id),
+                employee_id: Number(employee_id),
+              },
             });
+          };
+
+          const resolvedId = insResult && insResult.insertId ? insResult.insertId : null;
+          if (resolvedId) {
+            return sendDirectPoResponse(resolvedId);
           }
 
-          return res.status(200).json({
-            success: true,
-            message: "Project Owner directly assigned by GM/MD",
-            data: {
-              id: Number(realId),
-              project_id: Number(projectId),
-              employee_id: Number(employee_id),
-            },
-          });
-        };
-
-        const resolvedId = insResult && insResult.insertId ? insResult.insertId : null;
-        if (resolvedId) {
-          return sendDirectPoResponse(resolvedId);
-        }
-
-        // Fallback: If insertId is 0 or falsy, fetch the matching row's auto-increment id from DB
-        db.query(
-          "SELECT id FROM project_owners WHERE project_id = ? AND employee_id = ? ORDER BY id DESC LIMIT 1",
-          [projectId, employee_id],
-          (selErr, selRows) => {
-            const finalId = (!selErr && selRows && selRows.length > 0) ? selRows[0].id : 0;
-            return sendDirectPoResponse(finalId);
-          }
-        );
+          // Fallback: If insertId is 0 or falsy, fetch the matching row's auto-increment id from DB
+          db.query(
+            "SELECT id FROM project_owners WHERE project_id = ? AND department_id = ? ORDER BY id DESC LIMIT 1",
+            [projectId, department_id],
+            (selErr, selRows) => {
+              const finalId = (!selErr && selRows && selRows.length > 0) ? selRows[0].id : 0;
+              return sendDirectPoResponse(finalId);
+            }
+          );
+        });
       });
     });
   });

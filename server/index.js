@@ -1,6 +1,6 @@
 const { join, dirname } = require("path");
 const dotenv = require("dotenv");
-dotenv.config();
+dotenv.config({ path: join(__dirname, ".env") });
 const express = require("express");
 const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");

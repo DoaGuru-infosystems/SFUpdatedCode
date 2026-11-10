@@ -181,6 +181,7 @@ function UserHome() {
   const [selectedReassignTaskModal, setSelectedReassignTaskModal] = useState(null);
   const [reassignTaskEmpId, setReassignTaskEmpId] = useState("");
   const [reassignTaskReason, setReassignTaskReason] = useState("");
+  const [reassignTaskDeadline, setReassignTaskDeadline] = useState("");
   const [reassignTaskLoading, setReassignTaskLoading] = useState(false);
 
   const handleReassignTaskSubmit = async (e) => {
@@ -197,6 +198,7 @@ function UserHome() {
           task_owners_id: selectedReassignTaskModal.task_owners_id,
           new_employee_id: reassignTaskEmpId,
           reason: reassignTaskReason || null,
+          deadline: reassignTaskDeadline || null,
         },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
@@ -205,6 +207,7 @@ function UserHome() {
         setSelectedReassignTaskModal(null);
         setReassignTaskEmpId("");
         setReassignTaskReason("");
+        setReassignTaskDeadline("");
         fetchOwnedProjects();
         fetchMyReTasks();
       } else {
@@ -236,7 +239,14 @@ function UserHome() {
     try {
       const res = await axios.get(`${API_BASE}/api/users`);
       if (Array.isArray(res.data)) {
-        setDepartmentUsers(res.data.filter((u) => u.employment_status === "active"));
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const poDept = storedUser?.department?.trim().toLowerCase();
+        const filtered = res.data.filter((u) => {
+          if (u.employment_status !== "active") return false;
+          if (!poDept) return true;
+          return u.department && u.department.trim().toLowerCase() === poDept;
+        });
+        setDepartmentUsers(filtered);
       }
     } catch (e) {}
   };
@@ -416,7 +426,7 @@ function UserHome() {
   const canvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
 
-  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || (typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com");
 
   let user = JSON.parse(localStorage.getItem("user"));
 
@@ -1518,6 +1528,7 @@ function UserHome() {
                                       });
                                       setReassignTaskEmpId("");
                                       setReassignTaskReason("");
+                                      setReassignTaskDeadline(t.deadline ? String(t.deadline).substring(0, 10) : "");
                                     }}
                                     className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold transition shadow-sm"
                                   >
@@ -1542,7 +1553,7 @@ function UserHome() {
                         ))
                       ) : (
                         <div className="p-4 text-center text-xs text-slate-400 font-bold">
-                          No tasks for your department in this project.
+                          No tasks found for this project.
                         </div>
                       )}
                     </div>
@@ -2395,6 +2406,18 @@ function UserHome() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                  Deadline Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={reassignTaskDeadline}
+                  onChange={(e) => setReassignTaskDeadline(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
               </div>
 
               <div>

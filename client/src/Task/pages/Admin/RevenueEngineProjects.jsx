@@ -36,7 +36,7 @@ import {
 const localizer = momentLocalizer(moment);
 
 const getApiBase = () => {
-  return window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
+  return window.API_BASE || process.env.REACT_APP_API_URL || (typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com");
 };
 
 const getAuthHeaders = () => {
@@ -142,6 +142,7 @@ export default function RevenueEngineProjects() {
   // Modal 2: Direct Assign PO
   const [poModalProject, setPoModalProject] = useState(null);
   const [selectedPoEmpId, setSelectedPoEmpId] = useState("");
+  const [selectedPoDeptId, setSelectedPoDeptId] = useState("");
   const [savingPo, setSavingPo] = useState(false);
 
   // Modal 3: Direct Assign / Reassign Task Owner
@@ -214,9 +215,12 @@ export default function RevenueEngineProjects() {
     }
   };
 
-  const handleOpenPoModal = (proj) => {
+  const handleOpenPoModal = (proj, deptId = null) => {
     setPoModalProject(proj);
-    setSelectedPoEmpId(proj.project_owner?.employee_id ? String(proj.project_owner.employee_id) : "");
+    const targetDeptId = deptId || (proj.assigned_departments?.[0]?.department_id ? String(proj.assigned_departments[0].department_id) : "");
+    setSelectedPoDeptId(targetDeptId ? String(targetDeptId) : "");
+    const existingPo = (proj.project_owners || []).find((po) => String(po.department_id) === String(targetDeptId)) || proj.project_owner;
+    setSelectedPoEmpId(existingPo?.employee_id ? String(existingPo.employee_id) : "");
   };
 
   const handleSavePo = async () => {
@@ -224,11 +228,19 @@ export default function RevenueEngineProjects() {
       toast.error("Please select an employee to be Project Owner");
       return;
     }
+    const deptIdToSend = selectedPoDeptId || poModalProject.assigned_departments?.[0]?.department_id;
+    if (!deptIdToSend) {
+      toast.error("Please select a department for this Project Owner");
+      return;
+    }
     try {
       setSavingPo(true);
       const res = await axios.post(
         `${getApiBase()}/api/admin/re-project/${poModalProject.project_id}/direct-assign-po`,
-        { employee_id: Number(selectedPoEmpId) },
+        { 
+          employee_id: Number(selectedPoEmpId),
+          department_id: Number(deptIdToSend),
+        },
         { headers: getAuthHeaders() }
       );
       if (res.data && res.data.success) {
@@ -536,9 +548,9 @@ export default function RevenueEngineProjects() {
     });
   }, [filteredProjects]);
 
-  // Per-Project Calendar Events (Task Deadlines as Point Events)
+  // Per-Project Calendar Events (Task Deadlines + Project Lifecycle Milestones)
   const perProjectCalendarEvents = useMemo(() => {
-    return projectTasks.map((t) => {
+    const events = projectTasks.map((t) => {
       const d = t.deadline
         ? moment(t.deadline, "YYYY-MM-DD").startOf("day").toDate()
         : new Date();
@@ -549,9 +561,105 @@ export default function RevenueEngineProjects() {
         end: d,
         allDay: true,
         resource: t,
+        eventType: "task",
       };
     });
-  }, [projectTasks]);
+
+    if (selectedProject?.start_date) {
+      const sDate = moment(selectedProject.start_date, "YYYY-MM-DD").startOf("day").toDate();
+      events.push({
+        id: "project_start_marker",
+        title: `🚩 Project Start (${moment(selectedProject.start_date).format("DD MMM")})`,
+        start: sDate,
+        end: sDate,
+        allDay: true,
+        eventType: "project_start",
+      });
+    }
+
+    if (selectedProject?.end_date) {
+      const eDate = moment(selectedProject.end_date, "YYYY-MM-DD").startOf("day").toDate();
+      events.push({
+        id: "project_end_marker",
+        title: `🏁 Project End Target (${moment(selectedProject.end_date).format("DD MMM")})`,
+        start: eDate,
+        end: eDate,
+        allDay: true,
+        eventType: "project_end",
+      });
+    }
+
+    return events;
+  }, [projectTasks, selectedProject]);
+
+  // Day Cell Shading: Highlight the project execution window (start_date to end_date)
+  const perProjectDayPropGetter = (date) => {
+    if (!selectedProject?.start_date && !selectedProject?.end_date) return {};
+
+    const mDate = moment(date).startOf("day");
+    const hasStart = Boolean(selectedProject.start_date);
+    const hasEnd = Boolean(selectedProject.end_date);
+
+    const mStart = hasStart ? moment(selectedProject.start_date, "YYYY-MM-DD").startOf("day") : null;
+    const mEnd = hasEnd ? moment(selectedProject.end_date, "YYYY-MM-DD").startOf("day") : null;
+
+    if (mStart && mEnd) {
+      const isStart = mDate.isSame(mStart, "day");
+      const isEnd = mDate.isSame(mEnd, "day");
+      const isInRange = mDate.isBetween(mStart, mEnd, "day", "[]");
+
+      if (isStart && isEnd) {
+        return {
+          style: {
+            backgroundColor: "rgba(99, 102, 241, 0.15)",
+            border: "2px dashed #6366f1",
+          },
+        };
+      }
+
+      if (isStart) {
+        return {
+          style: {
+            backgroundColor: "rgba(16, 185, 129, 0.15)",
+            borderLeft: "4px solid #10b981",
+          },
+        };
+      }
+
+      if (isEnd) {
+        return {
+          style: {
+            backgroundColor: "rgba(244, 63, 94, 0.15)",
+            borderRight: "4px solid #f43f5e",
+          },
+        };
+      }
+
+      if (isInRange) {
+        return {
+          style: {
+            backgroundColor: "rgba(99, 102, 241, 0.08)",
+          },
+        };
+      }
+    } else if (mStart && mDate.isSame(mStart, "day")) {
+      return {
+        style: {
+          backgroundColor: "rgba(16, 185, 129, 0.15)",
+          borderLeft: "4px solid #10b981",
+        },
+      };
+    } else if (mEnd && mDate.isSame(mEnd, "day")) {
+      return {
+        style: {
+          backgroundColor: "rgba(244, 63, 94, 0.15)",
+          borderRight: "4px solid #f43f5e",
+        },
+      };
+    }
+
+    return {};
+  };
 
   // Event Prop Getters for Styling
   const projectEventPropGetter = (event) => {
@@ -573,6 +681,38 @@ export default function RevenueEngineProjects() {
   };
 
   const taskEventPropGetter = (event) => {
+    if (event.eventType === "project_start") {
+      return {
+        style: {
+          backgroundColor: "#059669",
+          color: "#ffffff",
+          borderRadius: "6px",
+          padding: "3px 8px",
+          fontSize: "0.75rem",
+          fontWeight: "800",
+          border: "1px solid #047857",
+          boxShadow: "0 2px 4px rgba(5,150,105,0.25)",
+          cursor: "default",
+        },
+      };
+    }
+
+    if (event.eventType === "project_end") {
+      return {
+        style: {
+          backgroundColor: "#dc2626",
+          color: "#ffffff",
+          borderRadius: "6px",
+          padding: "3px 8px",
+          fontSize: "0.75rem",
+          fontWeight: "800",
+          border: "1px solid #b91c1c",
+          boxShadow: "0 2px 4px rgba(220,38,38,0.25)",
+          cursor: "default",
+        },
+      };
+    }
+
     const status = event.resource?.status || "assigned";
     const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.assigned;
     return {
@@ -912,33 +1052,75 @@ export default function RevenueEngineProjects() {
                         </div>
 
                         {/* Project Owner (PO) Section */}
-                        <div className="mt-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
-                          <div className="flex items-center space-x-1.5 min-w-0 flex-1 mr-2">
-                            <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="font-semibold text-slate-700">PO:</span>
-                            {p.project_owner ? (
-                              <span className="text-slate-900 font-medium truncate flex items-center">
-                                {p.project_owner.employee_name}
-                                {p.project_owner.assigned_by_gm && (
-                                  <span className="ml-1 bg-amber-100 text-amber-800 text-[9px] font-bold px-1 py-0.2 rounded border border-amber-300">
-                                    ⚡ GM
-                                  </span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-rose-500 font-medium text-[11px]">No PO Assigned</span>
-                            )}
+                        {p.assigned_departments && p.assigned_departments.length > 1 ? (
+                          <div className="mt-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs space-y-1.5">
+                            <div className="flex items-center space-x-1.5 font-semibold text-slate-700">
+                              <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>Project Owners by Department:</span>
+                            </div>
+                            <div className="space-y-1 pl-1">
+                              {p.assigned_departments.map((d) => {
+                                const dPo = (p.project_owners || []).find((po) => po.department_id === d.department_id);
+                                return (
+                                  <div key={d.department_id} className="flex items-center justify-between text-[11px] bg-white p-1.5 rounded border border-slate-200/60">
+                                    <span className="text-slate-600 font-medium truncate mr-2">
+                                      <span className="font-bold text-slate-800">{d.department_name}:</span>{" "}
+                                      {dPo ? (
+                                        <span className="text-slate-900 font-semibold">
+                                          {dPo.employee_name}
+                                          {dPo.assigned_by_gm && (
+                                            <span className="ml-1 bg-amber-100 text-amber-800 text-[9px] font-bold px-1 py-0.2 rounded border border-amber-300">
+                                              ⚡ GM
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : (
+                                        <span className="text-amber-600 italic">No PO</span>
+                                      )}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenPoModal(p, d.department_id);
+                                      }}
+                                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline shrink-0 cursor-pointer"
+                                    >
+                                      {dPo ? "Change" : "+ Assign"}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenPoModal(p);
-                            }}
-                            className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 hover:underline"
-                          >
-                            {p.project_owner ? "Change" : "+ Assign PO"}
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="mt-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
+                            <div className="flex items-center space-x-1.5 min-w-0 flex-1 mr-2">
+                              <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="font-semibold text-slate-700">PO:</span>
+                              {(p.project_owners && p.project_owners.length > 0) ? (
+                                <span className="text-slate-900 font-medium truncate flex items-center">
+                                  {p.project_owners[0].employee_name}
+                                  {p.project_owners[0].assigned_by_gm && (
+                                    <span className="ml-1 bg-amber-100 text-amber-800 text-[9px] font-bold px-1 py-0.2 rounded border border-amber-300">
+                                      ⚡ GM
+                                    </span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-rose-500 font-medium text-[11px]">No PO Assigned</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenPoModal(p, p.assigned_departments?.[0]?.department_id);
+                              }}
+                              className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 hover:underline cursor-pointer"
+                            >
+                              {(p.project_owners && p.project_owners.length > 0) ? "Change" : "+ Assign PO"}
+                            </button>
+                          </div>
+                        )}
 
                         {/* Progress Bar */}
                         <div className="mt-3">
@@ -1178,21 +1360,33 @@ export default function RevenueEngineProjects() {
                 </div>
               
                 <div className="flex flex-wrap items-center gap-3 text-xs mt-2 pt-2 border-t border-slate-800">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-slate-400">PO:</span>
-                    <span className="font-semibold text-white">
-                      {selectedProject.project_owner?.employee_name || "None"}
-                    </span>
-                    {selectedProject.project_owner?.assigned_by_gm && (
-                      <span className="bg-amber-400 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                        ⚡ GM
-                      </span>
+                  <div className="flex items-center space-x-2 flex-wrap gap-1">
+                    <span className="text-slate-400">POs:</span>
+                    {selectedProject.project_owners && selectedProject.project_owners.length > 0 ? (
+                      selectedProject.project_owners.map((po) => (
+                        <span key={po.department_id} className="font-semibold text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-[11px] flex items-center gap-1">
+                          <span className="text-slate-400">{po.department_name}:</span> {po.employee_name}
+                          {po.assigned_by_gm && (
+                            <span className="bg-amber-400 text-slate-900 text-[9px] font-bold px-1 rounded">
+                              ⚡ GM
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleOpenPoModal(selectedProject, po.department_id)}
+                            className="text-blue-400 hover:text-blue-300 font-medium ml-1 underline cursor-pointer"
+                          >
+                            Change
+                          </button>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="font-semibold text-rose-400">None</span>
                     )}
                     <button
                       onClick={() => handleOpenPoModal(selectedProject)}
-                      className="text-blue-400 hover:text-blue-300 font-medium ml-1 underline"
+                      className="text-blue-400 hover:text-blue-300 font-medium ml-1 underline cursor-pointer"
                     >
-                      {selectedProject.project_owner ? "Change" : "Assign"}
+                      + Assign PO
                     </button>
                   </div>
                   <span>•</span>
@@ -1268,24 +1462,39 @@ export default function RevenueEngineProjects() {
               ) : projectSubTab === "calendar" ? (
                 /* Per-Project Deadline Calendar */
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>
-                      Point events show task deadlines across all departments. Click any event to inspect daily work logs.
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      <span className="flex items-center">
-                        <span className="w-2.5 h-2.5 rounded bg-emerald-500 mr-1" /> Completed
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl px-4 py-2.5 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        📅 Project Schedule Window:
                       </span>
-                      <span className="flex items-center">
-                        <span className="w-2.5 h-2.5 rounded bg-blue-500 mr-1" /> In Progress
+                      <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                        <span>🚩 Start:</span>
+                        <span>{selectedProject?.start_date ? moment(selectedProject.start_date).format("DD MMM YYYY") : "N/A"}</span>
                       </span>
-                      <span className="flex items-center">
-                        <span className="w-2.5 h-2.5 rounded bg-rose-500 mr-1" /> Blocked
+                      <span className="text-slate-400 font-bold">→</span>
+                      <span className="font-black text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 flex items-center gap-1">
+                        <span>🏁 Target End:</span>
+                        <span>{selectedProject?.end_date ? moment(selectedProject.end_date).format("DD MMM YYYY") : "N/A"}</span>
+                      </span>
+                      <span className="text-[11px] text-indigo-600 bg-indigo-50 font-bold px-2 py-0.5 rounded border border-indigo-100">
+                        Active Window Highlighted
+                      </span>
+                    </div>
+
+                    <div className="flex items-center space-x-3 text-[11px] font-semibold shrink-0">
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Completed
+                      </span>
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded bg-blue-500" /> In Progress
+                      </span>
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded bg-rose-500" /> Blocked
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ height: "480px" }}>
+                  <div style={{ height: "500px" }}>
                     <Calendar
                       localizer={localizer}
                       events={perProjectCalendarEvents}
@@ -1293,8 +1502,10 @@ export default function RevenueEngineProjects() {
                       endAccessor="end"
                       defaultView="month"
                       views={["month", "agenda"]}
+                      defaultDate={selectedProject?.start_date ? moment(selectedProject.start_date, "YYYY-MM-DD").toDate() : new Date()}
                       eventPropGetter={taskEventPropGetter}
-                      onSelectEvent={(event) => handleOpenWorkLog(event.resource)}
+                      dayPropGetter={perProjectDayPropGetter}
+                      onSelectEvent={(event) => event.resource && handleOpenWorkLog(event.resource)}
                       popup
                     />
                   </div>
@@ -1817,12 +2028,55 @@ export default function RevenueEngineProjects() {
 
               <div className="p-5 space-y-4">
                 <p className="text-xs text-slate-600">
-                  As GM/MD, you can directly assign an employee from <strong>any department</strong> to be the Project Owner (PO), bypassing TL bottlenecks.
+                  As GM/MD, you can directly assign an employee from <strong>any department</strong> to be the Project Owner (PO) for a specific department, bypassing TL bottlenecks.
                 </p>
+
+                {poModalProject.assigned_departments && poModalProject.assigned_departments.length > 0 ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Department for this Project Owner: *
+                    </label>
+                    <select
+                      value={selectedPoDeptId}
+                      onChange={(e) => {
+                        const newDeptId = e.target.value;
+                        setSelectedPoDeptId(newDeptId);
+                        const existingPo = (poModalProject.project_owners || []).find((po) => String(po.department_id) === String(newDeptId));
+                        setSelectedPoEmpId(existingPo?.employee_id ? String(existingPo.employee_id) : "");
+                      }}
+                      className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    >
+                      <option value="">-- Choose Department --</option>
+                      {poModalProject.assigned_departments.map((d) => (
+                        <option key={d.department_id} value={d.department_id}>
+                          {d.department_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Department for this Project Owner: *
+                    </label>
+                    <select
+                      value={selectedPoDeptId}
+                      onChange={(e) => setSelectedPoDeptId(e.target.value)}
+                      className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    >
+                      <option value="">-- Choose Department --</option>
+                      {availableDepartments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Select Employee:
+                    Select Employee: *
                   </label>
                   <select
                     value={selectedPoEmpId}
@@ -1848,7 +2102,7 @@ export default function RevenueEngineProjects() {
                 </button>
                 <button
                   onClick={handleSavePo}
-                  disabled={savingPo || !selectedPoEmpId}
+                  disabled={savingPo || !selectedPoEmpId || !selectedPoDeptId}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50"
                 >
                   {savingPo ? "Assigning..." : "Assign as PO"}
