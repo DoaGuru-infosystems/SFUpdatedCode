@@ -426,7 +426,7 @@ function UserHome() {
   const canvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
 
-  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || (typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com");
+  const API_BASE = window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 
   let user = JSON.parse(localStorage.getItem("user"));
 

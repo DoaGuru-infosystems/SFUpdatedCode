@@ -108,7 +108,7 @@ const UpdateEmployeeDetails = (req, res) => {
       const targetDept = req.body.department;
       if (targetDept) {
         syncDepartmentTeamLead(
-          { employeeId: id, role: role || "user", department: targetDept, employmentStatus },
+          { employeeId: id, role: role || "user", department: targetDept, employmentStatus: employment_status },
           (sErr) => {
             if (sErr) console.error("[UpdateEmployeeDetails] Error syncing department TL:", sErr.message);
           }
@@ -118,7 +118,7 @@ const UpdateEmployeeDetails = (req, res) => {
         db.query("SELECT department FROM task_users WHERE id = ? LIMIT 1", [id], (deptErr, deptRows) => {
           const dept = (deptRows && deptRows[0]?.department) || null;
           syncDepartmentTeamLead(
-            { employeeId: id, role: role || "user", department: dept, employmentStatus },
+            { employeeId: id, role: role || "user", department: dept, employmentStatus: employment_status },
             (sErr) => {
               if (sErr) console.error("[UpdateEmployeeDetails] Error syncing department TL:", sErr.message);
             }

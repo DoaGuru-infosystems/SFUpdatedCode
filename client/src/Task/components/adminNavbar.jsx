@@ -203,7 +203,14 @@ export default function AdminNavbar({ Logout, render }) {
     const interval = setInterval(fetchNotifications, 60000); // Polling fallback
 
     // ═══ Real-Time Socket Connection ═══
-    const socket = io(window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com", {
+    // Socket.io must connect to the DIRECT backend URL (not via ngrok tunnel)
+    // because ngrok free tier does not reliably proxy WebSocket upgrade requests.
+    // Set REACT_APP_SOCKET_URL in .env to your local/LAN backend URL when using ngrok.
+    const socketUrl = window.SOCKET_BASE
+      || process.env.REACT_APP_SOCKET_URL
+      || process.env.REACT_APP_API_URL
+      || "https://sf.doaguru.com";
+    const socket = io(socketUrl, {
       transports: ["polling", "websocket"],
       withCredentials: true,
       secure: window.location.protocol === "https:",

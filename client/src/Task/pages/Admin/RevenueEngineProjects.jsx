@@ -36,7 +36,7 @@ import {
 const localizer = momentLocalizer(moment);
 
 const getApiBase = () => {
-  return window.API_BASE || process.env.REACT_APP_API_URL || (typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:8080" : "https://sf.doaguru.com");
+  return window.API_BASE || process.env.REACT_APP_API_URL || "https://sf.doaguru.com";
 };
 
 const getAuthHeaders = () => {

@@ -85,7 +85,30 @@ const {
 const { fetchAndInsertHolidays } = require("./utils/fetchGoogleHolidays");
 
 app.use(bodyParser.json());
-app.use(cors());
+
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Allow any origin during local/ngrok development; in production the reverse
+// proxy (nginx / sf.doaguru.com) handles CORS so this stays permissive.
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, Postman, server-side)
+    // and any browser origin.
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "ngrok-skip-browser-warning",
+    "X-Requested-With",
+  ],
+};
+app.use(cors(corsOptions));
+// Handle pre-flight OPTIONS for all routes
+app.options("*", cors(corsOptions));
+// ─────────────────────────────────────────────────────────────────────────────
+
 app.use(morgan('combined'))
 app.use(express.json());
 app.use(cookieParser());
