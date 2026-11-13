@@ -93,11 +93,17 @@ const AdminHomePage = () => {
         );
       };
 
+      const handleProjectUpdated = () => {
+        fetchReProjects();
+      };
+
       socket.on("re:project_assigned", handleProjectAssigned);
+      socket.on("re:project_updated", handleProjectUpdated);
       socket.on("re:project_unarchived", handleProjectUnarchived);
 
       return () => {
         socket.off("re:project_assigned", handleProjectAssigned);
+        socket.off("re:project_updated", handleProjectUpdated);
         socket.off("re:project_unarchived", handleProjectUnarchived);
       };
     }

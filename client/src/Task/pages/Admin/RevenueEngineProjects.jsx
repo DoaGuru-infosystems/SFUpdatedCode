@@ -449,6 +449,7 @@ export default function RevenueEngineProjects() {
 
     socket.on("re:task_status_changed", handleLiveSync);
     socket.on("re:project_assigned", handleLiveSync);
+    socket.on("re:project_updated", handleLiveSync);
     socket.on("re:task_assigned", handleLiveSync);
     socket.on("re:task_unassigned", handleLiveSync);
     socket.on("re:project_archived", handleLiveSync);
@@ -458,6 +459,7 @@ export default function RevenueEngineProjects() {
       if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
       socket.off("re:task_status_changed", handleLiveSync);
       socket.off("re:project_assigned", handleLiveSync);
+      socket.off("re:project_updated", handleLiveSync);
       socket.off("re:task_assigned", handleLiveSync);
       socket.off("re:task_unassigned", handleLiveSync);
       socket.off("re:project_archived", handleLiveSync);

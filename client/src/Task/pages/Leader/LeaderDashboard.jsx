@@ -349,6 +349,15 @@ const LeaderDashboard = () => {
       withCredentials: true
     });
 
+    const joinEmployeeRoom = () => {
+      if (leader?.id) {
+        socket.emit("join_employee_room", leader.id);
+      }
+    };
+
+    socket.on("connect", joinEmployeeRoom);
+    joinEmployeeRoom();
+
     socket.on("task-updated", () => {
       console.log("⚡ Real-time Task update received!");
       fetchDailyTasks();
@@ -377,7 +386,12 @@ const LeaderDashboard = () => {
       fetchReProjects();
     });
 
+    socket.on("re:project_updated", () => {
+      fetchReProjects();
+    });
+
     return () => {
+      socket.off("connect", joinEmployeeRoom);
       socket.disconnect();
     };
   }, [leader, selectedDate]);

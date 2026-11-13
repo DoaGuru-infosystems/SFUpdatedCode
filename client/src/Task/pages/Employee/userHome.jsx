@@ -1150,10 +1150,20 @@ function UserHome() {
     joinRoom();
 
     // Task unassigned from this employee (disappears live)
-    socket.on("re:task_unassigned", ({ task_owners_id }) => {
+    socket.on("re:task_unassigned", ({ task_owners_id, reason }) => {
       console.log("⚡ Received re:task_unassigned:", task_owners_id);
       setMyReTasks((prev) => prev.filter((t) => Number(t.task_owners_id) !== Number(task_owners_id)));
-      toast("An assigned task was reassigned to another colleague", { icon: "ℹ️" });
+      toast(
+        reason === "removed_from_re"
+          ? "This service was removed from the active task list"
+          : "An assigned task was reassigned to another colleague",
+        { icon: "ℹ️" }
+      );
+    });
+
+    socket.on("re:project_updated", () => {
+      fetchOwnedProjects();
+      fetchMyReTasks();
     });
 
     // Task assigned to this employee (appears live)

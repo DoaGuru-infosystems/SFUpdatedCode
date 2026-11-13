@@ -186,8 +186,9 @@ async function notifyReProjectSynced({ projectId, clientName, proformaNumber, de
 
         // 3. Collect all categories from task_owners for this project
         const tasksCatSql = `
-          SELECT DISTINCT category FROM task_owners 
-          WHERE project_id = ? AND category IS NOT NULL AND TRIM(category) != ''
+          SELECT DISTINCT category FROM task_owners
+          WHERE project_id = ? AND category IS NOT NULL
+            AND (is_hidden = 0 OR is_hidden IS NULL) AND TRIM(category) != ''
         `;
 
         db.query(tasksCatSql, [projectId], (cErr, catRows) => {
@@ -345,7 +346,7 @@ async function notifyTaskOwnerAssigned({ taskOwnersId, employeeId, poUserId, dea
       JOIN task_users u ON u.id = ?
       JOIN projects p ON p.id = t.project_id
       LEFT JOIN re_synced_projects rsp ON p.id = rsp.project_id
-      WHERE t.id = ?
+      WHERE t.id = ? AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
     `;
 
     db.query(querySql, [poUserId, employeeId, taskOwnersId], (err, rows) => {

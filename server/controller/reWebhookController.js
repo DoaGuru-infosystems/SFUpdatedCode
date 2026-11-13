@@ -12,6 +12,7 @@ const jwt = require("jsonwebtoken");
 const socketUtil = require("../utils/socket");
 const { notifyReProjectSynced } = require("../services/reAssignmentWhatsAppService");
 const { matchesCategoryAndDepartment } = require("../utils/projectStatusHelper");
+const { buildProjectUpdateDiff } = require("../utils/reProjectUpdateDiff");
 
 const handleProjectAssigned = (req, res) => {
   // ── 1. Auth check ────────────────────────────────────────────────────────
@@ -213,6 +214,306 @@ const handleProjectAssigned = (req, res) => {
   });
 };
 
+const handleProjectUpdated = (req, res) => {
+  const secret = req.headers["x-webhook-secret"];
+  if (!secret || secret !== process.env.RE_WEBHOOK_SECRET) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  const { event_type, proforma_id, service_items, department } = req.body;
+  if (
+    event_type !== "project.updated" ||
+    proforma_id === undefined ||
+    proforma_id === null ||
+    proforma_id === "" ||
+    !Array.isArray(service_items)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing or invalid required fields",
+    });
+  }
+
+  let normalizedItems;
+  try {
+    const seenReItemIds = new Set();
+    normalizedItems = service_items.map((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        throw new Error(`service_items[${index}] must be an object`);
+      }
+
+      const reItemId = item.re_item_id === undefined || item.re_item_id === null
+        ? ""
+        : String(item.re_item_id).trim();
+      if (!reItemId) {
+        throw new Error(`service_items[${index}].re_item_id is required`);
+      }
+      if (reItemId.length > 100) {
+        throw new Error(`service_items[${index}].re_item_id must be at most 100 characters`);
+      }
+      if (seenReItemIds.has(reItemId)) {
+        throw new Error(`Duplicate re_item_id: ${reItemId}`);
+      }
+      seenReItemIds.add(reItemId);
+
+      if (typeof item.name !== "string" || !item.name.trim()) {
+        throw new Error(`service_items[${index}].name is required`);
+      }
+
+      const normalizeText = (value, fieldName) => {
+        if (value === undefined || value === null || value === "") return null;
+        if (typeof value !== "string") {
+          throw new Error(`service_items[${index}].${fieldName} must be a string`);
+        }
+        return value;
+      };
+
+      let quantity = null;
+      if (item.quantity !== undefined && item.quantity !== null && item.quantity !== "") {
+        quantity = Number(item.quantity);
+        if (!Number.isInteger(quantity) || quantity < 0) {
+          throw new Error(`service_items[${index}].quantity must be a non-negative integer`);
+        }
+      }
+
+      return {
+        re_item_id: reItemId,
+        name: item.name,
+        category: normalizeText(item.category, "category"),
+        description: normalizeText(item.description, "description"),
+        quantity,
+        department: normalizeText(item.department, "department"),
+      };
+    });
+  } catch (validationError) {
+    return res.status(400).json({
+      success: false,
+      message: validationError.message,
+    });
+  }
+
+  db.getConnection((connectionError, connection) => {
+    if (connectionError) {
+      console.error("[RE Webhook Update] getConnection error:", connectionError.message);
+      return res.status(500).json({ success: false, message: "DB connection error" });
+    }
+
+    connection.beginTransaction((transactionError) => {
+      if (transactionError) {
+        connection.release();
+        console.error("[RE Webhook Update] beginTransaction error:", transactionError.message);
+        return res.status(500).json({ success: false, message: "Transaction error" });
+      }
+
+      syncProjectUpdate(connection, proforma_id, normalizedItems, department)
+        .then((result) => {
+          connection.commit((commitError) => {
+            connection.release();
+            if (commitError) {
+              console.error("[RE Webhook Update] commit error:", commitError.message);
+              return res.status(500).json({ success: false, message: "Transaction commit failed" });
+            }
+
+            emitProjectUpdateEvents(result, proforma_id);
+            return res.status(200).json({
+              success: true,
+              message: "Project updated and service items synchronized",
+              data: {
+                project_id: result.projectId,
+                tasks_created: result.diff.inserts.length,
+                tasks_hidden: result.diff.hides.length,
+                tasks_restored: result.diff.restores.length,
+                tasks_updated: result.diff.updates.length,
+              },
+            });
+          });
+        })
+        .catch((updateError) => {
+          connection.rollback(() => {
+            connection.release();
+            if (updateError.statusCode === 404) {
+              return res.status(404).json({ success: false, message: updateError.message });
+            }
+            console.error("[RE Webhook Update] sync error:", updateError.message);
+            return res.status(500).json({ success: false, message: "Failed to synchronize project items" });
+          });
+        });
+    });
+  });
+};
+
+function queryConnection(connection, sql, params = []) {
+  return new Promise((resolve, reject) => {
+    connection.query(sql, params, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+}
+
+async function syncProjectUpdate(connection, proformaId, incomingItems, projectDepartment) {
+  const projectRows = await queryConnection(
+    connection,
+    "SELECT project_id FROM re_synced_projects WHERE re_proforma_id = ? FOR UPDATE",
+    [proformaId]
+  );
+  if (!projectRows.length) {
+    const error = new Error("RE project not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const projectId = projectRows[0].project_id;
+  const existingRows = await queryConnection(
+    connection,
+    `SELECT id, re_item_id, re_item_name, category, description, quantity,
+            employee_id, is_hidden
+     FROM task_owners
+     WHERE project_id = ?
+     ORDER BY id ASC
+     FOR UPDATE`,
+    [projectId]
+  );
+  const diff = buildProjectUpdateDiff(existingRows, incomingItems);
+
+  const projectOwnerRows = await queryConnection(
+    connection,
+    "SELECT employee_id FROM project_owners WHERE project_id = ? AND status = 'active'",
+    [projectId]
+  );
+  const departmentRows = await queryConnection(
+    connection,
+    `SELECT d.id, d.name, d.tl_employee_id,
+            CASE WHEN rpd.project_id IS NULL THEN 0 ELSE 1 END AS explicitly_assigned
+     FROM departments d
+     LEFT JOIN re_project_departments rpd
+       ON rpd.department_id = d.id AND rpd.project_id = ?`,
+    [projectId]
+  );
+
+  let insertedCount = 0;
+  for (const { row, item, backfillReItemId } of diff.updates) {
+    await queryConnection(
+      connection,
+      `UPDATE task_owners
+       SET re_item_id = ?, re_item_name = ?, category = ?, description = ?, quantity = ?
+       WHERE id = ? AND project_id = ?`,
+      [item.re_item_id, item.name, item.category, item.description, item.quantity, row.id, projectId]
+    );
+    if (backfillReItemId) {
+      console.log(`[RE Webhook Update] Backfilled RE item ID for task ${row.id}.`);
+    }
+  }
+
+  for (const { row, item } of diff.restores) {
+    await queryConnection(
+      connection,
+      `UPDATE task_owners
+       SET re_item_name = ?, category = ?, description = ?, quantity = ?,
+           is_hidden = 0, hidden_at = NULL
+       WHERE id = ? AND project_id = ? AND re_item_id = ?`,
+      [item.name, item.category, item.description, item.quantity, row.id, projectId, item.re_item_id]
+    );
+  }
+
+  for (const item of diff.inserts) {
+    const insertResult = await queryConnection(
+      connection,
+      `INSERT INTO task_owners
+         (project_id, re_item_id, re_item_name, category, description, quantity,
+          status, employee_id, is_hidden)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL, 0)`,
+      [projectId, item.re_item_id, item.name, item.category, item.description, item.quantity]
+    );
+    await queryConnection(
+      connection,
+      "UPDATE task_owners SET sf_task_id = ? WHERE id = ?",
+      [`SF-T${insertResult.insertId}`, insertResult.insertId]
+    );
+    insertedCount += 1;
+  }
+
+  for (const row of diff.hides) {
+    await queryConnection(
+      connection,
+      `UPDATE task_owners
+       SET is_hidden = 1, hidden_at = NOW()
+       WHERE id = ? AND project_id = ? AND (is_hidden = 0 OR is_hidden IS NULL)`,
+      [row.id, projectId]
+    );
+  }
+
+  const departmentIds = new Set(
+    departmentRows
+      .filter((row) => row.explicitly_assigned)
+      .map((row) => Number(row.id))
+  );
+  const itemCategories = [
+    projectDepartment,
+    ...existingRows.map((row) => row.category),
+    ...incomingItems.flatMap((item) => [item.category, item.department]),
+  ].filter(Boolean);
+  const employeeIds = new Set(
+    projectOwnerRows.map((row) => Number(row.employee_id)).filter(Boolean)
+  );
+
+  departmentRows.forEach((row) => {
+    if (
+      departmentIds.has(Number(row.id)) ||
+      itemCategories.some((category) => matchesCategoryAndDepartment(category, row.name))
+    ) {
+      if (row.tl_employee_id) employeeIds.add(Number(row.tl_employee_id));
+    }
+  });
+
+  [...diff.updates, ...diff.restores].forEach(({ row }) => {
+    if (row.employee_id) employeeIds.add(Number(row.employee_id));
+  });
+  diff.hides.forEach((row) => {
+    if (row.employee_id) employeeIds.add(Number(row.employee_id));
+  });
+
+  return {
+    projectId,
+    diff,
+    insertedCount,
+    employeeIds: Array.from(employeeIds),
+    hiddenAssignees: diff.hides
+      .filter((row) => row.employee_id)
+      .map((row) => ({ taskOwnersId: row.id, employeeId: Number(row.employee_id) })),
+  };
+}
+
+function emitProjectUpdateEvents(result, proformaId) {
+  try {
+    const io = socketUtil.getIO();
+    if (!io || typeof io.to !== "function") return;
+
+    const payload = {
+      project_id: result.projectId,
+      re_proforma_id: proformaId,
+      tasks_created: result.insertedCount,
+      tasks_hidden: result.diff.hides.length,
+      tasks_restored: result.diff.restores.length,
+      tasks_updated: result.diff.updates.length,
+    };
+
+    io.to("admin_room").emit("re:project_updated", payload);
+    result.employeeIds.forEach((employeeId) => {
+      io.to(`employee_${employeeId}`).emit("re:project_updated", payload);
+    });
+    result.hiddenAssignees.forEach(({ taskOwnersId, employeeId }) => {
+      io.to(`employee_${employeeId}`).emit("re:task_unassigned", {
+        task_owners_id: taskOwnersId,
+        project_id: result.projectId,
+        reason: "removed_from_re",
+      });
+    });
+  } catch (socketError) {
+    console.error("[RE Webhook Update] Socket emit error:", socketError.message);
+  }
+}
+
 // ── Helper: commit transaction, broadcast live socket event, and send 201 ────
 function commitAndRespond(connection, res, projectId, tasksCreated, idempotency_key, eventData) {
   connection.commit((commitErr) => {
@@ -337,7 +638,9 @@ const getReProjects = (req, res) => {
       rsp.created_at
     FROM re_synced_projects rsp
     LEFT JOIN projects p ON rsp.project_id = p.id
-    LEFT JOIN task_owners t ON rsp.project_id = t.project_id
+    LEFT JOIN task_owners t
+      ON rsp.project_id = t.project_id
+      AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
     GROUP BY rsp.id, rsp.project_id, rsp.re_proforma_id, rsp.re_proforma_number, rsp.client_name, p.name, p.department, rsp.start_date, rsp.end_date, rsp.is_active, rsp.created_at
     ORDER BY rsp.created_at DESC
   `;
@@ -363,7 +666,8 @@ const getReProjects = (req, res) => {
     db.query(deptSql, (dErr, depts) => {
       const allDepts = !dErr && Array.isArray(depts) ? depts : [];
 
-      const taskCatSql = "SELECT project_id, category FROM task_owners WHERE project_id IN (?)";
+      const taskCatSql = `SELECT project_id, category FROM task_owners
+        WHERE project_id IN (?) AND (is_hidden = 0 OR is_hidden IS NULL)`;
       db.query(taskCatSql, [projectIds], (tErr, taskCats) => {
         const catMap = new Map();
         (taskCats || []).forEach((tc) => {
@@ -410,5 +714,6 @@ const getReProjects = (req, res) => {
 
 module.exports = {
   handleProjectAssigned,
+  handleProjectUpdated,
   getReProjects,
 };

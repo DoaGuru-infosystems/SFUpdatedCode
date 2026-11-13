@@ -147,6 +147,7 @@ async function runDeadlineEscalations() {
       AND t.status != 'completed'
       AND t.deadline IS NOT NULL
       AND rsp.is_active = 1
+      AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
     ORDER BY t.deadline ASC
   `;
 
@@ -390,7 +391,9 @@ async function runDeadlineEscalations() {
     try {
       // Fetch all tasks for this project
       const pTasks = await query(
-        `SELECT id, category, deadline, status FROM task_owners WHERE project_id = ?`,
+        `SELECT id, category, deadline, status
+         FROM task_owners
+         WHERE project_id = ? AND (is_hidden = 0 OR is_hidden IS NULL)`,
         [proj.project_id]
       );
 

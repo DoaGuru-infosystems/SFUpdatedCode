@@ -181,6 +181,7 @@ async function runDailyDigest() {
         t.status        != 'completed'
         AND t.employee_id IS NOT NULL
         AND rsp.is_active  = 1
+        AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
       ORDER BY t.employee_id ASC, t.id ASC
     `;
     db.query(sql, (err, rows) => {

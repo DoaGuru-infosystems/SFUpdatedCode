@@ -5,10 +5,20 @@
 
 const express = require("express");
 const router  = express.Router();
-const { handleProjectAssigned, getReProjects } = require("../controller/reWebhookController");
+const {
+  handleProjectAssigned,
+  handleProjectUpdated,
+  getReProjects,
+} = require("../controller/reWebhookController");
 
-// POST /api/re-webhook/project-assigned
-router.post("/api/re-webhook/project-assigned", handleProjectAssigned);
+// Keep the existing endpoint compatible with both RE event types.
+router.post("/api/re-webhook/project-assigned", (req, res, next) => {
+  if (req.body && req.body.event_type === "project.updated") {
+    return handleProjectUpdated(req, res, next);
+  }
+  return handleProjectAssigned(req, res, next);
+});
+router.post("/api/re-webhook/project-updated", handleProjectUpdated);
 
 // GET /api/re-projects
 router.get("/api/re-projects", getReProjects);

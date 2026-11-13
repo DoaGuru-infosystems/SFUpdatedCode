@@ -168,10 +168,17 @@ function isStrictDepartment(task, departmentsList) {
  * @returns {"completed"|"blocked"|"in_progress"|"assigned"}
  */
 function deriveProjectStatus(taskRows, departments = null) {
-  if (!taskRows || taskRows.length === 0) return "assigned";
+  const activeTaskRows = Array.isArray(taskRows)
+    ? taskRows.filter((task) => !(
+      task.is_hidden === 1 ||
+      task.is_hidden === true ||
+      task.is_hidden === "1"
+    ))
+    : [];
+  if (activeTaskRows.length === 0) return "assigned";
 
   // 1. All tasks completed
-  const allCompleted = taskRows.every((t) => t.status === "completed");
+  const allCompleted = activeTaskRows.every((t) => t.status === "completed");
   if (allCompleted) return "completed";
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -186,7 +193,7 @@ function deriveProjectStatus(taskRows, departments = null) {
   }
 
   // 2. Blocked: Sirf strict deadline tracking wale tasks me se koi overdue hai
-  const hasStrictBlocked = taskRows.some((t) => {
+  const hasStrictBlocked = activeTaskRows.some((t) => {
     const isStrict = isStrictDepartment(t, departments);
     return isStrict && isOverdue(t);
   });
@@ -195,7 +202,7 @@ function deriveProjectStatus(taskRows, departments = null) {
   // 3. In Progress:
   // - Any task is 'in_progress', 'review', or partially 'completed' (work has begun)
   // - OR any non-strict task is overdue & incomplete (flexible deadline cross, does not block project)
-  const hasInProgress = taskRows.some((t) => {
+  const hasInProgress = activeTaskRows.some((t) => {
     if (
       t.status === "in_progress" ||
       t.status === "review" ||

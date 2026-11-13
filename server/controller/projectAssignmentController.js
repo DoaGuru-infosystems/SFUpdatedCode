@@ -136,6 +136,7 @@ const getLeaderReProjects = (req, res) => {
             LEFT JOIN admin_users au ON t.assigned_by = au.id
             LEFT JOIN task_users tu_assigner ON t.assigned_by = tu_assigner.id
             WHERE rsp.is_active = 1
+              AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
             ORDER BY rsp.created_at DESC, t.id ASC
           `;
 
@@ -415,6 +416,7 @@ const getEmployeeOwnedProjects = (req, res) => {
         FROM task_owners t
         LEFT JOIN task_users u ON t.employee_id = u.id
         WHERE t.project_id IN (?)
+          AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
         ORDER BY t.id ASC
       `;
 
@@ -487,7 +489,9 @@ const assignTaskOwner = (req, res) => {
   }
 
   // 1. Fetch task to get project_id and check if already assigned
-  const getTaskSql = "SELECT id, project_id, category, employee_id FROM task_owners WHERE id = ?";
+  const getTaskSql = `SELECT id, project_id, category, employee_id
+    FROM task_owners
+    WHERE id = ? AND (is_hidden = 0 OR is_hidden IS NULL)`;
   db.query(getTaskSql, [task_owners_id], (tErr, tRows) => {
     if (tErr) {
       console.error("[Assign Task] Error fetching task:", tErr.message);
@@ -566,7 +570,7 @@ const assignTaskOwner = (req, res) => {
           const updateTaskSql = `
             UPDATE task_owners
             SET employee_id = ?, assigned_by = ?, deadline = ?, description = COALESCE(?, description), status = ?
-            WHERE id = ?
+            WHERE id = ? AND (is_hidden = 0 OR is_hidden IS NULL)
           `;
 
           db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, updatedStatus, task_owners_id], (updErr) => {
@@ -626,6 +630,7 @@ const getMyReTasks = (req, res) => {
     JOIN projects p ON t.project_id = p.id
     LEFT JOIN re_synced_projects rsp ON t.project_id = rsp.project_id
     WHERE t.employee_id = ? AND rsp.is_active = 1
+      AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
     ORDER BY t.deadline ASC, t.id DESC
   `;
 
@@ -680,7 +685,9 @@ const updateTaskStatus = (req, res) => {
   }
 
   // Ownership check: verify task_owners.employee_id === user.id
-  const checkOwnerSql = "SELECT id, employee_id, project_id FROM task_owners WHERE id = ?";
+  const checkOwnerSql = `SELECT id, employee_id, project_id
+    FROM task_owners
+    WHERE id = ? AND (is_hidden = 0 OR is_hidden IS NULL)`;
   db.query(checkOwnerSql, [task_owners_id], (chkErr, rows) => {
     if (chkErr) {
       console.error("[Task Status] Error checking task ownership:", chkErr.message);
@@ -698,7 +705,8 @@ const updateTaskStatus = (req, res) => {
       });
     }
 
-    const updateSql = "UPDATE task_owners SET status = ? WHERE id = ?";
+    const updateSql = `UPDATE task_owners SET status = ?
+      WHERE id = ? AND (is_hidden = 0 OR is_hidden IS NULL)`;
     db.query(updateSql, [status, task_owners_id], (updErr) => {
       if (updErr) {
         console.error("[Task Status] Error updating status:", updErr.message);
@@ -741,7 +749,7 @@ const reassignTaskOwner = (req, res) => {
     FROM task_owners t
     JOIN projects p ON t.project_id = p.id
     LEFT JOIN re_synced_projects rsp ON t.project_id = rsp.project_id
-    WHERE t.id = ?
+    WHERE t.id = ? AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
   `;
 
   db.query(taskSql, [task_owners_id], (tErr, tRows) => {
@@ -856,7 +864,7 @@ const reassignTaskOwner = (req, res) => {
                   const updateTaskSql = `
                     UPDATE task_owners
                     SET employee_id = ?, assigned_by = ?, assigned_by_gm = ?, status = 'pending', deadline = ?
-                    WHERE id = ?
+                    WHERE id = ? AND (is_hidden = 0 OR is_hidden IS NULL)
                   `;
 
                   conn.query(updateTaskSql, [new_employee_id, user.id, isAdminOrGm ? 1 : 0, updatedDeadline || null, task_owners_id], (updErr) => {
@@ -1216,7 +1224,9 @@ const markProjectInactive = (req, res) => {
       io.to("admin_room").emit("re:project_archived", { project_id: Number(project_id) });
 
       // Targeted notification to assigned task owners
-      const findEmpsSql = "SELECT DISTINCT employee_id FROM task_owners WHERE project_id = ? AND employee_id IS NOT NULL";
+      const findEmpsSql = `SELECT DISTINCT employee_id FROM task_owners
+        WHERE project_id = ? AND employee_id IS NOT NULL
+          AND (is_hidden = 0 OR is_hidden IS NULL)`;
       db.query(findEmpsSql, [project_id], (fErr, empRows) => {
         if (!fErr && empRows) {
           empRows.forEach((r) => {
@@ -1285,7 +1295,9 @@ const markProjectActive = (req, res) => {
       io.to("admin_room").emit("re:project_unarchived", { project_id: Number(project_id) });
 
       // Targeted notification to assigned task owners
-      const findEmpsSql = "SELECT DISTINCT employee_id FROM task_owners WHERE project_id = ? AND employee_id IS NOT NULL";
+      const findEmpsSql = `SELECT DISTINCT employee_id FROM task_owners
+        WHERE project_id = ? AND employee_id IS NOT NULL
+          AND (is_hidden = 0 OR is_hidden IS NULL)`;
       db.query(findEmpsSql, [project_id], (fErr, empRows) => {
         if (!fErr && empRows) {
           empRows.forEach((r) => {
@@ -1369,6 +1381,7 @@ const getAdminReProjects = (req, res) => {
         quantity, status, employee_id, deadline, assigned_by_gm
       FROM task_owners
       WHERE project_id IN (?)
+        AND (is_hidden = 0 OR is_hidden IS NULL)
       ORDER BY id ASC
     `;
 
@@ -1559,6 +1572,7 @@ const getAdminReProjectTasks = (req, res) => {
       LEFT JOIN task_users u ON t.employee_id = u.id
       LEFT JOIN task_users assigner ON t.assigned_by = assigner.id
       WHERE t.project_id = ?
+        AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
       ORDER BY t.id ASC
     `;
 
@@ -2031,7 +2045,9 @@ const directAssignTaskOwner = (req, res) => {
     }
 
     // 2. Validate task belongs to this project
-    const taskSql = "SELECT id, project_id, employee_id, status, category FROM task_owners WHERE id = ? AND project_id = ?";
+    const taskSql = `SELECT id, project_id, employee_id, status, category
+      FROM task_owners
+      WHERE id = ? AND project_id = ? AND (is_hidden = 0 OR is_hidden IS NULL)`;
     db.query(taskSql, [task_id, projectId], (tErr, tRows) => {
       if (tErr || tRows.length === 0) {
         return res.status(404).json({ success: false, message: "Task not found for this project" });
@@ -2045,7 +2061,7 @@ const directAssignTaskOwner = (req, res) => {
       const updateTaskSql = `
         UPDATE task_owners
         SET employee_id = ?, assigned_by = ?, assigned_by_gm = 1, deadline = ?, description = COALESCE(?, description), status = ?
-        WHERE id = ? AND project_id = ?
+        WHERE id = ? AND project_id = ? AND (is_hidden = 0 OR is_hidden IS NULL)
       `;
 
       db.query(updateTaskSql, [employee_id, user.id, deadline || null, description || null, updatedStatus, task_id, projectId], (updErr) => {
@@ -2133,7 +2149,7 @@ const logReTaskProgress = (req, res) => {
     LEFT JOIN projects p ON p.id = t.project_id
     LEFT JOIN re_synced_projects rsp ON rsp.project_id = t.project_id
     LEFT JOIN task_users u ON u.id = t.employee_id
-    WHERE t.id = ?
+    WHERE t.id = ? AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
   `;
 
   db.query(getTaskSql, [task_owners_id], (tErr, tRows) => {
@@ -2212,7 +2228,8 @@ const logReTaskProgress = (req, res) => {
       console.log(`[Log Progress] ✅ Progress logged for task #${task_owners_id} (log #${newLogId}, status: ${statusSnapshot}) by user ${user.id}`);
 
       // 3. SEPARATELY update task_owners.status to match whatever status was just submitted
-      const updateTaskOwnerSql = "UPDATE task_owners SET status = ? WHERE id = ?";
+      const updateTaskOwnerSql = `UPDATE task_owners SET status = ?
+        WHERE id = ? AND (is_hidden = 0 OR is_hidden IS NULL)`;
       db.query(updateTaskOwnerSql, [statusSnapshot, task_owners_id], (updErr) => {
         if (updErr) {
           console.error("[Log Progress] Warning: Failed to update task_owners.status:", updErr.message);

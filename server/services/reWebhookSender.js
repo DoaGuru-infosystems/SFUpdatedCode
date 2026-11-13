@@ -82,6 +82,7 @@ async function sendStatusUpdateToRE(projectId, updatedByEmployeeId) {
         FROM task_owners t
         LEFT JOIN task_users u ON t.employee_id = u.id
         WHERE t.project_id = ?
+          AND (t.is_hidden = 0 OR t.is_hidden IS NULL)
         ORDER BY t.id ASC
       `;
       db.query(sql, [projectId], (err, rows) => (err ? reject(err) : resolve(rows)));
