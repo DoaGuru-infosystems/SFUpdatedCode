@@ -189,6 +189,12 @@ function UserHome() {
     if (!selectedReassignTaskModal || !reassignTaskEmpId) {
       return toast.error("Please select an employee");
     }
+    if (selectedReassignTaskModal?.is_strict_department && reassignTaskDeadline && selectedReassignTaskModal?.project_end_date) {
+      const endStr = String(selectedReassignTaskModal.project_end_date).substring(0, 10);
+      if (reassignTaskDeadline > endStr) {
+        return toast.error(`Task deadline cannot exceed project end date (${endStr}) for strict departments`);
+      }
+    }
     setReassignTaskLoading(true);
     try {
       const token = localStorage.getItem("token");
@@ -255,6 +261,12 @@ function UserHome() {
     e.preventDefault();
     if (!selectedTaskToAssign || !assignEmployeeId) {
       return toast.error("Please select an employee");
+    }
+    if (selectedTaskToAssign?.is_strict_department && assignDeadline && selectedTaskToAssign?.project_end_date) {
+      const endStr = String(selectedTaskToAssign.project_end_date).substring(0, 10);
+      if (assignDeadline > endStr) {
+        return toast.error(`Task deadline cannot exceed project end date (${endStr}) for strict departments`);
+      }
     }
     setAssignTaskLoading(true);
     try {
@@ -1545,6 +1557,8 @@ function UserHome() {
                                         ...t,
                                         project_id: p.project_id,
                                         client_name: p.client_name,
+                                        project_start_date: p.start_date,
+                                        project_end_date: p.end_date,
                                       });
                                       setReassignTaskEmpId("");
                                       setReassignTaskReason("");
@@ -1558,7 +1572,13 @@ function UserHome() {
                               ) : (
                                 <button
                                   onClick={() => {
-                                    setSelectedTaskToAssign(t);
+                                    setSelectedTaskToAssign({
+                                    ...t,
+                                    project_id: p.project_id,
+                                    client_name: p.client_name,
+                                    project_start_date: p.start_date,
+                                    project_end_date: p.end_date,
+                                  });
                                     setAssignEmployeeId("");
                                     setAssignDeadline("");
                                     setAssignDescription(t.description || "");
@@ -2448,17 +2468,33 @@ function UserHome() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
-                  Deadline Date (Optional)
-                </label>
-                <input
-                  type="date"
-                  value={reassignTaskDeadline}
-                  onChange={(e) => setReassignTaskDeadline(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
-                />
-              </div>
+              {(() => {
+                const isStrictTask = Boolean(selectedReassignTaskModal?.is_strict_department);
+                const rawEndDate = selectedReassignTaskModal?.project_end_date;
+                const maxDeadline = isStrictTask && rawEndDate ? String(rawEndDate).substring(0, 10) : undefined;
+                const todayStr = new Date().toISOString().split("T")[0];
+                const rawStartDate = selectedReassignTaskModal?.project_start_date ? String(selectedReassignTaskModal.project_start_date).substring(0, 10) : "";
+                const minDeadline = rawStartDate ? (rawStartDate < todayStr ? rawStartDate : todayStr) : todayStr;
+
+                return (
+                  <div>
+                    <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                      Deadline Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={reassignTaskDeadline}
+                      min={minDeadline}
+                      max={maxDeadline || undefined}
+                      onChange={(e) => setReassignTaskDeadline(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                    {isStrictTask && maxDeadline && (
+                      <p className="text-[10px] text-amber-600 mt-1 font-semibold">Strict deadline: Cannot exceed project end date ({maxDeadline})</p>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
@@ -2542,17 +2578,33 @@ function UserHome() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
-                  Deadline Date (Optional)
-                </label>
-                <input
-                  type="date"
-                  value={assignDeadline}
-                  onChange={(e) => setAssignDeadline(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
+              {(() => {
+                const isStrictTask = Boolean(selectedTaskToAssign?.is_strict_department);
+                const rawEndDate = selectedTaskToAssign?.project_end_date;
+                const maxDeadline = isStrictTask && rawEndDate ? String(rawEndDate).substring(0, 10) : undefined;
+                const todayStr = new Date().toISOString().split("T")[0];
+                const rawStartDate = selectedTaskToAssign?.project_start_date ? String(selectedTaskToAssign.project_start_date).substring(0, 10) : "";
+                const minDeadline = rawStartDate ? (rawStartDate < todayStr ? rawStartDate : todayStr) : todayStr;
+
+                return (
+                  <div>
+                    <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                      Deadline Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={assignDeadline}
+                      min={minDeadline}
+                      max={maxDeadline || undefined}
+                      onChange={(e) => setAssignDeadline(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                    {isStrictTask && maxDeadline && (
+                      <p className="text-[10px] text-indigo-600 mt-1 font-semibold">Strict deadline: Cannot exceed project end date ({maxDeadline})</p>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
