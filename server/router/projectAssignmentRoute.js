@@ -26,13 +26,17 @@ const {
   directAssignTaskOwner,
   logReTaskProgress,
   updateReTaskProgress,
+  removeProjectOwner,
+  removeTaskOwner,
 } = require("../controller/projectAssignmentController");
 
 // Team Lead routes (Phase 3 & Phase 5)
 router.get("/api/leader/re-projects", getLeaderReProjects);
 router.post("/api/leader/assign-project-owner", assignProjectOwner);
 router.post("/api/leader/reassign-project-owner", reassignProjectOwner);
+router.post("/api/leader/remove-project-owner", removeProjectOwner);
 router.post("/api/leader/reassign-task-owner", reassignTaskOwner);
+router.post("/api/leader/remove-task-owner", removeTaskOwner);
 
 // Employee routes (Phase 3, Phase 4 & Phase 5)
 router.get("/api/employee/owned-projects", getEmployeeOwnedProjects);
@@ -59,5 +63,7 @@ router.post("/api/admin/re-escalations/trigger", triggerReEscalations);
 router.post("/api/admin/re-project/:projectId/assign-departments", assignProjectDepartments);
 router.post("/api/admin/re-project/:projectId/direct-assign-po", directAssignProjectOwner);
 router.post("/api/admin/re-project/:projectId/direct-assign-task-owner", directAssignTaskOwner);
+router.post("/api/admin/re-project/:projectId/remove-po", removeProjectOwner);
+router.post("/api/admin/re-project/:projectId/remove-task-owner", removeTaskOwner);
 
 module.exports = router;

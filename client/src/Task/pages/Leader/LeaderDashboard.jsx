@@ -29,7 +29,9 @@ import {
   FaPlus,
   FaUser,
   FaProjectDiagram,
-  FaTimes
+  FaTimes,
+  FaTrashAlt,
+  FaExclamationTriangle
 } from "react-icons/fa";
 
 const LeaderDashboard = () => {
@@ -75,6 +77,12 @@ const LeaderDashboard = () => {
     if (!selectedAssignTaskModal || !assignTaskEmpId) {
       return toast.error("Please select an employee");
     }
+    if (selectedAssignTaskModal?.is_strict_department && assignTaskDeadline && selectedAssignTaskModal?.project_end_date) {
+      const endStr = String(selectedAssignTaskModal.project_end_date).substring(0, 10);
+      if (assignTaskDeadline > endStr) {
+        return toast.error(`Task deadline cannot exceed project end date (${endStr}) for strict departments`);
+      }
+    }
     setAssignTaskLoading(true);
     try {
       const token = localStorage.getItem("token");
@@ -114,6 +122,12 @@ const LeaderDashboard = () => {
     e.preventDefault();
     if (!selectedReassignTaskModal || !reassignTaskEmpId) {
       return toast.error("Please select an employee");
+    }
+    if (selectedReassignTaskModal?.is_strict_department && reassignTaskDeadline && selectedReassignTaskModal?.project_end_date) {
+      const endStr = String(selectedReassignTaskModal.project_end_date).substring(0, 10);
+      if (reassignTaskDeadline > endStr) {
+        return toast.error(`Task deadline cannot exceed project end date (${endStr}) for strict departments`);
+      }
     }
     setReassignTaskLoading(true);
     try {
@@ -176,6 +190,65 @@ const LeaderDashboard = () => {
       toast.error(err.response?.data?.message || "Failed to assign Project Owner");
     } finally {
       setReassignPoLoading(false);
+    }
+  };
+
+  // Remove PO & Task Owner states
+  const [confirmRemovePoModal, setConfirmRemovePoModal] = useState(null);
+  const [removePoLoading, setRemovePoLoading] = useState(false);
+  const [confirmRemoveTaskModal, setConfirmRemoveTaskModal] = useState(null);
+  const [removeTaskLoading, setRemoveTaskLoading] = useState(false);
+
+  const handleConfirmRemovePo = async () => {
+    if (!confirmRemovePoModal) return;
+    setRemovePoLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/leader/remove-project-owner`,
+        {
+          project_id: confirmRemovePoModal.project_id,
+          department_id: confirmRemovePoModal.department_id || null,
+        },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || "Project Owner removed successfully!");
+        setConfirmRemovePoModal(null);
+        fetchReProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to remove Project Owner");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove Project Owner");
+    } finally {
+      setRemovePoLoading(false);
+    }
+  };
+
+  const handleConfirmRemoveTaskOwner = async () => {
+    if (!confirmRemoveTaskModal) return;
+    setRemoveTaskLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE}/api/leader/remove-task-owner`,
+        {
+          task_owners_id: confirmRemoveTaskModal.task_owners_id,
+        },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || "Task Owner removed successfully!");
+        setConfirmRemoveTaskModal(null);
+        fetchReProjects();
+      } else {
+        toast.error(res.data?.message || "Failed to remove Task Owner");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove Task Owner");
+    } finally {
+      setRemoveTaskLoading(false);
     }
   };
 
@@ -715,6 +788,20 @@ const LeaderDashboard = () => {
   const isDevMember = selectedEmpObj?.department?.toLowerCase().includes("dev") || selectedEmpObj?.department?.toLowerCase() === "it";
   const showDevForm = isDevLeader || isDevMember;
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const isReassignStrict = Boolean(selectedReassignTaskModal?.is_strict_department);
+  const reassignEndDate = selectedReassignTaskModal?.project_end_date ? String(selectedReassignTaskModal.project_end_date).substring(0, 10) : "";
+  const reassignMax = isReassignStrict && reassignEndDate ? reassignEndDate : undefined;
+  const reassignStartDate = selectedReassignTaskModal?.project_start_date ? String(selectedReassignTaskModal.project_start_date).substring(0, 10) : "";
+  const reassignMin = reassignStartDate ? (reassignStartDate < todayStr ? reassignStartDate : todayStr) : todayStr;
+
+  const isAssignStrict = Boolean(selectedAssignTaskModal?.is_strict_department);
+  const assignEndDate = selectedAssignTaskModal?.project_end_date ? String(selectedAssignTaskModal.project_end_date).substring(0, 10) : "";
+  const assignMax = isAssignStrict && assignEndDate ? assignEndDate : undefined;
+  const assignStartDate = selectedAssignTaskModal?.project_start_date ? String(selectedAssignTaskModal.project_start_date).substring(0, 10) : "";
+  const assignMin = assignStartDate ? (assignStartDate < todayStr ? assignStartDate : todayStr) : todayStr;
+
   return (
     <div className="min-h-screen bg-slate-50/50 p-3.5 sm:p-6 lg:p-10 font-sans text-slate-800">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
@@ -1109,16 +1196,32 @@ const LeaderDashboard = () => {
                                 <FaUserPlus size={11} /> Mark PO
                               </button>
                             ) : (
-                              <button
-                                onClick={() => {
-                                  setSelectedReassignPoModal(proj);
-                                  setReassignPoEmpId("");
-                                  setReassignPoReason("");
-                                }}
-                                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
-                              >
-                                <FaUserPlus size={11} /> Reassign PO
-                              </button>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => {
+                                    setSelectedReassignPoModal(proj);
+                                    setReassignPoEmpId("");
+                                    setReassignPoReason("");
+                                  }}
+                                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
+                                >
+                                  <FaUserPlus size={11} /> Reassign PO
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setConfirmRemovePoModal({
+                                      project_id: proj.project_id,
+                                      client_name: proj.client_name,
+                                      po_name: proj.project_owner_name,
+                                      department_id: proj.department_id || null,
+                                    });
+                                  }}
+                                  className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                  title="Remove Project Owner"
+                                >
+                                  <FaTrashAlt size={10} /> Remove PO
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1175,6 +1278,8 @@ const LeaderDashboard = () => {
                                             ...t,
                                             project_id: proj.project_id,
                                             client_name: proj.client_name,
+                                            project_start_date: proj.start_date,
+                                            project_end_date: proj.end_date,
                                           });
                                           setReassignTaskEmpId("");
                                           setReassignTaskReason("");
@@ -1184,6 +1289,22 @@ const LeaderDashboard = () => {
                                         title="Reassign task to your department member"
                                       >
                                         Reassign
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setConfirmRemoveTaskModal({
+                                            task_owners_id: t.task_owners_id,
+                                            task_name: t.task_name,
+                                            employee_name: t.employee_name,
+                                            project_id: proj.project_id,
+                                            client_name: proj.client_name,
+                                          });
+                                        }}
+                                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[10px] font-bold transition shadow-xs cursor-pointer"
+                                        title="Remove task owner"
+                                      >
+                                        <FaTrashAlt size={9} className="inline mr-1" />
+                                        Remove
                                       </button>
                                     </div>
                                   ) : (
@@ -1197,6 +1318,8 @@ const LeaderDashboard = () => {
                                             ...t,
                                             project_id: proj.project_id,
                                             client_name: proj.client_name,
+                                            project_start_date: proj.start_date,
+                                            project_end_date: proj.end_date,
                                           });
                                           setAssignTaskEmpId("");
                                           setAssignTaskDeadline(proj.end_date ? String(proj.end_date).substring(0, 10) : "");
@@ -2249,9 +2372,14 @@ const LeaderDashboard = () => {
                   <input
                     type="date"
                     value={reassignTaskDeadline}
+                    min={reassignMin}
+                    max={reassignMax}
                     onChange={(e) => setReassignTaskDeadline(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none"
                   />
+                  {isReassignStrict && reassignMax && (
+                    <p className="text-[10px] text-amber-600 mt-1 font-semibold">Strict deadline: Cannot exceed project end date ({reassignMax})</p>
+                  )}
                 </div>
 
                 <div>
@@ -2328,16 +2456,20 @@ const LeaderDashboard = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5 flex items-center justify-between">
-                    <span>Deadline (Optional)</span>
-                    <span className="text-[10px] text-blue-600 font-bold lowercase">Select future date to extend</span>
+                  <label className="block text-xs font-black uppercase text-slate-500 mb-1.5">
+                    Deadline Date (Optional)
                   </label>
                   <input
                     type="date"
                     value={assignTaskDeadline}
+                    min={assignMin}
+                    max={assignMax}
                     onChange={(e) => setAssignTaskDeadline(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
+                  {isAssignStrict && assignMax && (
+                    <p className="text-[10px] text-indigo-600 mt-1 font-semibold">Strict deadline: Cannot exceed project end date ({assignMax})</p>
+                  )}
                 </div>
 
                 <div>
@@ -2372,6 +2504,125 @@ const LeaderDashboard = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+        {/* ── Confirm Remove Project Owner Modal ── */}
+        {confirmRemovePoModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+            onClick={() => !removePoLoading && setConfirmRemovePoModal(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <FaExclamationTriangle size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Remove Project Owner</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">{confirmRemovePoModal.client_name}</p>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-3 text-xs text-slate-600">
+                <p className="font-bold text-slate-800 text-sm">
+                  Aap is PO ko remove karne ja rahe hain. Ye action turant hoga — confirm karein?
+                </p>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/70 space-y-1">
+                  <div>
+                    <span className="font-medium text-slate-500">Current PO:</span>{" "}
+                    <strong className="text-slate-800">{confirmRemovePoModal.po_name}</strong>
+                  </div>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-amber-800 text-[11px] flex items-start gap-1.5">
+                  <span className="shrink-0 font-bold">ℹ️</span>
+                  <span><strong>Note:</strong> PO remove hone par aapke department ke Task Owners aur unka kaam as-is safe rahega (independent lifecycle).</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRemovePoModal(null)}
+                  disabled={removePoLoading}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRemovePo}
+                  disabled={removePoLoading}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {removePoLoading ? "Removing..." : "Yes, Remove PO"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Confirm Remove Task Owner Modal ── */}
+        {confirmRemoveTaskModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+            onClick={() => !removeTaskLoading && setConfirmRemoveTaskModal(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <FaExclamationTriangle size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Remove Task Owner</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">{confirmRemoveTaskModal.client_name}</p>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-3 text-xs text-slate-600">
+                <p className="font-bold text-slate-800 text-sm">
+                  Aap is Task Owner ko remove karne ja rahe hain. Ye action turant hoga — confirm karein?
+                </p>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/70 space-y-1">
+                  <div>
+                    <span className="font-medium text-slate-500">Task:</span>{" "}
+                    <strong className="text-slate-800">{confirmRemoveTaskModal.task_name}</strong>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-500">Current Assignee:</span>{" "}
+                    <strong className="text-slate-800">{confirmRemoveTaskModal.employee_name}</strong>
+                  </div>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl text-emerald-800 text-[11px] flex items-start gap-1.5">
+                  <span className="shrink-0 font-bold">🛡️</span>
+                  <span><strong>Work Preserved:</strong> Purana daily-log history (`tasks` table) bilkul preserve rahega, delete nahi hoga.</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRemoveTaskModal(null)}
+                  disabled={removeTaskLoading}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRemoveTaskOwner}
+                  disabled={removeTaskLoading}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {removeTaskLoading ? "Removing..." : "Yes, Remove Task Owner"}
+                </button>
+              </div>
             </div>
           </div>
         )}
