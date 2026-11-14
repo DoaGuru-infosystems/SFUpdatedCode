@@ -31,6 +31,7 @@ import {
   UserPlus,
   Zap,
   Edit3,
+  Trash2,
 } from "lucide-react";
 
 const localizer = momentLocalizer(moment);
@@ -185,6 +186,12 @@ export default function RevenueEngineProjects() {
   const [taskDescription, setTaskDescription] = useState("");
   const [savingTask, setSavingTask] = useState(false);
 
+  // Remove PO & Task Owner Confirmation States
+  const [confirmRemovePoModal, setConfirmRemovePoModal] = useState(null);
+  const [removingPo, setRemovingPo] = useState(false);
+  const [confirmRemoveTaskModal, setConfirmRemoveTaskModal] = useState(null);
+  const [removingTask, setRemovingTask] = useState(false);
+
   // Fetch departments & active employees on mount
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -220,10 +227,6 @@ export default function RevenueEngineProjects() {
 
   const handleSaveDepartments = async () => {
     if (!deptModalProject) return;
-    if (selectedDeptIds.length === 0) {
-      toast.error("Please select at least one department");
-      return;
-    }
     try {
       setSavingDept(true);
       const res = await axios.post(
@@ -232,7 +235,11 @@ export default function RevenueEngineProjects() {
         { headers: getAuthHeaders() }
       );
       if (res.data && res.data.success) {
-        toast.success("Departments assigned successfully! TLs notified.");
+        toast.success(
+          selectedDeptIds.length === 0
+            ? "All departments unassigned successfully!"
+            : "Departments assigned successfully! TLs notified."
+        );
         setDeptModalProject(null);
         fetchProjects();
         if (selectedProject && selectedProject.project_id === deptModalProject.project_id) {
@@ -244,6 +251,79 @@ export default function RevenueEngineProjects() {
       toast.error(err.response?.data?.message || "Failed to assign departments");
     } finally {
       setSavingDept(false);
+    }
+  };
+
+  const handlePromptRemovePo = (p, departmentId, poName, deptName) => {
+    setConfirmRemovePoModal({
+      projectId: p.project_id,
+      departmentId: departmentId || null,
+      poName: poName || "Current PO",
+      deptName: deptName || "",
+      clientName: p.client_name,
+    });
+  };
+
+  const handleConfirmRemovePo = async () => {
+    if (!confirmRemovePoModal) return;
+    try {
+      setRemovingPo(true);
+      const res = await axios.post(
+        `${getApiBase()}/api/admin/re-project/${confirmRemovePoModal.projectId}/remove-po`,
+        { department_id: confirmRemovePoModal.departmentId },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data && res.data.success) {
+        toast.success(res.data.message || "Project Owner removed successfully!");
+        setConfirmRemovePoModal(null);
+        fetchProjects();
+        if (selectedProject && selectedProject.project_id === confirmRemovePoModal.projectId) {
+          fetchProjectTasks(confirmRemovePoModal.projectId);
+        }
+      } else {
+        toast.error(res.data?.message || "Failed to remove Project Owner");
+      }
+    } catch (err) {
+      console.error("Error removing PO:", err);
+      toast.error(err.response?.data?.message || "Failed to remove Project Owner");
+    } finally {
+      setRemovingPo(false);
+    }
+  };
+
+  const handlePromptRemoveTaskOwner = (t, projectId) => {
+    setConfirmRemoveTaskModal({
+      taskOwnersId: t.task_owners_id,
+      projectId: projectId,
+      taskName: t.task_name,
+      assigneeName: t.assignee_name,
+    });
+  };
+
+  const handleConfirmRemoveTaskOwner = async () => {
+    if (!confirmRemoveTaskModal) return;
+    try {
+      setRemovingTask(true);
+      const res = await axios.post(
+        `${getApiBase()}/api/admin/re-project/${confirmRemoveTaskModal.projectId}/remove-task-owner`,
+        { task_owners_id: confirmRemoveTaskModal.taskOwnersId },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data && res.data.success) {
+        toast.success(res.data.message || "Task Owner removed successfully!");
+        setConfirmRemoveTaskModal(null);
+        fetchProjects();
+        if (selectedProject && selectedProject.project_id === confirmRemoveTaskModal.projectId) {
+          fetchProjectTasks(confirmRemoveTaskModal.projectId);
+        }
+      } else {
+        toast.error(res.data?.message || "Failed to remove Task Owner");
+      }
+    } catch (err) {
+      console.error("Error removing task owner:", err);
+      toast.error(err.response?.data?.message || "Failed to remove Task Owner");
+    } finally {
+      setRemovingTask(false);
     }
   };
 
@@ -303,6 +383,13 @@ export default function RevenueEngineProjects() {
     if (!taskModalTask || !taskModalProjectId || !selectedTaskEmpId) {
       toast.error("Please select an employee for this task");
       return;
+    }
+    if (taskModalTask?.is_strict_department && taskDeadline && selectedProject?.end_date) {
+      const endStr = String(selectedProject.end_date).substring(0, 10);
+      if (taskDeadline > endStr) {
+        toast.error(`Task deadline cannot exceed project end date (${endStr}) for strict departments`);
+        return;
+      }
     }
     try {
       setSavingTask(true);
@@ -1112,15 +1199,29 @@ export default function RevenueEngineProjects() {
                                         <span className="text-amber-600 italic">No PO</span>
                                       )}
                                     </span>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenPoModal(p, d.department_id);
-                                      }}
-                                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline shrink-0 cursor-pointer"
-                                    >
-                                      {dPo ? "Change" : "+ Assign"}
-                                    </button>
+                                    <div className="flex items-center space-x-2 shrink-0">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenPoModal(p, d.department_id);
+                                        }}
+                                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                      >
+                                        {dPo ? "Change" : "+ Assign"}
+                                      </button>
+                                      {dPo && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePromptRemovePo(p, d.department_id, dPo.employee_name, d.department_name);
+                                          }}
+                                          className="text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+                                          title="Remove Project Owner"
+                                        >
+                                          Remove
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -1144,15 +1245,34 @@ export default function RevenueEngineProjects() {
                                 <span className="text-rose-500 font-medium text-[11px]">No PO Assigned</span>
                               )}
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenPoModal(p, p.assigned_departments?.[0]?.department_id);
-                              }}
-                              className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 hover:underline cursor-pointer"
-                            >
-                              {(p.project_owners && p.project_owners.length > 0) ? "Change" : "+ Assign PO"}
-                            </button>
+                            <div className="flex items-center space-x-2 shrink-0">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPoModal(p, p.assigned_departments?.[0]?.department_id);
+                                }}
+                                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              >
+                                {(p.project_owners && p.project_owners.length > 0) ? "Change" : "+ Assign PO"}
+                              </button>
+                              {(p.project_owners && p.project_owners.length > 0) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePromptRemovePo(
+                                      p,
+                                      p.project_owners[0].department_id || p.assigned_departments?.[0]?.department_id,
+                                      p.project_owners[0].employee_name,
+                                      p.project_owners[0].department_name || p.assigned_departments?.[0]?.department_name
+                                    );
+                                  }}
+                                  className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+                                  title="Remove Project Owner"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -1419,6 +1539,13 @@ export default function RevenueEngineProjects() {
                           >
                             Change
                           </button>
+                          <button
+                            onClick={() => handlePromptRemovePo(selectedProject, po.department_id, po.employee_name, po.department_name)}
+                            className="text-rose-400 hover:text-rose-300 font-medium ml-1.5 underline cursor-pointer"
+                            title="Remove Project Owner"
+                          >
+                            Remove
+                          </button>
                         </span>
                       ))
                     ) : (
@@ -1648,11 +1775,19 @@ export default function RevenueEngineProjects() {
                                     <div className="flex items-center gap-1.5 ml-2">
                                       <button
                                         onClick={() => handleOpenTaskModal(t, selectedProject.project_id, selectedProject.end_date)}
-                                        className="text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition flex items-center gap-1"
+                                        className="text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer"
                                         title="Click to extend deadline or reassign"
                                       >
                                         <Edit3 className="w-3 h-3" />
                                         Extend / Reassign
+                                      </button>
+                                      <button
+                                        onClick={() => handlePromptRemoveTaskOwner(t, selectedProject.project_id)}
+                                        className="text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer"
+                                        title="Remove Task Owner"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                        Remove
                                       </button>
                                     </div>
                                   </div>
@@ -2234,18 +2369,33 @@ export default function RevenueEngineProjects() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                    <span>Task Deadline:</span>
-                    <span className="text-[10px] text-blue-600 font-bold">Select future date to extend</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={taskDeadline}
-                    onChange={(e) => setTaskDeadline(e.target.value)}
-                    className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                {(() => {
+                  const isStrictTask = Boolean(taskModalTask?.is_strict_department);
+                  const rawEndDate = selectedProject?.end_date;
+                  const maxDeadline = isStrictTask && rawEndDate ? String(rawEndDate).substring(0, 10) : undefined;
+                  const todayStr = new Date().toISOString().split("T")[0];
+                  const rawStartDate = selectedProject?.start_date ? String(selectedProject.start_date).substring(0, 10) : "";
+                  const minDeadline = rawStartDate ? (rawStartDate < todayStr ? rawStartDate : todayStr) : todayStr;
+
+                  return (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Task Deadline:
+                      </label>
+                      <input
+                        type="date"
+                        value={taskDeadline}
+                        min={minDeadline}
+                        max={maxDeadline || undefined}
+                        onChange={(e) => setTaskDeadline(e.target.value)}
+                        className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {isStrictTask && maxDeadline && (
+                        <p className="text-[10px] text-amber-600 mt-1 font-semibold">Strict deadline: Cannot exceed project end date ({maxDeadline})</p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -2305,6 +2455,125 @@ export default function RevenueEngineProjects() {
                 alt="Full preview"
                 className="max-h-[85vh] w-auto rounded-lg shadow-2xl object-contain"
               />
+            </div>
+          </div>,
+          document.body
+        )}
+      {/* ─── MODAL: CONFIRM REMOVE PROJECT OWNER ─── */}
+      {confirmRemovePoModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+            style={{ zIndex: 65 }}
+            onClick={() => !removingPo && setConfirmRemovePoModal(null)}
+          >
+            <div
+              className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Remove Project Owner</h3>
+                  <p className="text-xs text-slate-500">{confirmRemovePoModal.clientName}</p>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-800 text-sm">
+                  Aap is PO ko remove karne ja rahe hain. Ye action turant hoga — confirm karein?
+                </p>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                  <div><span className="font-medium text-slate-500">Current PO:</span> <strong className="text-slate-800">{confirmRemovePoModal.poName}</strong></div>
+                  {confirmRemovePoModal.deptName && (
+                    <div><span className="font-medium text-slate-500">Department:</span> <strong className="text-slate-800">{confirmRemovePoModal.deptName}</strong></div>
+                  )}
+                </div>
+                <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-lg text-amber-800 text-[11px] flex items-start gap-1.5">
+                  <span className="shrink-0 font-bold">ℹ️</span>
+                  <span><strong>Note:</strong> PO remove hone par is department ke Task Owners aur work logs as-is safe rahenge (independent lifecycle).</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRemovePoModal(null)}
+                  disabled={removingPo}
+                  className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRemovePo}
+                  disabled={removingPo}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50 cursor-pointer"
+                >
+                  {removingPo ? "Removing..." : "Yes, Remove PO"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ─── MODAL: CONFIRM REMOVE TASK OWNER ─── */}
+      {confirmRemoveTaskModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
+            style={{ zIndex: 65 }}
+            onClick={() => !removingTask && setConfirmRemoveTaskModal(null)}
+          >
+            <div
+              className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-slate-100 flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Remove Task Owner</h3>
+                  <p className="text-xs text-slate-500">Unassign employee from task</p>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-800 text-sm">
+                  Aap is Task Owner ko remove karne ja rahe hain. Ye action turant hoga — confirm karein?
+                </p>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                  <div><span className="font-medium text-slate-500">Task:</span> <strong className="text-slate-800">{confirmRemoveTaskModal.taskName}</strong></div>
+                  <div><span className="font-medium text-slate-500">Current Assignee:</span> <strong className="text-slate-800">{confirmRemoveTaskModal.assigneeName}</strong></div>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg text-emerald-800 text-[11px] flex items-start gap-1.5">
+                  <span className="shrink-0 font-bold">🛡️</span>
+                  <span><strong>Work Preserved:</strong> Purana daily-log history (`tasks` table) bilkul preserve rahega, delete nahi hoga.</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRemoveTaskModal(null)}
+                  disabled={removingTask}
+                  className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRemoveTaskOwner}
+                  disabled={removingTask}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition flex items-center disabled:opacity-50 cursor-pointer"
+                >
+                  {removingTask ? "Removing..." : "Yes, Remove Task Owner"}
+                </button>
+              </div>
             </div>
           </div>,
           document.body
